@@ -345,10 +345,6 @@ Available `options`:
 }
 ```
 
-## Compile and debugging
-
-Building from source guide: [`BUILD.md`](/BUILD.md)
-
 ## LICENSE
 
 MIT
