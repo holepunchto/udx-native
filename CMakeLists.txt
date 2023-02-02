@@ -10,7 +10,7 @@ add_pear_module(udx_native)
 
 target_sources(
   udx_native
-  PUBLIC
+  PRIVATE
     binding.c
 )
 
