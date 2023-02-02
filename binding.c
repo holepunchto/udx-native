@@ -2,9 +2,8 @@
 #include <node_api.h>
 #include <stdlib.h>
 #include <string.h>
+#include <udx.h>
 #include <uv.h>
-
-#include "include/udx.h"
 
 #define UDX_MIN_BUF 2 * UDX_DEFAULT_MTU
 

@@ -4,13 +4,15 @@
   "description": "udx is reliable, multiplexed, and congestion-controlled streams over udp",
   "main": "lib/udx.js",
   "files": [
-    "include",
     "lib",
-    "src",
     "prebuilds",
     "binding.c",
     "binding.gyp",
-    "binding.js"
+    "binding.js",
+    "vendor/libudx/LICENSE",
+    "vendor/libudx/include",
+    "vendor/libudx/src",
+    "vendor/libudx.gyp"
   ],
   "scripts": {
     "test": "standard && node test/all.js",
@@ -22,7 +24,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/holepunchto/libudx.git"
+    "url": "git+https://github.com/holepunchto/udx-native.git"
   },
   "keywords": [
     "tcp",
@@ -34,9 +36,9 @@
   "license": "MIT",
   "gypfile": true,
   "bugs": {
-    "url": "https://github.com/holepunchto/libudx/issues"
+    "url": "https://github.com/holepunchto/udx-native/issues"
   },
-  "homepage": "https://github.com/holepunchto/libudx#readme",
+  "homepage": "https://github.com/holepunchto/udx-native#readme",
   "dependencies": {
     "b4a": "^1.5.0",
     "events": "^3.3.0",
