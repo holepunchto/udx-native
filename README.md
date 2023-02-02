@@ -12,6 +12,7 @@ No handshakes. No encryption. No features. This is good for P2P.\
 Just fast streams and messages that are composable into powerful things.
 
 ## Usage
+
 ```js
 const UDX = require('udx-native')
 
@@ -345,6 +346,6 @@ Available `options`:
 }
 ```
 
-## LICENSE
+## License
 
 MIT
