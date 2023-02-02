@@ -1,4 +1,4 @@
-# libudx
+# udx-native
 
 udx is reliable, multiplexed, and congestion-controlled streams over udp.
 
@@ -350,4 +350,5 @@ Available `options`:
 Building from source guide: [`BUILD.md`](/BUILD.md)
 
 ## LICENSE
+
 MIT
