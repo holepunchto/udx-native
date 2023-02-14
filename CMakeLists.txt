@@ -4,7 +4,9 @@ project(udx_native C)
 
 include(pear)
 
-add_subdirectory(vendor/libudx EXCLUDE_FROM_ALL)
+if(NOT TARGET udx)
+  add_subdirectory(vendor/libudx EXCLUDE_FROM_ALL)
+endif()
 
 add_pear_module(udx_native)
 
@@ -23,5 +25,5 @@ target_include_directories(
 target_link_libraries(
   udx_native
   PUBLIC
-    $<TARGET_OBJECTS:udx>
+    udx_static
 )
