@@ -555,6 +555,25 @@ test('different socket binds to specific host but same port', async function (t)
   const a = u.createSocket()
   const b = u.createSocket()
 
+  a.bind(0, '127.0.0.1')
+
+  try {
+    b.bind(a.address().port, '0.0.0.0')
+  } catch (error) {
+    t.is(error.code, 'EADDRINUSE')
+  }
+
+  await a.close()
+  await b.close()
+})
+
+test('different socket binds to specific host but same port', async function (t) {
+  t.plan(1)
+
+  const u = new UDX()
+  const a = u.createSocket()
+  const b = u.createSocket()
+
   a.bind()
 
   try {
