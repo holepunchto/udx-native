@@ -567,7 +567,6 @@ test('different socket binds to specific host but same port', async function (t)
   await b.close()
 })
 
-
 test('close twice', async function (t) {
   t.plan(1)
 
