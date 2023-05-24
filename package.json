@@ -9,10 +9,13 @@
     "binding.c",
     "binding.gyp",
     "binding.js",
+    "LICENSE",
+    "CMakeLists.txt",
     "vendor/libudx/LICENSE",
     "vendor/libudx/include",
     "vendor/libudx/src",
-    "vendor/libudx.gyp"
+    "vendor/libudx.gyp",
+    "vendor/libudx/CMakeLists.txt"
   ],
   "scripts": {
     "test": "standard && node test/all.js",
