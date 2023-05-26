@@ -134,7 +134,6 @@ test('close socket while sending', async function (t) {
   const a = u.createSocket()
 
   a.bind()
-
   const flushed = a.send(b4a.from('hello'), a.address().port)
 
   a.close()
@@ -147,10 +146,15 @@ test('close waits for all streams to close', async function (t) {
 
   const u = new UDX()
 
+  // just so we can a udx port, to avoid weird failures
+  const dummy = u.createSocket()
+  dummy.bind()
+  t.teardown(() => dummy.close())
+
   const a = u.createSocket()
   const s = u.createStream(1)
 
-  s.connect(a, 2, 0)
+  s.connect(a, 2, dummy.address().port)
 
   let aClosed = false
   let sClosed = false
