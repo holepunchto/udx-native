@@ -259,6 +259,31 @@ test('can bind to ipv6 and send to ipv4', async function (t) {
   a.send(b4a.from('hello'), b.address().port, '127.0.0.1')
 })
 
+test('can bind to ipv6 only and not receive from ipv4', async function (t) {
+  t.plan(1)
+
+  const u = new UDX()
+
+  const a = u.createSocket({ ipv6Only: true })
+  const b = u.createSocket()
+
+  a.on('message', async function () {
+    t.fail('a received message')
+  })
+
+  a.bind(0, '::')
+  b.bind(0)
+
+  b.send(b4a.from('hello'), a.address().port, '127.0.0.1')
+
+  setTimeout(() => {
+    a.close()
+    b.close()
+
+    t.pass()
+  }, 100)
+})
+
 test('send after close', async function (t) {
   const u = new UDX()
 

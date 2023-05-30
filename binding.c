@@ -464,11 +464,12 @@ NAPI_METHOD(udx_napi_socket_init) {
 }
 
 NAPI_METHOD(udx_napi_socket_bind) {
-  NAPI_ARGV(4)
+  NAPI_ARGV(5)
   NAPI_ARGV_BUFFER_CAST(udx_socket_t *, self, 0)
   NAPI_ARGV_UINT32(port, 1)
   NAPI_ARGV_UTF8(ip, INET6_ADDRSTRLEN, 2)
   NAPI_ARGV_UINT32(family, 3)
+  NAPI_ARGV_UINT32(flags, 4)
 
   int err;
 
@@ -485,7 +486,7 @@ NAPI_METHOD(udx_napi_socket_bind) {
 
   if (err < 0) UDX_NAPI_THROW(err)
 
-  err = udx_socket_bind(self, (struct sockaddr *) &addr);
+  err = udx_socket_bind(self, (struct sockaddr *) &addr, flags);
   if (err < 0) UDX_NAPI_THROW(err)
 
   // TODO: move the bottom stuff into another function, start, so error handling is easier
@@ -936,6 +937,8 @@ NAPI_METHOD(udx_napi_interface_event_get_addrs) {
 }
 
 NAPI_INIT() {
+  NAPI_EXPORT_UINT32(UV_UDP_IPV6ONLY)
+
   NAPI_EXPORT_OFFSETOF(udx_stream_t, inflight)
   NAPI_EXPORT_OFFSETOF(udx_stream_t, mtu)
   NAPI_EXPORT_OFFSETOF(udx_stream_t, cwnd)
