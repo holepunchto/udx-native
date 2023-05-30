@@ -89,9 +89,16 @@ Returns the address family (`4` or `6`). Returns `0` if invalid.
 
 ## Sockets
 
-#### `const socket = udx.createSocket()`
+#### `const socket = udx.createSocket([options])`
 
 Creates a new socket instance.
+
+Available `options`:
+```js
+{
+  ipv6Only: false
+}
+```
 
 #### `socket.udx`
 
