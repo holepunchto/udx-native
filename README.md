@@ -288,7 +288,7 @@ Send a message to another stream.
 
 #### `const drained = await stream.flush()`
 
-Wait for pending stream writes to have been explictly acknowledged by the other side of the connection.
+Wait for pending stream writes to have been explicitly acknowledged by the other side of the connection.
 
 #### `stream.on('connect', onconnect)`
 
