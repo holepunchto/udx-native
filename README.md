@@ -286,6 +286,10 @@ Send a message to another stream. Returns a promise.
 
 Send a message to another stream.
 
+#### `const drained = await stream.flush()`
+
+Wait for pending stream writes to have been explictly acknowledged by the other side of the connection.
+
 #### `stream.on('connect', onconnect)`
 
 Emitted after the stream is connected to a socket.
