@@ -47,6 +47,29 @@ test('tiny echo stream', async function (t) {
   a.end()
 })
 
+test('stream flush', async function (t) {
+  const [a, b] = makeTwoStreams(t)
+
+  a.write('hello')
+  a.write(' ')
+  a.write('world')
+
+  await a.flush()
+
+  const all = []
+  while (true) {
+    const data = b.read()
+    if (!data) break
+    all.push(data)
+  }
+
+  const recv = b4a.concat(all)
+  t.alike(recv, b4a.from('hello world'))
+
+  a.end()
+  b.end()
+})
+
 test('end immediately', async function (t) {
   t.plan(6)
 
