@@ -2,13 +2,15 @@ cmake_minimum_required(VERSION 3.25)
 
 project(udx_native C)
 
-include(pear)
+include(bare)
+
+add_bare_dependencies()
 
 if(NOT TARGET udx)
   add_subdirectory(vendor/libudx EXCLUDE_FROM_ALL)
 endif()
 
-add_pear_module(udx_native)
+add_bare_module(udx_native)
 
 target_sources(
   udx_native
@@ -25,5 +27,5 @@ target_include_directories(
 target_link_libraries(
   udx_native
   PUBLIC
-    udx_static
+    udx
 )
