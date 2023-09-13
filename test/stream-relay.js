@@ -37,3 +37,34 @@ test('relay, destroy immediately', function (t) {
 
   t.pass()
 })
+
+test('relay, change remote', function (t) {
+  t.plan(2)
+
+  const [a, b] = makeTwoStreams(t)
+  const [c, d] = makeTwoStreams(t)
+
+  c.relayTo(b)
+  b.relayTo(c)
+
+  a.once('data', async function (data) {
+    t.alike(data, b4a.from('hello world'))
+
+    await a.changeRemote(d.id, d.socket.address().port)
+    await d.changeRemote(a.id, a.socket.address().port)
+
+    b.destroy()
+    c.destroy()
+
+    a.once('data', function (data) {
+      t.alike(data, b4a.from('remote changed'))
+
+      a.destroy()
+      d.destroy()
+    })
+
+    d.write('remote changed')
+  })
+
+  d.write('hello world')
+})

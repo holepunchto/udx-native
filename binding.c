@@ -5,8 +5,6 @@
 #include <udx.h>
 #include <uv.h>
 
-#define UDX_MIN_BUF 2 * UDX_DEFAULT_MTU
-
 #define UDX_NAPI_THROW(err) \
   { \
     napi_throw_error(env, uv_err_name(err), uv_strerror(err)); \
@@ -104,6 +102,7 @@ typedef struct {
   napi_ref on_message;
   napi_ref on_close;
   napi_ref on_firewall;
+  napi_ref on_remote_changed;
   napi_ref realloc_data;
   napi_ref realloc_message;
 } udx_napi_stream_t;
@@ -225,7 +224,7 @@ on_udx_stream_read (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
   n->read_buf_head += buf->len;
   n->read_buf_free -= buf->len;
 
-  if (n->mode == UDX_NAPI_NON_INTERACTIVE && n->read_buf_free >= UDX_MIN_BUF) {
+  if (n->mode == UDX_NAPI_NON_INTERACTIVE && n->read_buf_free >= 2 * stream->mtu) {
     return;
   }
 
@@ -236,7 +235,7 @@ on_udx_stream_read (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
       n->mode = UDX_NAPI_INTERACTIVE;
     } else if (n->frame_len == read) {
       n->frame_len = -1;
-    } else if (n->read_buf_free < UDX_MIN_BUF) {
+    } else if (n->read_buf_free < 2 * stream->mtu) {
       n->frame_len -= read;
     } else {
       return; // wait for more data
@@ -329,6 +328,7 @@ on_udx_stream_close (udx_stream_t *stream, int status) {
   napi_delete_reference(n->env, n->on_message);
   napi_delete_reference(n->env, n->on_close);
   napi_delete_reference(n->env, n->on_firewall);
+  napi_delete_reference(n->env, n->on_remote_changed);
   napi_delete_reference(n->env, n->realloc_data);
   napi_delete_reference(n->env, n->realloc_message);
   napi_delete_reference(n->env, n->ctx);
@@ -365,6 +365,15 @@ on_udx_stream_firewall (udx_stream_t *stream, udx_socket_t *socket, const struct
   })
 
   return fw;
+}
+
+static void
+on_udx_stream_remote_changed (udx_stream_t *stream) {
+  udx_napi_stream_t *n = (udx_napi_stream_t *) stream;
+
+  UDX_NAPI_CALLBACK(n, n->on_remote_changed, {
+    NAPI_MAKE_CALLBACK(env, NULL, ctx, callback, 0, NULL, NULL);
+  })
 }
 
 static void
@@ -614,7 +623,7 @@ NAPI_METHOD(udx_napi_socket_close) {
 }
 
 NAPI_METHOD(udx_napi_stream_init) {
-  NAPI_ARGV(15)
+  NAPI_ARGV(16)
   NAPI_ARGV_BUFFER_CAST(udx_napi_t *, udx, 0)
   NAPI_ARGV_BUFFER_CAST(udx_napi_stream_t *, self, 1)
   NAPI_ARGV_UINT32(id, 2)
@@ -641,25 +650,15 @@ NAPI_METHOD(udx_napi_stream_init) {
   napi_create_reference(env, argv[10], 1, &(self->on_message));
   napi_create_reference(env, argv[11], 1, &(self->on_close));
   napi_create_reference(env, argv[12], 1, &(self->on_firewall));
-  napi_create_reference(env, argv[13], 1, &(self->realloc_data));
-  napi_create_reference(env, argv[14], 1, &(self->realloc_message));
+  napi_create_reference(env, argv[13], 1, &(self->on_remote_changed));
+  napi_create_reference(env, argv[14], 1, &(self->realloc_data));
+  napi_create_reference(env, argv[15], 1, &(self->realloc_message));
 
   int err = udx_stream_init((udx_t *) udx, stream, id, on_udx_stream_close);
   if (err < 0) UDX_NAPI_THROW(err)
 
   udx_stream_firewall(stream, on_udx_stream_firewall);
   udx_stream_write_resume(stream, on_udx_stream_drain);
-
-  return NULL;
-}
-
-NAPI_METHOD(udx_napi_stream_set_mtu) {
-  NAPI_ARGV(2)
-  NAPI_ARGV_BUFFER_CAST(udx_stream_t *, stream, 0)
-  NAPI_ARGV_UINT32(mtu, 1)
-
-  int err = udx_stream_set_mtu(stream, mtu);
-  if (err < 0) UDX_NAPI_THROW(err)
 
   return NULL;
 }
@@ -732,7 +731,36 @@ NAPI_METHOD(udx_napi_stream_connect) {
 
   if (err < 0) UDX_NAPI_THROW(err)
 
-  udx_stream_connect((udx_stream_t *) stream, socket, remote_id, (const struct sockaddr *) &addr);
+  err = udx_stream_connect((udx_stream_t *) stream, socket, remote_id, (const struct sockaddr *) &addr);
+
+  if (err < 0) UDX_NAPI_THROW(err)
+
+  return NULL;
+}
+
+NAPI_METHOD(udx_napi_stream_change_remote) {
+  NAPI_ARGV(5)
+  NAPI_ARGV_BUFFER_CAST(udx_stream_t *, stream, 0)
+  NAPI_ARGV_UINT32(remote_id, 1)
+  NAPI_ARGV_UINT32(port, 2)
+  NAPI_ARGV_UTF8(ip, INET6_ADDRSTRLEN, 3)
+  NAPI_ARGV_UINT32(family, 4)
+
+  int err;
+
+  struct sockaddr_storage addr;
+
+  if (family == 4) {
+    err = uv_ip4_addr(ip, port, (struct sockaddr_in *) &addr);
+  } else {
+    err = uv_ip6_addr(ip, port, (struct sockaddr_in6 *) &addr);
+  }
+
+  if (err < 0) UDX_NAPI_THROW(err)
+
+  err = udx_stream_change_remote((udx_stream_t *) stream, remote_id, (const struct sockaddr *) &addr, on_udx_stream_remote_changed);
+
+  if (err < 0) UDX_NAPI_THROW(err)
 
   return NULL;
 }
@@ -969,11 +997,11 @@ NAPI_INIT() {
   NAPI_EXPORT_FUNCTION(udx_napi_socket_close)
 
   NAPI_EXPORT_FUNCTION(udx_napi_stream_init)
-  NAPI_EXPORT_FUNCTION(udx_napi_stream_set_mtu)
   NAPI_EXPORT_FUNCTION(udx_napi_stream_set_seq)
   NAPI_EXPORT_FUNCTION(udx_napi_stream_set_ack)
   NAPI_EXPORT_FUNCTION(udx_napi_stream_set_mode)
   NAPI_EXPORT_FUNCTION(udx_napi_stream_connect)
+  NAPI_EXPORT_FUNCTION(udx_napi_stream_change_remote)
   NAPI_EXPORT_FUNCTION(udx_napi_stream_relay_to)
   NAPI_EXPORT_FUNCTION(udx_napi_stream_send)
   NAPI_EXPORT_FUNCTION(udx_napi_stream_recv_start)

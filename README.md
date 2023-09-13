@@ -257,10 +257,6 @@ Indicates the connected socket port. By default `0` if not connected.
 
 #### `stream.setInteractive(bool)`
 
-#### `stream.setMTU(mtu)`
-
-Sets the maximum size of each packet.
-
 #### `stream.connect(socket, remoteId, port, [host], [options])`
 
 Connects the stream using a socket to a: remote stream id, and remote socket port/host.
@@ -273,6 +269,12 @@ Available `options`:
   ack
 }
 ```
+
+#### `await stream.changeRemote(remoteId, port, [host])`
+
+Change the remote end of the stream.
+
+If no host specified it uses `127.0.0.1` by default.
 
 #### `stream.relayTo(destination)`
 
@@ -297,6 +299,10 @@ Emitted after the stream is connected to a socket.
 #### `stream.on('message', onmessage)`
 
 Emitted if the stream receives a message.
+
+#### `stream.on('remote-changed', onremotechanged)`
+
+Emitted when the remote end of the stream changes.
 
 #### `stream.on('mtu-exceeded', onmtuexceeded)`
 
