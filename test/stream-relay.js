@@ -68,3 +68,33 @@ test('relay, change remote', function (t) {
 
   d.write('hello world')
 })
+
+test('relay, change remote and destroy stream', function (t) {
+  t.plan(2)
+
+  const [a, b] = makeTwoStreams(t)
+  const [c, d] = makeTwoStreams(t)
+
+  c.relayTo(b)
+  b.relayTo(c)
+
+  a.once('data', async function (data) {
+    t.alike(data, b4a.from('hello world'))
+
+    const promises = [
+      a.changeRemote(a.socket, d.id, d.socket.address().port),
+      d.changeRemote(d.socket, a.id, a.socket.address().port)
+    ]
+
+    a.destroy()
+    b.destroy()
+    c.destroy()
+    d.destroy()
+
+    await Promise.allSettled(promises)
+
+    t.pass()
+  })
+
+  d.write('hello world')
+})
