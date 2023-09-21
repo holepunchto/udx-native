@@ -712,7 +712,7 @@ NAPI_METHOD(udx_napi_stream_recv_start) {
 
 NAPI_METHOD(udx_napi_stream_connect) {
   NAPI_ARGV(6)
-  NAPI_ARGV_BUFFER_CAST(udx_napi_stream_t *, stream, 0)
+  NAPI_ARGV_BUFFER_CAST(udx_stream_t *, stream, 0)
   NAPI_ARGV_BUFFER_CAST(udx_socket_t *, socket, 1)
   NAPI_ARGV_UINT32(remote_id, 2)
   NAPI_ARGV_UINT32(port, 3)
@@ -731,7 +731,7 @@ NAPI_METHOD(udx_napi_stream_connect) {
 
   if (err < 0) UDX_NAPI_THROW(err)
 
-  err = udx_stream_connect((udx_stream_t *) stream, socket, remote_id, (const struct sockaddr *) &addr);
+  err = udx_stream_connect(stream, socket, remote_id, (const struct sockaddr *) &addr);
 
   if (err < 0) UDX_NAPI_THROW(err)
 
@@ -739,12 +739,13 @@ NAPI_METHOD(udx_napi_stream_connect) {
 }
 
 NAPI_METHOD(udx_napi_stream_change_remote) {
-  NAPI_ARGV(5)
+  NAPI_ARGV(6)
   NAPI_ARGV_BUFFER_CAST(udx_stream_t *, stream, 0)
-  NAPI_ARGV_UINT32(remote_id, 1)
-  NAPI_ARGV_UINT32(port, 2)
-  NAPI_ARGV_UTF8(ip, INET6_ADDRSTRLEN, 3)
-  NAPI_ARGV_UINT32(family, 4)
+  NAPI_ARGV_BUFFER_CAST(udx_socket_t *, socket, 1)
+  NAPI_ARGV_UINT32(remote_id, 2)
+  NAPI_ARGV_UINT32(port, 3)
+  NAPI_ARGV_UTF8(ip, INET6_ADDRSTRLEN, 4)
+  NAPI_ARGV_UINT32(family, 5)
 
   int err;
 
@@ -758,7 +759,7 @@ NAPI_METHOD(udx_napi_stream_change_remote) {
 
   if (err < 0) UDX_NAPI_THROW(err)
 
-  err = udx_stream_change_remote((udx_stream_t *) stream, remote_id, (const struct sockaddr *) &addr, on_udx_stream_remote_changed);
+  err = udx_stream_change_remote(stream, socket, remote_id, (const struct sockaddr *) &addr, on_udx_stream_remote_changed);
 
   if (err < 0) UDX_NAPI_THROW(err)
 

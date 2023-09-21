@@ -50,8 +50,8 @@ test('relay, change remote', function (t) {
   a.once('data', async function (data) {
     t.alike(data, b4a.from('hello world'))
 
-    await a.changeRemote(d.id, d.socket.address().port)
-    await d.changeRemote(a.id, a.socket.address().port)
+    await a.changeRemote(a.socket, d.id, d.socket.address().port)
+    await d.changeRemote(d.socket, a.id, a.socket.address().port)
 
     b.destroy()
     c.destroy()
