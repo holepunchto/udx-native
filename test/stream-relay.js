@@ -98,3 +98,21 @@ test('relay, change remote and destroy stream', function (t) {
 
   d.write('hello world')
 })
+
+test('relay, throw if stream is closed', function (t) {
+  t.plan(1)
+
+  const [a, b] = makeTwoStreams(t)
+
+  a
+    .on('close', () => {
+      try {
+        b.relayTo(a)
+        t.fail('should fail')
+      } catch (err) {
+        t.ok(err)
+        b.destroy()
+      }
+    })
+    .destroy()
+})
