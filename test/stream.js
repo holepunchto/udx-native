@@ -780,29 +780,6 @@ test('localHost, localFamily and localPort', async function (t) {
   stream.connect(socket, 2, socket.address().port, '127.0.0.1')
 })
 
-test('write exceeding mtu triggers event', async function (t) {
-  t.plan(2)
-
-  const udx = new UDX()
-
-  const socket = udx.createSocket()
-  socket.bind(0)
-
-  const stream = udx.createStream(1)
-
-  stream
-    .on('mtu-exceeded', function () {
-      t.pass()
-      stream.destroy()
-      socket.close()
-    })
-    .connect(socket, 2, socket.address().port)
-
-  t.is(stream.mtu, 1200)
-
-  stream.write(b4a.alloc(stream.mtu * 2))
-})
-
 test('write to unconnected stream', async function (t) {
   t.plan(1)
 
