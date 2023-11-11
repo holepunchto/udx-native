@@ -215,7 +215,8 @@ on_udx_stream_read (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
     if (buf->len < 3) {
       n->mode = UDX_NAPI_INTERACTIVE;
     } else {
-      n->frame_len = 3 + (buf->base[0] | (buf->base[1] << 8) | (buf->base[2] << 16));
+      uint8_t *b = buf->base;
+      n->frame_len = 3 + (b[0] | (b[1] << 8) | (b[2] << 16));
     }
   }
 
