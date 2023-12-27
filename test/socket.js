@@ -511,7 +511,7 @@ test('throw in message callback', async function (t) {
 
   b.send(b4a.from('hello'), a.address().port)
 
-  process.once('uncaughtException', async (err) => {
+  Bare.once('uncaughtException', async (err) => {
     t.is(err.message, 'boom')
 
     await a.close()
