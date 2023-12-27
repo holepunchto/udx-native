@@ -1,5 +1,4 @@
 const UDX = require('../..')
-const { inspect } = require('util')
 
 // from udx.h
 
@@ -60,7 +59,7 @@ function prettyPrint (pkt, { peer }, opts) {
   s += ': '
 
   if (pkt.protocol !== 'udx') {
-    s += style('unknown', 'symbol') + ' data=' + inspect(pkt.data)
+    s += style('unknown', 'symbol') + ' data=' + opts.stylize(pkt.data)
     return s
   }
 
@@ -75,13 +74,13 @@ function prettyPrint (pkt, { peer }, opts) {
   if (!flags.length) flags.push(style('state', 'special'))
 
   s += flags.join('+') + ' '
-  s += 'stream=' + inspect(pkt.stream, opts) + ' '
-  s += 'recv=' + inspect(pkt.recv, opts) + ' '
-  s += 'seq=' + inspect(pkt.seq, opts) + ' '
-  s += 'ack=' + inspect(pkt.ack, opts) + ' '
+  s += 'stream=' + opts.stylize(pkt.stream, opts) + ' '
+  s += 'recv=' + opts.stylize(pkt.recv, opts) + ' '
+  s += 'seq=' + opts.stylize(pkt.seq, opts) + ' '
+  s += 'ack=' + opts.stylize(pkt.ack, opts) + ' '
 
-  if (pkt.additionalHeader.byteLength) s += 'additional = ' + inspect(pkt.additionalHeader, opts) + ' '
-  if (pkt.data.byteLength) s += 'data=' + inspect(pkt.data, opts)
+  if (pkt.additionalHeader.byteLength) s += 'additional = ' + opts.stylize(pkt.additionalHeader, opts) + ' '
+  if (pkt.data.byteLength) s += 'data=' + opts.stylize(pkt.data, opts)
 
   s = s.trim()
 
@@ -93,6 +92,8 @@ function parsePacket (buf, source) {
 
   const type = buf[2]
   const dataOffset = buf[3]
+
+  const inspect = Symbol.for('nodejs.util.inspect.custom')
 
   return {
     protocol: 'udx',
@@ -108,7 +109,7 @@ function parsePacket (buf, source) {
     ack: buf.readUint32LE(16),
     additionalHeader: buf.subarray(UDX_HEADER_SIZE, UDX_HEADER_SIZE + dataOffset),
     data: buf.subarray(UDX_HEADER_SIZE + dataOffset),
-    [inspect.custom] (depth, opts) {
+    [inspect] (depth, opts) {
       return prettyPrint(this, source, opts)
     }
   }
