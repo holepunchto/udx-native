@@ -1,4 +1,4 @@
-const dgram = require('dgram')
+const UDX = require('../..')
 const { inspect } = require('util')
 
 // from udx.h
@@ -16,7 +16,8 @@ module.exports = function proxy ({ from, to, bind } = {}, drop) {
   from = toPort(from)
   to = toPort(to)
 
-  const socket = dgram.createSocket('udp4')
+  const u = new UDX()
+  const socket = u.createSocket()
 
   socket.bind(bind || 0)
 
@@ -31,15 +32,11 @@ module.exports = function proxy ({ from, to, bind } = {}, drop) {
 
     function fwd (dropping) {
       if (dropping === true) return
-      socket.send(buf, 0, buf.byteLength, port, '127.0.0.1')
+      socket.send(buf, port, '127.0.0.1')
     }
   })
 
-  return new Promise((resolve) => {
-    socket.on('listening', function () {
-      resolve(socket)
-    })
-  })
+  return socket
 }
 
 function toPort (n) {
