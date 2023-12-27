@@ -141,7 +141,7 @@ parse_address (struct sockaddr *name, char *ip, size_t size, int *port, int *fam
 
 static void
 on_udx_send (udx_socket_send_t *req, int status) {
-  udx_napi_socket_t *n = (udx_napi_socket_t *) req->handle;
+  udx_napi_socket_t *n = (udx_napi_socket_t *) req->socket;
 
   UDX_NAPI_CALLBACK(n, n->on_send, {
     napi_value argv[2];
@@ -261,7 +261,7 @@ on_udx_stream_drain (udx_stream_t *stream) {
 
 static void
 on_udx_stream_ack (udx_stream_write_t *req, int status, int unordered) {
-  udx_napi_stream_t *n = (udx_napi_stream_t *) req->handle;
+  udx_napi_stream_t *n = (udx_napi_stream_t *) req->stream;
 
   UDX_NAPI_CALLBACK(n, n->on_ack, {
     napi_value argv[1];
@@ -272,7 +272,7 @@ on_udx_stream_ack (udx_stream_write_t *req, int status, int unordered) {
 
 static void
 on_udx_stream_send (udx_stream_send_t *req, int status) {
-  udx_napi_stream_t *n = (udx_napi_stream_t *) req->handle;
+  udx_napi_stream_t *n = (udx_napi_stream_t *) req->stream;
 
   UDX_NAPI_CALLBACK(n, n->on_send, {
     napi_value argv[2];
@@ -973,7 +973,7 @@ NAPI_INIT() {
   NAPI_EXPORT_OFFSETOF(udx_stream_t, mtu)
   NAPI_EXPORT_OFFSETOF(udx_stream_t, cwnd)
   NAPI_EXPORT_OFFSETOF(udx_stream_t, srtt)
-  NAPI_EXPORT_OFFSETOF(udx_stream_t, pkts_waiting)
+  // NAPI_EXPORT_OFFSETOF(udx_stream_t, pkts_waiting)
   NAPI_EXPORT_OFFSETOF(udx_stream_t, pkts_inflight)
 
   NAPI_EXPORT_SIZEOF(udx_napi_t)
