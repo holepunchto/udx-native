@@ -21,7 +21,7 @@
     "test:all": "standard && brittle test/*.js test/slow/*.js",
     "test:generate": "brittle -r test/all.js test/*.js",
     "bench": "brittle test/bench/*.js",
-    "prebuild": "prebuildify --napi --strip",
+    "prebuild": "prebuildify --strip",
     "install": "node-gyp-build"
   },
   "repository": {
@@ -51,8 +51,8 @@
   "devDependencies": {
     "brittle": "^3.1.0",
     "is-ci": "^3.0.1",
-    "prebuildify": "^5.0.0",
-    "standard": "^16.0.4",
+    "prebuildify": "^6.0.0",
+    "standard": "^17.1.0",
     "tiny-byte-size": "^1.1.0"
   }
 }
