@@ -54,5 +54,8 @@
     "prebuildify": "^6.0.0",
     "standard": "^17.1.0",
     "tiny-byte-size": "^1.1.0"
+  },
+  "addon": {
+    "target": "udx_native"
   }
 }
