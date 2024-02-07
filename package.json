@@ -16,6 +16,12 @@
     "vendor/libudx.gyp",
     "vendor/libudx/CMakeLists.txt"
   ],
+  "imports": {
+    "events": {
+      "bare": "bare-events",
+      "default": "events"
+    }
+  },
   "scripts": {
     "test": "standard && node test/all.js",
     "test:all": "standard && brittle test/*.js test/slow/*.js",
@@ -43,7 +49,7 @@
   "homepage": "https://github.com/holepunchto/udx-native#readme",
   "dependencies": {
     "b4a": "^1.5.0",
-    "events": "^3.3.0",
+    "bare-events": "^2.2.0",
     "napi-macros": "^2.0.0",
     "node-gyp-build": "^4.4.0",
     "streamx": "^2.14.0"
