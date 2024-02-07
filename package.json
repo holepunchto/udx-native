@@ -34,8 +34,8 @@
     "stream",
     "reliable"
   ],
-  "author": "Mathias Buus (@mafintosh)",
-  "license": "MIT",
+  "author": "Holepunch Inc.",
+  "license": "Apache-2.0",
   "gypfile": true,
   "bugs": {
     "url": "https://github.com/holepunchto/udx-native/issues"
