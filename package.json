@@ -22,6 +22,7 @@
       "default": "events"
     }
   },
+  "addon": true,
   "scripts": {
     "test": "standard && node test/all.js",
     "test:all": "standard && brittle test/*.js test/slow/*.js",
@@ -60,8 +61,5 @@
     "prebuildify": "^6.0.0",
     "standard": "^17.1.0",
     "tiny-byte-size": "^1.1.0"
-  },
-  "addon": {
-    "target": "udx_native"
   }
 }
