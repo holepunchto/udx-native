@@ -11,19 +11,13 @@ endif()
 add_bare_module(udx_native)
 
 target_sources(
-  udx_native
+  ${udx_native}
   PRIVATE
     binding.c
 )
 
-target_include_directories(
-  udx_native
-  PUBLIC
-    $<TARGET_PROPERTY:udx,INTERFACE_INCLUDE_DIRECTORIES>
-)
-
 target_link_libraries(
-  udx_native
+  ${udx_native}
   PUBLIC
-    udx
+    udx_static
 )
