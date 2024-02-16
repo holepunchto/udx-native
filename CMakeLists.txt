@@ -12,6 +12,8 @@ add_bare_module(udx_native)
 
 target_sources(
   ${udx_native}
+  PUBLIC
+    $<TARGET_OBJECTS:udx>
   PRIVATE
     binding.c
 )
@@ -19,5 +21,5 @@ target_sources(
 target_link_libraries(
   ${udx_native}
   PUBLIC
-    udx_static
+    udx
 )
