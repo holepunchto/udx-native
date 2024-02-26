@@ -410,7 +410,8 @@ test('out of order packets', async function (t) {
   b.bind(0)
 
   const count = 1000
-  const expected = []
+  const expected = Array(count).fill(0).map((_, i) => i.toString()).join('')
+  let received = ''
 
   const p = await proxy({ from: a, to: b }, async function (pkt) {
     // Add a random delay to every packet
@@ -431,11 +432,11 @@ test('out of order packets', async function (t) {
     aStream.write(b4a.from(i.toString()))
   }
 
-  bStream.on('data', function (data) {
-    expected.push(data.toString())
+  bStream.on('data', function (s) {
+    received = received + s.toString()
 
-    if (expected.length === count) {
-      t.alike(expected, Array(count).fill(0).map((_, i) => i.toString()), 'data in order')
+    if (received.length === expected.length) {
+      t.alike(received, expected, 'received in order')
 
       p.close()
       aStream.destroy()
@@ -468,7 +469,7 @@ test('out of order reads but can destroy (memleak test)', async function (t) {
   let processed = 0
 
   const p = await proxy({ from: a, to: b }, function (pkt) {
-    if (pkt.data.toString() === 'a' && processed > 0) {
+    if (pkt.data.toString().startsWith('a') && processed > 0) {
       // destroy with out or order packets delivered
       t.pass('close while streams have out of order state')
       p.close()
@@ -486,8 +487,8 @@ test('out of order reads but can destroy (memleak test)', async function (t) {
   aStream.connect(a, 2, p.address().port)
   bStream.connect(b, 1, p.address().port)
 
-  aStream.write(b4a.from('a'))
-  aStream.write(b4a.from('b'))
+  aStream.write(b4a.from(Array(1200).fill('a').join('')))
+  aStream.write(b4a.from(Array(1000).fill('b').join('')))
 
   aStream.on('close', function () {
     t.pass('a stream closed')
@@ -653,6 +654,10 @@ test('seq and ack wraparound', async function (t) {
 
   const u = new UDX()
 
+  let received = ''
+  // enough data to fill 10 packets
+  const expected = Array(1500 * 10).join('a')
+
   const socket = u.createSocket()
   socket.bind(0)
 
@@ -667,17 +672,14 @@ test('seq and ack wraparound', async function (t) {
   a.connect(socket, 2, socket.address().port)
   b.connect(socket, 1, socket.address().port, { ack: 2 ** 32 - 5 })
 
-  const expected = []
-
-  b.on('data', function ([i]) {
-    expected.push(i)
-
-    if (expected.length === 10) {
-      t.alike(expected, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+  b.on('data', function (i) {
+    received = received + i.toString()
+    if (expected.length === received.length) {
+      t.alike(expected, received)
     }
   })
 
-  for (let i = 0; i < 10; i++) a.write(b4a.from([i]))
+  a.write(expected)
 })
 
 test('busy and idle events', async function (t) {
