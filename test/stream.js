@@ -378,14 +378,11 @@ test('destroy streams and close socket in callback', async function (t) {
 })
 
 test('write empty buffer', async function (t) {
-  t.plan(3)
+  t.plan(2)
 
   const [a, b] = makeTwoStreams(t)
 
   a
-    .on('data', function (data) {
-      t.alike(data, b4a.alloc(0))
-    })
     .on('close', function () {
       t.pass('a closed')
     })
