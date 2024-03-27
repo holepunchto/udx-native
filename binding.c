@@ -812,6 +812,12 @@ NAPI_METHOD(udx_napi_stream_write) {
   NAPI_RETURN_UINT32(err);
 }
 
+NAPI_METHOD(udx_napi_stream_write_sizeof) {
+  NAPI_ARGV(1)
+  NAPI_ARGV_UINT32(bufs, 0)
+  NAPI_RETURN_UINT32(udx_stream_write_sizeof(bufs))
+}
+
 NAPI_METHOD(udx_napi_stream_write_end) {
   NAPI_ARGV(4)
   NAPI_ARGV_BUFFER_CAST(udx_stream_t *, stream, 0)
@@ -982,7 +988,6 @@ NAPI_INIT() {
   NAPI_EXPORT_SIZEOF(udx_napi_interface_event_t)
 
   NAPI_EXPORT_SIZEOF(udx_socket_send_t)
-  NAPI_EXPORT_SIZEOF(udx_stream_write_t)
   NAPI_EXPORT_SIZEOF(udx_stream_send_t)
 
   NAPI_EXPORT_FUNCTION(udx_napi_init)
@@ -1007,6 +1012,7 @@ NAPI_INIT() {
   NAPI_EXPORT_FUNCTION(udx_napi_stream_send)
   NAPI_EXPORT_FUNCTION(udx_napi_stream_recv_start)
   NAPI_EXPORT_FUNCTION(udx_napi_stream_write)
+  NAPI_EXPORT_FUNCTION(udx_napi_stream_write_sizeof)
   NAPI_EXPORT_FUNCTION(udx_napi_stream_write_end)
   NAPI_EXPORT_FUNCTION(udx_napi_stream_destroy)
 
