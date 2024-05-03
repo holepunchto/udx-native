@@ -812,6 +812,35 @@ NAPI_METHOD(udx_napi_stream_write) {
   NAPI_RETURN_UINT32(err);
 }
 
+NAPI_METHOD(udx_napi_stream_writev) {
+  NAPI_ARGV(4)
+  NAPI_ARGV_BUFFER_CAST(udx_stream_t *, stream, 0)
+  NAPI_ARGV_BUFFER_CAST(udx_stream_write_t *, req, 1)
+  NAPI_ARGV_UINT32(rid, 2)
+
+  napi_value buffers = argv[3];
+
+  req->data = (void *) ((uintptr_t) rid);
+
+  uint32_t len;
+  napi_get_array_length(env, buffers, &len);
+  uv_buf_t *batch = malloc(sizeof(uv_buf_t) * len);
+
+  napi_value element;
+  for (uint32_t i = 0; i < len; i++) {
+    napi_get_element(env, buffers, i, &element);
+    NAPI_BUFFER(buf, element)
+    batch[i] = uv_buf_init(buf, buf_len);
+  }
+
+  int err = udx_stream_write(req, stream, batch, len, on_udx_stream_ack);
+  free(batch);
+
+  if (err < 0) UDX_NAPI_THROW(err)
+
+  NAPI_RETURN_UINT32(err);
+}
+
 NAPI_METHOD(udx_napi_stream_write_sizeof) {
   NAPI_ARGV(1)
   NAPI_ARGV_UINT32(bufs, 0)
@@ -1012,6 +1041,7 @@ NAPI_INIT() {
   NAPI_EXPORT_FUNCTION(udx_napi_stream_send)
   NAPI_EXPORT_FUNCTION(udx_napi_stream_recv_start)
   NAPI_EXPORT_FUNCTION(udx_napi_stream_write)
+  NAPI_EXPORT_FUNCTION(udx_napi_stream_writev)
   NAPI_EXPORT_FUNCTION(udx_napi_stream_write_sizeof)
   NAPI_EXPORT_FUNCTION(udx_napi_stream_write_end)
   NAPI_EXPORT_FUNCTION(udx_napi_stream_destroy)
