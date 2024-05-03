@@ -830,8 +830,7 @@ NAPI_METHOD(udx_napi_stream_writev) {
   for (uint32_t i = 0; i < len; i++) {
     napi_get_element(env, buffers, i, &element);
     NAPI_BUFFER(buf, element)
-    uv_buf_t *b = batch + i;
-    *b = uv_buf_init(buf, buf_len);
+    batch[i] = uv_buf_init(buf, buf_len);
   }
 
   int err = udx_stream_write(req, stream, batch, len, on_udx_stream_ack);
