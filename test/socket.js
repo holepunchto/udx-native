@@ -31,7 +31,7 @@ test('bind is effectively sync', async function (t) {
   a.bind(0, '127.0.0.1')
 
   t.ok(a.address().port, 'has bound')
-  t.exception(() => b.bind(a.address().port))
+  t.exception(() => b.bind(a.address().port, '127.0.0.1'))
 
   await a.close()
   await b.close()
