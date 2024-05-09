@@ -88,6 +88,33 @@ test('empty message', async function (t) {
   await a.send(b4a.alloc(0), a.address().port)
 })
 
+test('handshake', async function (t) {
+  t.plan(2)
+
+  const u = new UDX()
+  const a = u.createSocket()
+  const b = u.createSocket()
+
+  t.teardown(async () => {
+    await a.close()
+    await b.close()
+  })
+
+  a.once('message', function (message) {
+    t.alike(message, b4a.alloc(1))
+  })
+
+  b.once('message', function (message) {
+    t.alike(message, b4a.alloc(0))
+  })
+
+  a.bind(0)
+  b.bind(0)
+
+  a.trySend(b4a.alloc(0), b.address().port)
+  b.trySend(b4a.alloc(1), a.address().port)
+})
+
 test('echo sockets (250 messages)', async function (t) {
   t.plan(3)
 
