@@ -6,7 +6,7 @@ test('can bind and close', async function (t) {
   const u = new UDX()
   const s = u.createSocket()
 
-  s.bind(0)
+  s.bind(0, '127.0.0.1')
   await s.close()
 
   t.pass()
@@ -28,7 +28,7 @@ test('bind is effectively sync', async function (t) {
   const a = u.createSocket()
   const b = u.createSocket()
 
-  a.bind(0)
+  a.bind(0, '127.0.0.1')
 
   t.ok(a.address().port, 'has bound')
   t.exception(() => b.bind(a.address().port))
@@ -51,7 +51,7 @@ test('simple message', async function (t) {
     a.close()
   })
 
-  a.bind(0)
+  a.bind(0, '127.0.0.1')
   await a.send(b4a.from('hello'), a.address().port)
 })
 
@@ -84,7 +84,7 @@ test('empty message', async function (t) {
     a.close()
   })
 
-  a.bind(0)
+  a.bind(0, '127.0.0.1')
   await a.send(b4a.alloc(0), a.address().port)
 })
 
@@ -108,8 +108,8 @@ test('handshake', async function (t) {
     t.alike(message, b4a.alloc(0))
   })
 
-  a.bind(0)
-  b.bind(0)
+  a.bind(0, '127.0.0.1')
+  b.bind(0, '127.0.0.1')
 
   a.trySend(b4a.alloc(0), b.address().port)
   b.trySend(b4a.alloc(1), a.address().port)
@@ -145,7 +145,7 @@ test('echo sockets (250 messages)', async function (t) {
     }
   })
 
-  a.bind()
+  a.bind(0, '127.0.0.1')
 
   while (send.length < 250) {
     const buf = b4a.from('a message')
@@ -160,7 +160,7 @@ test('close socket while sending', async function (t) {
   const u = new UDX()
   const a = u.createSocket()
 
-  a.bind()
+  a.bind(0, '127.0.0.1')
   const flushed = a.send(b4a.from('hello'), a.address().port)
 
   a.close()
@@ -175,7 +175,7 @@ test('close waits for all streams to close', async function (t) {
 
   // just so we can a udx port, to avoid weird failures
   const dummy = u.createSocket()
-  dummy.bind()
+  dummy.bind(0, '127.0.0.1')
   t.teardown(() => dummy.close())
 
   const a = u.createSocket()
@@ -217,7 +217,7 @@ test('open + close a bunch of sockets', async function (t) {
 
     const a = u.createSocket()
 
-    a.bind(0)
+    a.bind(0, '127.0.0.1')
     l.pass('opened socket')
     await a.close()
 
@@ -231,7 +231,7 @@ test('open + close a bunch of sockets', async function (t) {
 
   for (let i = 0; i < 5; i++) {
     const a = u.createSocket()
-    a.bind(0)
+    a.bind(0, '127.0.0.1')
     a.close().then(function () {
       p.pass('opened and closed socket')
     })
@@ -258,7 +258,7 @@ test('can bind to ipv6 and receive from ipv4', async function (t) {
   })
 
   a.bind(0, '::')
-  b.bind(0)
+  b.bind(0, '127.0.0.1')
 
   b.send(b4a.from('hello'), a.address().port, '127.0.0.1')
 })
@@ -281,7 +281,7 @@ test('can bind to ipv6 and send to ipv4', async function (t) {
   })
 
   a.bind(0, '::')
-  b.bind(0)
+  b.bind(0, '127.0.0.1')
 
   a.send(b4a.from('hello'), b.address().port, '127.0.0.1')
 })
@@ -299,7 +299,7 @@ test('can bind to ipv6 only and not receive from ipv4', async function (t) {
   })
 
   a.bind(0, '::')
-  b.bind(0)
+  b.bind(0, '127.0.0.1')
 
   b.send(b4a.from('hello'), a.address().port, '127.0.0.1')
 
@@ -316,7 +316,7 @@ test('send after close', async function (t) {
 
   const a = u.createSocket()
 
-  a.bind(0)
+  a.bind(0, '127.0.0.1')
   a.close()
 
   t.is(await a.send(b4a.from('hello'), a.address().port), false)
@@ -336,7 +336,7 @@ test('try send simple message', async function (t) {
     a.close()
   })
 
-  a.bind(0)
+  a.bind(0, '127.0.0.1')
   a.trySend(b4a.from('hello'), a.address().port)
 })
 
@@ -369,7 +369,7 @@ test('try send empty message', async function (t) {
     a.close()
   })
 
-  a.bind(0)
+  a.bind(0, '127.0.0.1')
   a.trySend(b4a.alloc(0), a.address().port)
 })
 
@@ -379,7 +379,7 @@ test('close socket while try sending', async function (t) {
   const u = new UDX()
   const a = u.createSocket()
 
-  a.bind()
+  a.bind(0, '127.0.0.1')
 
   a.on('message', function (message) {
     t.fail('should not receive message')
@@ -409,7 +409,7 @@ test('try send after close', async function (t) {
     t.pass()
   })
 
-  a.bind(0)
+  a.bind(0, '127.0.0.1')
   a.close()
 
   t.is(a.trySend(b4a.from('hello'), a.address().port), undefined)
@@ -454,7 +454,7 @@ test('send to invalid host ip', async function (t) {
   const u = new UDX()
   const a = u.createSocket()
 
-  a.bind(0)
+  a.bind(0, '127.0.0.1')
 
   const invalidHost = '0.-1.0.0'
 
@@ -473,7 +473,7 @@ test('try send to invalid host ip', async function (t) {
   const u = new UDX()
   const a = u.createSocket()
 
-  a.bind(0)
+  a.bind(0, '127.0.0.1')
 
   const invalidHost = '0.-1.0.0'
 
@@ -500,7 +500,7 @@ test('send without bind', async function (t) {
     b.close()
   })
 
-  b.bind(0)
+  b.bind(0, '127.0.0.1')
   await a.send(b4a.from('hello'), b.address().port)
 })
 
@@ -518,7 +518,7 @@ test('try send without bind', async function (t) {
     b.close()
   })
 
-  b.bind(0)
+  b.bind(0, '127.0.0.1')
   a.trySend(b4a.from('hello'), b.address().port)
 })
 
@@ -534,7 +534,7 @@ test('throw in message callback', async function (t) {
     throw new Error('boom')
   })
 
-  a.bind()
+  a.bind(0, '127.0.0.1')
 
   b.send(b4a.from('hello'), a.address().port)
 
@@ -561,10 +561,10 @@ test('bind twice', async function (t) {
   const u = new UDX()
   const a = u.createSocket()
 
-  a.bind(0)
+  a.bind(0, '127.0.0.1')
 
   try {
-    a.bind(0)
+    a.bind(0, '127.0.0.1')
   } catch (error) {
     t.is(error.message, 'Already bound')
   }
@@ -581,7 +581,7 @@ test('bind while closing', function (t) {
   a.close()
 
   try {
-    a.bind(0)
+    a.bind(0, '127.0.0.1')
   } catch (error) {
     t.is(error.message, 'Socket is closed')
   }
@@ -593,7 +593,7 @@ test('close twice', async function (t) {
   const u = new UDX()
   const a = u.createSocket()
 
-  a.bind(0)
+  a.bind(0, '127.0.0.1')
 
   a.on('close', function () {
     t.pass()
@@ -620,7 +620,7 @@ test('set TTL', async function (t) {
     t.is(error.message, 'Socket not active')
   }
 
-  a.bind(0)
+  a.bind(0, '127.0.0.1')
   a.setTTL(5)
 
   await a.send(b4a.from('hello'), a.address().port)
@@ -638,7 +638,7 @@ test('get recv buffer size', async function (t) {
     t.is(error.message, 'Socket not active')
   }
 
-  a.bind(0)
+  a.bind(0, '127.0.0.1')
   t.ok(a.getRecvBufferSize() > 0)
 
   await a.close()
@@ -658,7 +658,7 @@ test('set recv buffer size', async function (t) {
     t.is(error.message, 'Socket not active')
   }
 
-  a.bind(0)
+  a.bind(0, '127.0.0.1')
   a.setRecvBufferSize(NEW_BUFFER_SIZE)
 
   t.ok(a.getRecvBufferSize() >= NEW_BUFFER_SIZE)
@@ -678,7 +678,7 @@ test('get send buffer size', async function (t) {
     t.is(error.message, 'Socket not active')
   }
 
-  a.bind(0)
+  a.bind(0, '127.0.0.1')
   t.ok(a.getSendBufferSize() > 0)
 
   await a.close()
@@ -698,7 +698,7 @@ test('set send buffer size', async function (t) {
     t.is(error.message, 'Socket not active')
   }
 
-  a.bind(0)
+  a.bind(0, '127.0.0.1')
   a.setSendBufferSize(NEW_BUFFER_SIZE)
 
   t.ok(a.getSendBufferSize() >= NEW_BUFFER_SIZE)

@@ -158,7 +158,7 @@ test('emit connect', async function (t) {
   const udx = new UDX()
 
   const socket = udx.createSocket()
-  socket.bind(0)
+  socket.bind(0, '127.0.0.1')
 
   const a = udx.createStream(1)
 
@@ -270,7 +270,7 @@ test('several streams on same socket', async function (t) {
   const u = new UDX()
 
   const socket = u.createSocket()
-  socket.bind(0)
+  socket.bind(0, '127.0.0.1')
 
   for (let i = 0; i < 10; i++) {
     const stream = u.createStream(i)
@@ -303,7 +303,7 @@ test('preconnect flow', async function (t) {
   const u = new UDX()
 
   const socket = u.createSocket()
-  socket.bind(0)
+  socket.bind(0, '127.0.0.1')
 
   let once = true
 
@@ -357,7 +357,7 @@ test('destroy streams and close socket in callback', async function (t) {
   const u = new UDX()
 
   const socket = u.createSocket()
-  socket.bind(0)
+  socket.bind(0, '127.0.0.1')
 
   const a = u.createStream(1)
   const b = u.createStream(2)
@@ -403,8 +403,8 @@ test('out of order packets', async function (t) {
   const a = u.createSocket()
   const b = u.createSocket()
 
-  a.bind(0)
-  b.bind(0)
+  a.bind(0, '127.0.0.1')
+  b.bind(0, '127.0.0.1')
 
   const count = 1000
   const expected = Array(count).fill(0).map((_, i) => i.toString()).join('')
@@ -460,8 +460,8 @@ test('out of order reads but can destroy (memleak test)', async function (t) {
   const a = u.createSocket()
   const b = u.createSocket()
 
-  a.bind(0)
-  b.bind(0)
+  a.bind(0, '127.0.0.1')
+  b.bind(0, '127.0.0.1')
 
   let processed = 0
 
@@ -504,10 +504,10 @@ test('close socket on stream close', async function (t) {
   const u = new UDX()
 
   const aSocket = u.createSocket()
-  aSocket.bind(0)
+  aSocket.bind(0, '127.0.0.1')
 
   const bSocket = u.createSocket()
-  bSocket.bind(0)
+  bSocket.bind(0, '127.0.0.1')
 
   const a = u.createStream(1)
   const b = u.createStream(2)
@@ -559,7 +559,7 @@ test('destroy before fully connected', async function (t) {
   const u = new UDX()
 
   const socket = u.createSocket()
-  socket.bind(0)
+  socket.bind(0, '127.0.0.1')
 
   const a = u.createStream(1)
   const b = u.createStream(2, {
@@ -592,7 +592,7 @@ test('throw in data callback', async function (t) {
   const u = new UDX()
 
   const socket = u.createSocket()
-  socket.bind(0)
+  socket.bind(0, '127.0.0.1')
 
   const a = u.createStream(1)
   const b = u.createStream(2)
@@ -622,7 +622,7 @@ test('throw in message callback', async function (t) {
   const u = new UDX()
 
   const socket = u.createSocket()
-  socket.bind(0)
+  socket.bind(0, '127.0.0.1')
 
   const a = u.createStream(1)
   const b = u.createStream(2)
@@ -656,7 +656,7 @@ test('seq and ack wraparound', async function (t) {
   const expected = Array(1500 * 10).join('a')
 
   const socket = u.createSocket()
-  socket.bind(0)
+  socket.bind(0, '127.0.0.1')
 
   const a = u.createStream(1, { seq: 2 ** 32 - 5 })
   t.teardown(() => a.destroy())
@@ -685,7 +685,7 @@ test('busy and idle events', async function (t) {
   const udx = new UDX()
 
   const socket = udx.createSocket()
-  socket.bind(0)
+  socket.bind(0, '127.0.0.1')
 
   let idle = false
   let busy = false
@@ -733,7 +733,7 @@ test('no idle after close', async function (t) {
   const udx = new UDX()
 
   const socket = udx.createSocket()
-  socket.bind(0)
+  socket.bind(0, '127.0.0.1')
 
   const stream = udx.createStream(1)
 
@@ -759,7 +759,7 @@ test('localHost, localFamily and localPort', async function (t) {
   const udx = new UDX()
 
   const socket = udx.createSocket()
-  socket.bind(0)
+  socket.bind(0, '127.0.0.1')
 
   const stream = udx.createStream(1)
 
@@ -768,8 +768,8 @@ test('localHost, localFamily and localPort', async function (t) {
   t.is(stream.localPort, 0)
 
   stream.on('connect', function () {
-    t.is(stream.localHost, '::')
-    t.is(stream.localFamily, 6)
+    t.is(stream.localHost, '127.0.0.1')
+    t.is(stream.localFamily, 4)
     t.is(typeof stream.localPort, 'number')
 
     stream.destroy()
@@ -785,7 +785,7 @@ test('write to unconnected stream', async function (t) {
   const udx = new UDX()
 
   const socket = udx.createSocket()
-  socket.bind(0)
+  socket.bind(0, '127.0.0.1')
 
   const stream = udx.createStream(1)
   stream.write(b4a.alloc(0))
@@ -809,7 +809,7 @@ test('backpressures stream', async function (t) {
   let recv = 0
 
   const socket = u.createSocket()
-  socket.bind(0)
+  socket.bind(0, '127.0.0.1')
 
   const a = u.createStream(1)
   const b = u.createStream(2)

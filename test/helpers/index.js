@@ -10,8 +10,8 @@ function makeTwoStreams (t, opts) {
   const aSocket = a.createSocket()
   const bSocket = b.createSocket()
 
-  aSocket.bind()
-  bSocket.bind()
+  aSocket.bind(0, '127.0.0.1')
+  bSocket.bind(0, '127.0.0.1')
 
   const aStream = a.createStream(1, opts)
   const bStream = b.createStream(2, opts)
@@ -38,8 +38,8 @@ function makePairs (n, multiplexMode = 'single') {
   if (multiplexMode === 'single') {
     a = ua.createSocket()
     b = ub.createSocket()
-    a.bind()
-    b.bind()
+    a.bind(0, '127.0.0.1')
+    b.bind(0, '127.0.0.1')
     sockets.push(a, b)
   }
   while (streams.length < n) {
@@ -50,8 +50,8 @@ function makePairs (n, multiplexMode = 'single') {
     } else {
       sa = ua.createSocket()
       sb = ub.createSocket()
-      sa.bind()
-      sb.bind()
+      sa.bind(0, '127.0.0.1')
+      sb.bind(0, '127.0.0.1')
       sockets.push(sa, sb)
     }
     const streamId = id++
