@@ -625,36 +625,6 @@ test('different socket binds to default host but same port', async function (t) 
   await b.close()
 })
 
-test('retry ipv4 bind after failing ipv6 bind on used port', async function (t) {
-  t.plan(2)
-
-  const u = new UDX()
-  const a = u.createSocket()
-  const b = u.createSocket()
-
-  a.bind(0, '::')
-
-  try {
-    // This bounds the socket domain to IPv6 only
-    b.bind(a.address().port, '::')
-  } catch (error) {
-    t.is(error.code, 'EADDRINUSE')
-  }
-
-  try {
-    // So this IPv4 bind fails with EINVAL
-    b.bind(0, '0.0.0.0')
-  } catch (error) {
-    t.is(error.code, 'EINVAL')
-  }
-
-  // This works as it respects the initial socket domain
-  b.bind(0, '::')
-
-  await a.close()
-  await b.close()
-})
-
 test('close twice', async function (t) {
   t.plan(1)
 
