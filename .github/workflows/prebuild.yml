@@ -10,7 +10,6 @@ jobs:
           platform: linux
           arch: x64
         - os: ubuntu-20.04-arm64
-          group: arm-runners
           platform: linux
           arch: arm64
         - os: macos-12
@@ -22,9 +21,7 @@ jobs:
         - os: windows-2022
           platform: win32
           arch: x64
-    runs-on:
-      group: ${{ matrix.group }}
-      labels: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     name: ${{ matrix.platform }}-${{ matrix.arch }}
     steps:
     - uses: actions/checkout@v4
