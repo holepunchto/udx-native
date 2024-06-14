@@ -1,0 +1,35 @@
+name: Prebuild
+on:
+  workflow_dispatch:
+jobs:
+  prebuild:
+    strategy:
+      matrix:
+        include:
+        - os: ubuntu-20.04
+          platform: linux
+          arch: x64
+        - os: macos-12
+          platform: darwin
+          arch: x64
+        - os: macos-14
+          platform: darwin
+          arch: arm64
+        - os: windows-2022
+          platform: win32
+          arch: x64
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.platform }}-${{ matrix.arch }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - uses: actions/setup-node@v4
+      with:
+        node-version: lts/*
+    - run: npm install
+    - run: npm run prebuild
+    - uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.platform }}-${{ matrix.arch }}
+        path: prebuilds/*
