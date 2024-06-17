@@ -300,6 +300,24 @@ on_udx_stream_recv (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
 }
 
 static void
+on_udx_stream_finalize (udx_stream_t *stream) {
+  udx_napi_stream_t *n = (udx_napi_stream_t *) stream;
+
+  napi_delete_reference(n->env, n->on_data);
+  napi_delete_reference(n->env, n->on_end);
+  napi_delete_reference(n->env, n->on_drain);
+  napi_delete_reference(n->env, n->on_ack);
+  napi_delete_reference(n->env, n->on_send);
+  napi_delete_reference(n->env, n->on_message);
+  napi_delete_reference(n->env, n->on_close);
+  napi_delete_reference(n->env, n->on_firewall);
+  napi_delete_reference(n->env, n->on_remote_changed);
+  napi_delete_reference(n->env, n->realloc_data);
+  napi_delete_reference(n->env, n->realloc_message);
+  napi_delete_reference(n->env, n->ctx);
+}
+
+static void
 on_udx_stream_close (udx_stream_t *stream, int status) {
   udx_napi_stream_t *n = (udx_napi_stream_t *) stream;
 
@@ -320,19 +338,6 @@ on_udx_stream_close (udx_stream_t *stream, int status) {
       NAPI_MAKE_CALLBACK(env, NULL, ctx, callback, 1, argv, NULL)
     })
   }
-
-  napi_delete_reference(n->env, n->on_data);
-  napi_delete_reference(n->env, n->on_end);
-  napi_delete_reference(n->env, n->on_drain);
-  napi_delete_reference(n->env, n->on_ack);
-  napi_delete_reference(n->env, n->on_send);
-  napi_delete_reference(n->env, n->on_message);
-  napi_delete_reference(n->env, n->on_close);
-  napi_delete_reference(n->env, n->on_firewall);
-  napi_delete_reference(n->env, n->on_remote_changed);
-  napi_delete_reference(n->env, n->realloc_data);
-  napi_delete_reference(n->env, n->realloc_message);
-  napi_delete_reference(n->env, n->ctx);
 }
 
 static int
@@ -655,7 +660,7 @@ NAPI_METHOD(udx_napi_stream_init) {
   napi_create_reference(env, argv[14], 1, &(self->realloc_data));
   napi_create_reference(env, argv[15], 1, &(self->realloc_message));
 
-  int err = udx_stream_init((udx_t *) udx, stream, id, on_udx_stream_close);
+  int err = udx_stream_init((udx_t *) udx, stream, id, on_udx_stream_close, on_udx_stream_finalize);
   if (err < 0) UDX_NAPI_THROW(err)
 
   udx_stream_firewall(stream, on_udx_stream_firewall);
@@ -1009,6 +1014,20 @@ NAPI_INIT() {
   NAPI_EXPORT_OFFSETOF(udx_stream_t, cwnd)
   NAPI_EXPORT_OFFSETOF(udx_stream_t, srtt)
   NAPI_EXPORT_OFFSETOF(udx_stream_t, pkts_inflight)
+  NAPI_EXPORT_OFFSETOF(udx_stream_t, bytes_in)
+  NAPI_EXPORT_OFFSETOF(udx_stream_t, packets_in)
+  NAPI_EXPORT_OFFSETOF(udx_stream_t, bytes_out)
+  NAPI_EXPORT_OFFSETOF(udx_stream_t, packets_out)
+
+  NAPI_EXPORT_OFFSETOF(udx_socket_t, bytes_in)
+  NAPI_EXPORT_OFFSETOF(udx_socket_t, packets_in)
+  NAPI_EXPORT_OFFSETOF(udx_socket_t, bytes_out)
+  NAPI_EXPORT_OFFSETOF(udx_socket_t, packets_out)
+
+  NAPI_EXPORT_OFFSETOF(udx_t, bytes_in)
+  NAPI_EXPORT_OFFSETOF(udx_t, packets_in)
+  NAPI_EXPORT_OFFSETOF(udx_t, bytes_out)
+  NAPI_EXPORT_OFFSETOF(udx_t, packets_out)
 
   NAPI_EXPORT_SIZEOF(udx_napi_t)
   NAPI_EXPORT_SIZEOF(udx_napi_socket_t)
