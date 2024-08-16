@@ -840,3 +840,72 @@ test('backpressures stream', async function (t) {
     socket.close()
   })
 })
+
+test('UDX - stats', async function (t) {
+  const tWave1 = t.test()
+  tWave1.plan(1)
+
+  const tWave2 = t.test()
+  tWave2.plan(1)
+
+  const [a, b] = makeTwoStreams(t)
+
+  t.is(a.bytesOut, 0, 'sanity check: init 0')
+  t.is(a.packetsOut, 0, 'sanity check: init 0')
+  t.is(a.bytesIn, 0, 'sanity check: init 0')
+  t.is(a.packetsIn, 0, 'sanity check: init 0')
+  t.is(b.bytesOut, 0, 'sanity check: init 0')
+  t.is(b.packetsOut, 0, 'sanity check: init 0')
+  t.is(b.bytesIn, 0, 'sanity check: init 0')
+  t.is(b.packetsIn, 0, 'sanity check: init 0')
+
+  let aNrDataEvents = 0
+  a.on('data', function (data) {
+    if (++aNrDataEvents === 1) {
+      tWave1.pass('a received the first echo packet')
+    }
+
+    if (aNrDataEvents < 10) {
+      b.write(b4a.from('creating imbalance'.repeat(100)))
+    }
+
+    if (aNrDataEvents === 10) {
+      tWave2.pass('imbalance created')
+    }
+  })
+
+  b.on('data', function (data) {
+    b.write(b4a.concat([b4a.from('echo: '), data]))
+  })
+
+  a.write(b4a.from('hello world'))
+
+  await tWave1
+
+  // Pretty hard to calculate the exact amounts of expected packets/bytes
+  // so we just sanity check the ballpark
+  t.is(a.bytesOut > 20 && a.bytesOut < 100, true, `a reasonable bytesOut (${a.bytesOut})`)
+  t.is(a.packetsOut > 0 && a.packetsOut < 5, true, `a reasonable packetsOut (${a.packetsOut})`)
+  t.is(a.bytesIn > 20 && a.bytesIn < 100, true, `a reasonable bytesIn (${a.bytesIn})`)
+  t.is(a.packetsIn > 0 && a.packetsIn < 5, true, `a reasonable packetsIn (${a.packetsIn})`)
+  t.is(b.bytesOut > 20 && b.bytesOut < 100, true, `b reasonable bytesOut (${b.bytesOut})`)
+  t.is(b.packetsOut > 0 && b.packetsOut < 5, true, `b reasonable packetsOut (${b.packetsOut})`)
+  t.is(b.bytesIn > 20 && b.bytesIn < 100, true, `b reasonable bytesIn (${b.bytesIn})`)
+  t.is(b.packetsIn > 0 && b.packetsIn < 5, true, `b reasonable packetsIn (${b.packetsIn})`)
+
+  await tWave2
+  a.end()
+  b.end()
+
+  // Note: receiver still sends some small packets to ack, so we give some margin
+  // (if this test ever flakes, feel free to just remove the checks
+  // on the nr of packets, since I don't think we can control those directly)
+  t.is(a.bytesOut < 500, true, `a still low bytesOut (${a.bytesOut})`)
+  t.is(a.packetsOut < 7, true, `a still low packetsOut (${a.packetsOut})`)
+  t.is(a.bytesIn > 1000, true, `a now higher bytesIn (${a.bytesIn})`)
+  t.is(a.packetsIn > 7, true, `a now higher packetsIn (${a.packetsIn})`)
+  t.is(b.bytesOut > 1000, true, `b now higher bytesOut (${b.bytesOut})`)
+  t.is(b.packetsOut > 7, true, `b now higher packetsOut (${b.packetsOut})`)
+  t.is(b.bytesIn < 500, true, `b still low bytesIn (${b.bytesIn})`)
+  t.is(b.packetsIn < 7, true, `b still low packetsIn (${b.packetsIn})`)
+})
