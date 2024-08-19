@@ -851,19 +851,19 @@ test('UDX - basic stats', async function (t) {
   const [a, b] = makeTwoStreams(t)
   const aUdx = a.udx
 
-  t.is(a.bytesOut, 0, 'sanity check: init 0')
-  t.is(a.packetsOut, 0, 'sanity check: init 0')
-  t.is(a.bytesIn, 0, 'sanity check: init 0')
-  t.is(a.packetsIn, 0, 'sanity check: init 0')
-  t.is(b.bytesOut, 0, 'sanity check: init 0')
-  t.is(b.packetsOut, 0, 'sanity check: init 0')
-  t.is(b.bytesIn, 0, 'sanity check: init 0')
-  t.is(b.packetsIn, 0, 'sanity check: init 0')
+  t.is(a.bytesTransmitted, 0, 'sanity check: init 0')
+  t.is(a.packetsTransmitted, 0, 'sanity check: init 0')
+  t.is(a.bytesReceived, 0, 'sanity check: init 0')
+  t.is(a.packetsReceived, 0, 'sanity check: init 0')
+  t.is(b.bytesTransmitted, 0, 'sanity check: init 0')
+  t.is(b.packetsTransmitted, 0, 'sanity check: init 0')
+  t.is(b.bytesReceived, 0, 'sanity check: init 0')
+  t.is(b.packetsReceived, 0, 'sanity check: init 0')
 
-  t.is(aUdx.bytesOut, 0, 'sanity check: init 0')
-  t.is(aUdx.packetsOut, 0, 'sanity check: init 0')
-  t.is(aUdx.bytesIn, 0, 'sanity check: init 0')
-  t.is(aUdx.packetsIn, 0, 'sanity check: init 0')
+  t.is(aUdx.bytesTransmitted, 0, 'sanity check: init 0')
+  t.is(aUdx.packetsTransmitted, 0, 'sanity check: init 0')
+  t.is(aUdx.bytesReceived, 0, 'sanity check: init 0')
+  t.is(aUdx.packetsReceived, 0, 'sanity check: init 0')
 
   let aNrDataEvents = 0
   a.on('data', function (data) {
@@ -890,14 +890,14 @@ test('UDX - basic stats', async function (t) {
 
   // Pretty hard to calculate the exact amounts of expected packets/bytes
   // so we just sanity check the ballpark
-  t.is(a.bytesOut > 20 && a.bytesOut < 100, true, `a reasonable bytesOut (${a.bytesOut})`)
-  t.is(a.packetsOut > 0 && a.packetsOut < 5, true, `a reasonable packetsOut (${a.packetsOut})`)
-  t.is(a.bytesIn > 20 && a.bytesIn < 100, true, `a reasonable bytesIn (${a.bytesIn})`)
-  t.is(a.packetsIn > 0 && a.packetsIn < 5, true, `a reasonable packetsIn (${a.packetsIn})`)
-  t.is(b.bytesOut > 20 && b.bytesOut < 100, true, `b reasonable bytesOut (${b.bytesOut})`)
-  t.is(b.packetsOut > 0 && b.packetsOut < 5, true, `b reasonable packetsOut (${b.packetsOut})`)
-  t.is(b.bytesIn > 20 && b.bytesIn < 100, true, `b reasonable bytesIn (${b.bytesIn})`)
-  t.is(b.packetsIn > 0 && b.packetsIn < 5, true, `b reasonable packetsIn (${b.packetsIn})`)
+  t.is(a.bytesTransmitted > 20 && a.bytesTransmitted < 100, true, `a reasonable bytesTransmitted (${a.bytesTransmitted})`)
+  t.is(a.packetsTransmitted > 0 && a.packetsTransmitted < 5, true, `a reasonable packetsTransmitted (${a.packetsTransmitted})`)
+  t.is(a.bytesReceived > 20 && a.bytesReceived < 100, true, `a reasonable bytesReceived (${a.bytesReceived})`)
+  t.is(a.packetsReceived > 0 && a.packetsReceived < 5, true, `a reasonable packetsReceived (${a.packetsReceived})`)
+  t.is(b.bytesTransmitted > 20 && b.bytesTransmitted < 100, true, `b reasonable bytesTransmitted (${b.bytesTransmitted})`)
+  t.is(b.packetsTransmitted > 0 && b.packetsTransmitted < 5, true, `b reasonable packetsTransmitted (${b.packetsTransmitted})`)
+  t.is(b.bytesReceived > 20 && b.bytesReceived < 100, true, `b reasonable bytesReceived (${b.bytesReceived})`)
+  t.is(b.packetsReceived > 0 && b.packetsReceived < 5, true, `b reasonable packetsReceived (${b.packetsReceived})`)
 
   await tWave2
   a.end()
@@ -906,23 +906,23 @@ test('UDX - basic stats', async function (t) {
   // Note: receiver still sends some small packets to ack, so we give some margin
   // (if this test ever flakes, feel free to just remove the checks
   // on the nr of packets, since I don't think we can control those directly)
-  t.is(a.bytesOut < 500, true, `a still low bytesOut (${a.bytesOut})`)
-  t.is(a.packetsOut < 7, true, `a still low packetsOut (${a.packetsOut})`)
-  t.is(a.bytesIn > 1000, true, `a now higher bytesIn (${a.bytesIn})`)
-  t.is(a.packetsIn > 7, true, `a now higher packetsIn (${a.packetsIn})`)
-  t.is(b.bytesOut > 1000, true, `b now higher bytesOut (${b.bytesOut})`)
-  t.is(b.packetsOut > 7, true, `b now higher packetsOut (${b.packetsOut})`)
-  t.is(b.bytesIn < 500, true, `b still low bytesIn (${b.bytesIn})`)
-  t.is(b.packetsIn < 7, true, `b still low packetsIn (${b.packetsIn})`)
+  t.is(a.bytesTransmitted < 500, true, `a still low bytesTransmitted (${a.bytesTransmitted})`)
+  t.is(a.packetsTransmitted < 7, true, `a still low packetsTransmitted (${a.packetsTransmitted})`)
+  t.is(a.bytesReceived > 1000, true, `a now higher bytesReceived (${a.bytesReceived})`)
+  t.is(a.packetsReceived > 7, true, `a now higher packetsReceived (${a.packetsReceived})`)
+  t.is(b.bytesTransmitted > 1000, true, `b now higher bytesTransmitted (${b.bytesTransmitted})`)
+  t.is(b.packetsTransmitted > 7, true, `b now higher packetsTransmitted (${b.packetsTransmitted})`)
+  t.is(b.bytesReceived < 500, true, `b still low bytesReceived (${b.bytesReceived})`)
+  t.is(b.packetsReceived < 7, true, `b still low packetsReceived (${b.packetsReceived})`)
 
-  t.is(aUdx.bytesOut, a.bytesOut, `udx same bytes out as the single stream (${aUdx.bytesOut})`)
-  t.is(aUdx.packetsOut, a.packetsOut, `udx same packets out as the single stream (${aUdx.packetsOut})`)
-  t.is(aUdx.bytesIn, a.bytesIn, `udx same bytes in as the single stream (${aUdx.bytesIn})`)
-  t.is(aUdx.packetsIn, a.packetsIn, true, `udx same packets in as the single stream (${aUdx.packetsIn})`)
+  t.is(aUdx.bytesTransmitted, a.bytesTransmitted, `udx same bytes out as the single stream (${aUdx.bytesTransmitted})`)
+  t.is(aUdx.packetsTransmitted, a.packetsTransmitted, `udx same packets out as the single stream (${aUdx.packetsTransmitted})`)
+  t.is(aUdx.bytesReceived, a.bytesReceived, `udx same bytes in as the single stream (${aUdx.bytesReceived})`)
+  t.is(aUdx.packetsReceived, a.packetsReceived, true, `udx same packets in as the single stream (${aUdx.packetsReceived})`)
 
   const aSocket = a.socket
-  t.is(aSocket.bytesOut, a.bytesOut, `udx socket same bytes out as the single stream (${aSocket.bytesOut})`)
-  t.is(aSocket.packetsOut, a.packetsOut, `udx socket same packets out as the single stream (${aSocket.packetsOut})`)
-  t.is(aSocket.bytesIn, a.bytesIn, `udx socket same bytes in as the single stream (${aSocket.bytesIn})`)
-  t.is(aSocket.packetsIn, a.packetsIn, true, `udx socket same packets in as the single stream (${aSocket.packetsIn})`)
+  t.is(aSocket.bytesTransmitted, a.bytesTransmitted, `udx socket same bytes out as the single stream (${aSocket.bytesTransmitted})`)
+  t.is(aSocket.packetsTransmitted, a.packetsTransmitted, `udx socket same packets out as the single stream (${aSocket.packetsTransmitted})`)
+  t.is(aSocket.bytesReceived, a.bytesReceived, `udx socket same bytes in as the single stream (${aSocket.bytesReceived})`)
+  t.is(aSocket.packetsReceived, a.packetsReceived, true, `udx socket same packets in as the single stream (${aSocket.packetsReceived})`)
 })
