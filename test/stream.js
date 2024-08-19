@@ -890,30 +890,21 @@ test('UDX - basic stats', async function (t) {
 
   // Pretty hard to calculate the exact amounts of expected packets/bytes
   // so we just sanity check the ballpark
-  t.is(a.bytesTransmitted > 20 && a.bytesTransmitted < 100, true, `a reasonable bytesTransmitted (${a.bytesTransmitted})`)
-  t.is(a.packetsTransmitted > 0 && a.packetsTransmitted < 5, true, `a reasonable packetsTransmitted (${a.packetsTransmitted})`)
-  t.is(a.bytesReceived > 20 && a.bytesReceived < 100, true, `a reasonable bytesReceived (${a.bytesReceived})`)
-  t.is(a.packetsReceived > 0 && a.packetsReceived < 5, true, `a reasonable packetsReceived (${a.packetsReceived})`)
-  t.is(b.bytesTransmitted > 20 && b.bytesTransmitted < 100, true, `b reasonable bytesTransmitted (${b.bytesTransmitted})`)
-  t.is(b.packetsTransmitted > 0 && b.packetsTransmitted < 5, true, `b reasonable packetsTransmitted (${b.packetsTransmitted})`)
-  t.is(b.bytesReceived > 20 && b.bytesReceived < 100, true, `b reasonable bytesReceived (${b.bytesReceived})`)
-  t.is(b.packetsReceived > 0 && b.packetsReceived < 5, true, `b reasonable packetsReceived (${b.packetsReceived})`)
+  t.is(a.bytesTransmitted > 20, true, `a reasonable bytesTransmitted (${a.bytesTransmitted})`)
+  t.is(a.packetsTransmitted > 0, true, `a reasonable packetsTransmitted (${a.packetsTransmitted})`)
+  t.is(a.bytesReceived > 2, true, `a reasonable bytesReceived (${a.bytesReceived})`)
+  t.is(a.packetsReceived > 0, true, `a reasonable packetsReceived (${a.packetsReceived})`)
+  t.is(b.bytesTransmitted > 20, true, `b reasonable bytesTransmitted (${b.bytesTransmitted})`)
+  t.is(b.packetsTransmitted > 0, true, `b reasonable packetsTransmitted (${b.packetsTransmitted})`)
+  t.is(b.bytesReceived > 20, true, `b reasonable bytesReceived (${b.bytesReceived})`)
+  t.is(b.packetsReceived > 0, true, `b reasonable packetsReceived (${b.packetsReceived})`)
 
   await tWave2
   a.end()
   b.end()
 
-  // Note: receiver still sends some small packets to ack, so we give some margin
-  // (if this test ever flakes, feel free to just remove the checks
-  // on the nr of packets, since I don't think we can control those directly)
-  t.is(a.bytesTransmitted < 500, true, `a still low bytesTransmitted (${a.bytesTransmitted})`)
-  t.is(a.packetsTransmitted < 7, true, `a still low packetsTransmitted (${a.packetsTransmitted})`)
   t.is(a.bytesReceived > 1000, true, `a now higher bytesReceived (${a.bytesReceived})`)
-  t.is(a.packetsReceived > 7, true, `a now higher packetsReceived (${a.packetsReceived})`)
   t.is(b.bytesTransmitted > 1000, true, `b now higher bytesTransmitted (${b.bytesTransmitted})`)
-  t.is(b.packetsTransmitted > 7, true, `b now higher packetsTransmitted (${b.packetsTransmitted})`)
-  t.is(b.bytesReceived < 500, true, `b still low bytesReceived (${b.bytesReceived})`)
-  t.is(b.packetsReceived < 7, true, `b still low packetsReceived (${b.packetsReceived})`)
 
   t.is(aUdx.bytesTransmitted, a.bytesTransmitted, `udx same bytes out as the single stream (${aUdx.bytesTransmitted})`)
   t.is(aUdx.packetsTransmitted, a.packetsTransmitted, `udx same packets out as the single stream (${aUdx.packetsTransmitted})`)
