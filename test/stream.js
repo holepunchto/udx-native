@@ -841,7 +841,7 @@ test('backpressures stream', async function (t) {
   })
 })
 
-test('UDX - stats', async function (t) {
+test('UDX - basic stats', async function (t) {
   const tWave1 = t.test()
   tWave1.plan(1)
 
@@ -849,6 +849,7 @@ test('UDX - stats', async function (t) {
   tWave2.plan(1)
 
   const [a, b] = makeTwoStreams(t)
+  const aUdx = a.udx
 
   t.is(a.bytesOut, 0, 'sanity check: init 0')
   t.is(a.packetsOut, 0, 'sanity check: init 0')
@@ -858,6 +859,11 @@ test('UDX - stats', async function (t) {
   t.is(b.packetsOut, 0, 'sanity check: init 0')
   t.is(b.bytesIn, 0, 'sanity check: init 0')
   t.is(b.packetsIn, 0, 'sanity check: init 0')
+
+  t.is(aUdx.bytesOut, 0, 'sanity check: init 0')
+  t.is(aUdx.packetsOut, 0, 'sanity check: init 0')
+  t.is(aUdx.bytesIn, 0, 'sanity check: init 0')
+  t.is(aUdx.packetsIn, 0, 'sanity check: init 0')
 
   let aNrDataEvents = 0
   a.on('data', function (data) {
@@ -908,4 +914,15 @@ test('UDX - stats', async function (t) {
   t.is(b.packetsOut > 7, true, `b now higher packetsOut (${b.packetsOut})`)
   t.is(b.bytesIn < 500, true, `b still low bytesIn (${b.bytesIn})`)
   t.is(b.packetsIn < 7, true, `b still low packetsIn (${b.packetsIn})`)
+
+  t.is(aUdx.bytesOut, a.bytesOut, `udx same bytes out as the single stream (${aUdx.bytesOut})`)
+  t.is(aUdx.packetsOut, a.packetsOut, `udx same packets out as the single stream (${aUdx.packetsOut})`)
+  t.is(aUdx.bytesIn, a.bytesIn, `udx same bytes in as the single stream (${aUdx.bytesIn})`)
+  t.is(aUdx.packetsIn, a.packetsIn, true, `udx same packets in as the single stream (${aUdx.packetsIn})`)
+
+  const aSocket = a.socket
+  t.is(aSocket.bytesOut, a.bytesOut, `udx socket same bytes out as the single stream (${aSocket.bytesOut})`)
+  t.is(aSocket.packetsOut, a.packetsOut, `udx socket same packets out as the single stream (${aSocket.packetsOut})`)
+  t.is(aSocket.bytesIn, a.bytesIn, `udx socket same bytes in as the single stream (${aSocket.bytesIn})`)
+  t.is(aSocket.packetsIn, a.packetsIn, true, `udx socket same packets in as the single stream (${aSocket.packetsIn})`)
 })
