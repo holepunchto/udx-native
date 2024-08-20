@@ -743,3 +743,14 @@ test('set send buffer size', async function (t) {
 
   await a.close()
 })
+
+test('UDX - socket stats 0 before bind is called', async function (t) {
+  const a = new UDX()
+
+  const aSocket = a.createSocket()
+
+  t.is(aSocket.bytesTransmitted, 0)
+  t.is(aSocket.packetsTransmitted, 0)
+  t.is(aSocket.bytesReceived, 0)
+  t.is(aSocket.packetsReceived, 0)
+})
