@@ -840,3 +840,80 @@ test('backpressures stream', async function (t) {
     socket.close()
   })
 })
+
+test('UDX - basic stats', async function (t) {
+  const tWave1 = t.test()
+  tWave1.plan(1)
+
+  const tWave2 = t.test()
+  tWave2.plan(1)
+
+  const [a, b] = makeTwoStreams(t)
+  const aUdx = a.udx
+
+  t.is(a.bytesTransmitted, 0, 'sanity check: init 0')
+  t.is(a.packetsTransmitted, 0, 'sanity check: init 0')
+  t.is(a.bytesReceived, 0, 'sanity check: init 0')
+  t.is(a.packetsReceived, 0, 'sanity check: init 0')
+  t.is(b.bytesTransmitted, 0, 'sanity check: init 0')
+  t.is(b.packetsTransmitted, 0, 'sanity check: init 0')
+  t.is(b.bytesReceived, 0, 'sanity check: init 0')
+  t.is(b.packetsReceived, 0, 'sanity check: init 0')
+
+  t.is(aUdx.bytesTransmitted, 0, 'sanity check: init 0')
+  t.is(aUdx.packetsTransmitted, 0, 'sanity check: init 0')
+  t.is(aUdx.bytesReceived, 0, 'sanity check: init 0')
+  t.is(aUdx.packetsReceived, 0, 'sanity check: init 0')
+
+  let aNrDataEvents = 0
+  a.on('data', function (data) {
+    if (++aNrDataEvents === 1) {
+      tWave1.pass('a received the first echo packet')
+    }
+
+    if (aNrDataEvents < 10) {
+      b.write(b4a.from('creating imbalance'.repeat(100)))
+    }
+
+    if (aNrDataEvents === 10) {
+      tWave2.pass('imbalance created')
+    }
+  })
+
+  b.on('data', function (data) {
+    b.write(b4a.concat([b4a.from('echo: '), data]))
+  })
+
+  a.write(b4a.from('hello world'))
+
+  await tWave1
+
+  // Pretty hard to calculate the exact amounts of expected packets/bytes
+  // so we just sanity check the ballpark
+  t.is(a.bytesTransmitted > 20, true, `a reasonable bytesTransmitted (${a.bytesTransmitted})`)
+  t.is(a.packetsTransmitted > 0, true, `a reasonable packetsTransmitted (${a.packetsTransmitted})`)
+  t.is(a.bytesReceived > 2, true, `a reasonable bytesReceived (${a.bytesReceived})`)
+  t.is(a.packetsReceived > 0, true, `a reasonable packetsReceived (${a.packetsReceived})`)
+  t.is(b.bytesTransmitted > 20, true, `b reasonable bytesTransmitted (${b.bytesTransmitted})`)
+  t.is(b.packetsTransmitted > 0, true, `b reasonable packetsTransmitted (${b.packetsTransmitted})`)
+  t.is(b.bytesReceived > 20, true, `b reasonable bytesReceived (${b.bytesReceived})`)
+  t.is(b.packetsReceived > 0, true, `b reasonable packetsReceived (${b.packetsReceived})`)
+
+  await tWave2
+  a.end()
+  b.end()
+
+  t.is(a.bytesReceived > 1000, true, `a now higher bytesReceived (${a.bytesReceived})`)
+  t.is(b.bytesTransmitted > 1000, true, `b now higher bytesTransmitted (${b.bytesTransmitted})`)
+
+  t.is(aUdx.bytesTransmitted, a.bytesTransmitted, `udx same bytes out as the single stream (${aUdx.bytesTransmitted})`)
+  t.is(aUdx.packetsTransmitted, a.packetsTransmitted, `udx same packets out as the single stream (${aUdx.packetsTransmitted})`)
+  t.is(aUdx.bytesReceived, a.bytesReceived, `udx same bytes in as the single stream (${aUdx.bytesReceived})`)
+  t.is(aUdx.packetsReceived, a.packetsReceived, true, `udx same packets in as the single stream (${aUdx.packetsReceived})`)
+
+  const aSocket = a.socket
+  t.is(aSocket.bytesTransmitted, a.bytesTransmitted, `udx socket same bytes out as the single stream (${aSocket.bytesTransmitted})`)
+  t.is(aSocket.packetsTransmitted, a.packetsTransmitted, `udx socket same packets out as the single stream (${aSocket.packetsTransmitted})`)
+  t.is(aSocket.bytesReceived, a.bytesReceived, `udx socket same bytes in as the single stream (${aSocket.bytesReceived})`)
+  t.is(aSocket.packetsReceived, a.packetsReceived, true, `udx socket same packets in as the single stream (${aSocket.packetsReceived})`)
+})
