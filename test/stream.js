@@ -867,9 +867,8 @@ test('UDX - basic stats', async function (t) {
 
   // these seem to be consistently 1 at the start, so we don't check for 0
   // but just that they exist and are a number
-  t.is(a.retransmitCount >= 0, true, 'sanity check: it is a number')
-  t.is(a.fastRecoveryCount >= 0, true, 'sanity check: it is a number')
-  t.is(a.rtoCount >= 0, true, 'sanity check: it is a number')
+  t.is(a.retransmits >= 0, true, 'sanity check: it is a number')
+  t.is(a.fastRecoveries >= 0, true, 'sanity check: it is a number')
 
   let aNrDataEvents = 0
   a.on('data', function (data) {
