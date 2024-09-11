@@ -846,10 +846,10 @@ NAPI_METHOD(udx_napi_stream_writev) {
   NAPI_RETURN_UINT32(err);
 }
 
-NAPI_METHOD(udx_napi_stream_write_sizeof) {
+NAPI_METHOD(udx_napi_stream_write_sizeof){
   NAPI_ARGV(1)
-  NAPI_ARGV_UINT32(bufs, 0)
-  NAPI_RETURN_UINT32(udx_stream_write_sizeof(bufs))
+    NAPI_ARGV_UINT32(bufs, 0)
+      NAPI_RETURN_UINT32(udx_stream_write_sizeof(bufs))
 }
 
 NAPI_METHOD(udx_napi_stream_write_end) {
@@ -1018,6 +1018,7 @@ NAPI_INIT() {
   NAPI_EXPORT_OFFSETOF(udx_stream_t, packets_in)
   NAPI_EXPORT_OFFSETOF(udx_stream_t, bytes_out)
   NAPI_EXPORT_OFFSETOF(udx_stream_t, packets_out)
+  NAPI_EXPORT_OFFSETOF(udx_stream_t, rto_count)
   NAPI_EXPORT_OFFSETOF(udx_stream_t, retransmit_count)
   NAPI_EXPORT_OFFSETOF(udx_stream_t, fast_recovery_count)
 

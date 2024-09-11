@@ -865,10 +865,9 @@ test('UDX - basic stats', async function (t) {
   t.is(aUdx.bytesReceived, 0, 'sanity check: init 0')
   t.is(aUdx.packetsReceived, 0, 'sanity check: init 0')
 
-  // these seem to be consistently 1 at the start, so we don't check for 0
-  // but just that they exist and are a number
-  t.is(a.retransmits >= 0, true, 'sanity check: it is a number')
-  t.is(a.fastRecoveries >= 0, true, 'sanity check: it is a number')
+  t.is(a.retransmits, 0, 'initialized to zero')
+  t.is(a.rtoCount, 0, 'initialized to zero')
+  t.is(a.fastRecoveries, 0, 'initialized to zero')
 
   let aNrDataEvents = 0
   a.on('data', function (data) {
