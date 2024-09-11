@@ -1020,7 +1020,6 @@ NAPI_INIT() {
   NAPI_EXPORT_OFFSETOF(udx_stream_t, packets_out)
   NAPI_EXPORT_OFFSETOF(udx_stream_t, retransmit_count)
   NAPI_EXPORT_OFFSETOF(udx_stream_t, fast_recovery_count)
-  NAPI_EXPORT_OFFSETOF(udx_stream_t, rto_count)
 
   NAPI_EXPORT_OFFSETOF(udx_socket_t, bytes_in)
   NAPI_EXPORT_OFFSETOF(udx_socket_t, packets_in)
