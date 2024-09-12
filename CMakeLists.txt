@@ -4,6 +4,8 @@ project(udx_native C)
 
 include(bare)
 
+import_bare_dependencies()
+
 if(NOT TARGET udx)
   add_subdirectory(vendor/libudx EXCLUDE_FROM_ALL)
 endif()
