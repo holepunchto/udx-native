@@ -14,10 +14,12 @@ target_sources(
   ${udx_native}
   PRIVATE
     binding.c
+  PUBLIC
+    $<TARGET_OBJECTS:udx>
 )
 
 target_link_libraries(
   ${udx_native}
   PUBLIC
-    udx_static
+    udx
 )
