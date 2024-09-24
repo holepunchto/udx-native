@@ -5,7 +5,6 @@
     'sources': [
       './libudx/src/cirbuf.c',
       './libudx/src/endian.c',
-      './libudx/src/fifo.c',
       './libudx/src/queue.c',
       './libudx/src/udx.c',
     ],
