@@ -1021,18 +1021,6 @@ NAPI_INIT() {
   NAPI_EXPORT_OFFSETOF(udx_stream_t, retransmit_count)
   NAPI_EXPORT_OFFSETOF(udx_stream_t, fast_recovery_count)
 
-  napi_value inflight_queue_len_offsetof;
-  int offset = offsetof(udx_stream_t, inflight_queue.len);
-  if ((napi_create_uint32(env, offset, &inflight_queue_len_offsetof)) != napi_ok) {
-    napi_throw_error(env, NULL, "napi_create_uint32(env, offset, &inflight_queue_len_offsetof) failed");
-    return;
-  }
-
-  if ((napi_set_named_property(env, exports, "offsetof_udx_stream_t_inflight_queue_len", inflight_queue_len_offsetof)) != napi_ok) {
-    napi_throw_error(env, NULL, "napi_set_named_property(env, exports, \"offsetof_udx_stream_t_inflight_queue_len\", inflight_queue_len_offsetof) failed!");
-    return;
-  }
-
   NAPI_EXPORT_OFFSETOF(udx_socket_t, bytes_rx)
   NAPI_EXPORT_OFFSETOF(udx_socket_t, packets_rx)
   NAPI_EXPORT_OFFSETOF(udx_socket_t, bytes_tx)
