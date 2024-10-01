@@ -1,9 +1,10 @@
-#include <napi-macros.h>
 #include <node_api.h>
 #include <stdlib.h>
 #include <string.h>
 #include <udx.h>
 #include <uv.h>
+
+#include "macros.h"
 
 #define UDX_NAPI_THROW(err) \
   { \
@@ -848,8 +849,8 @@ NAPI_METHOD(udx_napi_stream_writev) {
 
 NAPI_METHOD(udx_napi_stream_write_sizeof){
   NAPI_ARGV(1)
-  NAPI_ARGV_UINT32(bufs, 0)
-  NAPI_RETURN_UINT32(udx_stream_write_sizeof(bufs))
+    NAPI_ARGV_UINT32(bufs, 0)
+      NAPI_RETURN_UINT32(udx_stream_write_sizeof(bufs))
 }
 
 NAPI_METHOD(udx_napi_stream_write_end) {

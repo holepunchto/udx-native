@@ -9,11 +9,11 @@
     "binding.c",
     "binding.gyp",
     "binding.js",
+    "macros.h",
     "CMakeLists.txt",
     "vendor/libudx/LICENSE",
     "vendor/libudx/include",
     "vendor/libudx/src",
-    "vendor/libudx.gyp",
     "vendor/libudx/CMakeLists.txt"
   ],
   "imports": {
@@ -27,9 +27,7 @@
     "test": "standard && node test/all.js",
     "test:all": "standard && brittle test/*.js test/slow/*.js",
     "test:generate": "brittle -r test/all.js test/*.js",
-    "bench": "brittle test/bench/*.js",
-    "prebuild": "prebuildify --strip",
-    "install": "node-gyp-build"
+    "bench": "brittle test/bench/*.js"
   },
   "repository": {
     "type": "git",
@@ -51,14 +49,12 @@
   "dependencies": {
     "b4a": "^1.5.0",
     "bare-events": "^2.2.0",
-    "napi-macros": "^2.0.0",
     "node-gyp-build": "^4.4.0",
     "streamx": "^2.14.0"
   },
   "devDependencies": {
     "brittle": "^3.1.0",
     "is-ci": "^3.0.1",
-    "prebuildify": "^6.0.0",
     "standard": "^17.1.0",
     "tiny-byte-size": "^1.1.0"
   }
