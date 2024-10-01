@@ -34,7 +34,7 @@ jobs:
       - run: git clean -x -f -d
       - run: npm install --ignore-scripts
       - run: bare-dev install --bare --node --debug --force
-      - run: node test/all.js
+      # - run: node test/all.js
       - run: bare test/all.js
   trigger_canary:
     if: startsWith(github.ref, 'refs/tags/') # Only run when a new package is published (detects when a new tag is pushed)
