@@ -5,11 +5,10 @@ module.exports = { makeTwoStreams, makePairs, pipeStreamPairs, uncaught }
 
 function uncaught (fn) {
   if (global.Bare) {
-    global.Bare.on('uncaughtException', () => {}) // hack to work around bare bug atm
     global.Bare.once('uncaughtException', fn)
-    return
+  } else {
+    process.once('uncaughtException', fn)
   }
-  process.once('uncaughtException', fn)
 }
 
 function makeTwoStreams (t, opts) {
