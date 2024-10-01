@@ -7,7 +7,6 @@
     "lib",
     "prebuilds",
     "binding.c",
-    "binding.gyp",
     "binding.js",
     "macros.h",
     "CMakeLists.txt",
