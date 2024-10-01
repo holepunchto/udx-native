@@ -3,7 +3,7 @@ const b4a = require('b4a')
 const { Readable } = require('streamx')
 const proxy = require('./helpers/proxy')
 const UDX = require('../')
-const { makeTwoStreams } = require('./helpers')
+const { makeTwoStreams, uncaught } = require('./helpers')
 
 test('tiny echo stream', async function (t) {
   t.plan(8)
@@ -606,7 +606,7 @@ test('throw in data callback', async function (t) {
 
   b.end(b4a.from('hello'))
 
-  process.once('uncaughtException', async (err) => {
+  uncaught(async (err) => {
     t.is(err.message, 'boom')
 
     a.destroy()
@@ -636,7 +636,7 @@ test('throw in message callback', async function (t) {
 
   b.send(b4a.from('hello'))
 
-  process.once('uncaughtException', async (err) => {
+  uncaught(async (err) => {
     t.is(err.message, 'boom')
 
     a.destroy()
@@ -790,7 +790,7 @@ test('write to unconnected stream', async function (t) {
   const stream = udx.createStream(1)
   stream.write(b4a.alloc(0))
 
-  process.once('uncaughtException', function (error) {
+  uncaught(function (error) {
     t.is(error.code, 'ERR_ASSERTION')
 
     stream.destroy()

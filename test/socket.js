@@ -1,6 +1,7 @@
 const test = require('brittle')
 const b4a = require('b4a')
 const UDX = require('../')
+const { uncaught } = require('./helpers')
 
 test('can bind and close', async function (t) {
   const u = new UDX()
@@ -538,9 +539,7 @@ test('throw in message callback', async function (t) {
 
   b.send(b4a.from('hello'), a.address().port)
 
-  const handler = typeof process !== 'undefined' ? process : Bare // eslint-disable-line
-
-  handler.once('uncaughtException', async (err) => {
+  uncaught(async (err) => {
     t.is(err.message, 'boom')
 
     await a.close()
