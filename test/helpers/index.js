@@ -83,31 +83,38 @@ function makePairs (n, multiplexMode = 'single') {
   return { sockets, streams, close }
 }
 
-async function pipeStreamPairs (streams, messageSize, limit) {
+function pipeStreamPairs (streams, messageSize, limit) {
   const msg = b4a.alloc(messageSize, 'a')
   const proms = []
-  for (const pair of streams) {
-    const [streamA, streamB] = pair
+
+  for (const [streamA, streamB] of streams) {
     proms.push(write(streamA, limit, msg))
     proms.push(read(streamB, limit))
   }
+
   return Promise.all(proms)
+
   function write (s, limit, msg) {
     return new Promise((resolve, reject) => {
       let written = 0
-      s.once('error', reject)
+
+      s.on('error', reject)
+      s.on('close', () => {
+        if (written >= limit) resolve()
+      })
+
       write()
+
       function write () {
-        let floating = true
-        while (floating && written < limit) {
-          floating = s.write(msg)
+        let drained = true
+
+        while (drained && written < limit) {
+          drained = s.write(msg)
           written += msg.length
         }
-        if (written >= limit) {
-          resolve()
-        } else {
-          s.once('drain', write)
-        }
+
+        if (written < limit) s.once('drain', write)
+        else s.end()
       }
     })
   }
@@ -115,13 +122,17 @@ async function pipeStreamPairs (streams, messageSize, limit) {
   function read (s, limit) {
     return new Promise((resolve, reject) => {
       let read = 0
-      s.once('error', reject)
+
+      s.on('error', reject)
+      s.on('close', () => {
+        if (read >= limit) resolve()
+      })
+
       s.on('data', (data) => {
         read += data.length
-        if (read >= limit) {
-          resolve()
-        }
       })
+
+      s.on('end', () => s.end())
     })
   }
 }
