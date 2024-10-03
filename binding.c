@@ -91,6 +91,7 @@ parse_address (struct sockaddr *name, char *ip, size_t size, int *port, int *fam
 static void
 on_udx_send (udx_socket_send_t *req, int status) {
   udx_napi_socket_t *n = (udx_napi_socket_t *) req->socket;
+
   napi_env env = n->env;
 
   napi_handle_scope scope;
@@ -183,6 +184,7 @@ on_udx_message (udx_socket_t *self, ssize_t read_len, const uv_buf_t *buf, const
 static void
 on_udx_close (udx_socket_t *self) {
   udx_napi_socket_t *n = (udx_napi_socket_t *) self;
+
   napi_env env = n->env;
 
   napi_handle_scope scope;
@@ -212,9 +214,10 @@ on_udx_close (udx_socket_t *self) {
 static void
 on_udx_stream_end (udx_stream_t *stream) {
   udx_napi_stream_t *n = (udx_napi_stream_t *) stream;
-  napi_env env = n->env;
 
   size_t read = n->read_buf_head - n->read_buf;
+
+  napi_env env = n->env;
 
   napi_handle_scope scope;
   napi_open_handle_scope(env, &scope);
@@ -332,6 +335,7 @@ on_udx_stream_read (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
 static void
 on_udx_stream_drain (udx_stream_t *stream) {
   udx_napi_stream_t *n = (udx_napi_stream_t *) stream;
+
   napi_env env = n->env;
 
   napi_handle_scope scope;
@@ -355,6 +359,7 @@ on_udx_stream_drain (udx_stream_t *stream) {
 static void
 on_udx_stream_ack (udx_stream_write_t *req, int status, int unordered) {
   udx_napi_stream_t *n = (udx_napi_stream_t *) req->stream;
+
   napi_env env = n->env;
 
   napi_handle_scope scope;
@@ -381,6 +386,7 @@ on_udx_stream_ack (udx_stream_write_t *req, int status, int unordered) {
 static void
 on_udx_stream_send (udx_stream_send_t *req, int status) {
   udx_napi_stream_t *n = (udx_napi_stream_t *) req->stream;
+
   napi_env env = n->env;
 
   napi_handle_scope scope;
@@ -483,6 +489,7 @@ on_udx_stream_finalize (udx_stream_t *stream) {
 static void
 on_udx_stream_close (udx_stream_t *stream, int status) {
   udx_napi_stream_t *n = (udx_napi_stream_t *) stream;
+
   napi_env env = n->env;
 
   napi_handle_scope scope;
@@ -562,6 +569,7 @@ on_udx_stream_firewall (udx_stream_t *stream, udx_socket_t *socket, const struct
 static void
 on_udx_stream_remote_changed (udx_stream_t *stream) {
   udx_napi_stream_t *n = (udx_napi_stream_t *) stream;
+
   napi_env env = n->env;
 
   napi_handle_scope scope;
@@ -585,6 +593,7 @@ on_udx_stream_remote_changed (udx_stream_t *stream) {
 static void
 on_udx_lookup (udx_lookup_t *lookup, int status, const struct sockaddr *addr, int addr_len) {
   udx_napi_lookup_t *n = (udx_napi_lookup_t *) lookup;
+
   napi_env env = n->env;
 
   char ip[INET6_ADDRSTRLEN] = "";
@@ -644,6 +653,7 @@ on_udx_lookup (udx_lookup_t *lookup, int status, const struct sockaddr *addr, in
 static void
 on_udx_interface_event (udx_interface_event_t *handle, int status) {
   udx_napi_interface_event_t *e = (udx_napi_interface_event_t *) handle;
+
   napi_env env = e->env;
 
   napi_handle_scope scope;
@@ -667,6 +677,7 @@ on_udx_interface_event (udx_interface_event_t *handle, int status) {
 static void
 on_udx_interface_event_close (udx_interface_event_t *handle) {
   udx_napi_interface_event_t *e = (udx_napi_interface_event_t *) handle;
+
   napi_env env = e->env;
 
   napi_handle_scope scope;
@@ -1767,7 +1778,18 @@ udx_napi_interface_event_get_addrs (napi_env env, napi_callback_info info) {
   return napi_result;
 }
 
-NAPI_INIT() {
+static void
+napi_macros_init (napi_env env, napi_value exports);
+
+static napi_value
+napi_macros_init_wrap (napi_env env, napi_value exports) {
+  napi_macros_init(env, exports);
+  return exports;
+}
+
+NAPI_MODULE(NODE_GYP_MODULE_NAME, napi_macros_init_wrap)
+static void
+napi_macros_init (napi_env env, napi_value exports) {
   {
     napi_value UV_UDP_IPV6ONLY_uint32;
     NAPI_STATUS_THROWS_VOID(napi_create_uint32(env, UV_UDP_IPV6ONLY, &UV_UDP_IPV6ONLY_uint32))
