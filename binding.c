@@ -38,21 +38,6 @@
     self->read_buf_head = self->read_buf; \
   }
 
-#define UDX_NAPI_MAKE_MESSAGE_ALLOC_CALLBACK(self, env, nil, ctx, cb, n, argv, res) \
-  if (napi_make_callback(env, nil, ctx, cb, n, argv, res) == napi_pending_exception) { \
-    napi_value fatal_exception; \
-    napi_get_and_clear_last_exception(env, &fatal_exception); \
-    napi_fatal_exception(env, fatal_exception); \
-    { \
-      UDX_NAPI_CALLBACK(self, self->realloc_message, { \
-        NAPI_MAKE_CALLBACK(env, nil, ctx, callback, 0, NULL, res); \
-        UDX_NAPI_SET_READ_BUFFER(self->udx, res); \
-      }) \
-    } \
-  } else { \
-    UDX_NAPI_SET_READ_BUFFER(self->udx, res); \
-  }
-
 #define UDX_NAPI_SET_READ_BUFFER(self, res) \
   napi_get_buffer_info(env, *res, (void **) &(self->read_buf), &(self->read_buf_free));
 
@@ -192,7 +177,20 @@ on_udx_message (udx_socket_t *self, ssize_t read_len, const uv_buf_t *buf, const
   napi_create_uint32(env, family, &(argv[3]));
 
   napi_value res;
-  UDX_NAPI_MAKE_MESSAGE_ALLOC_CALLBACK(n, env, NULL, ctx, callback, 4, argv, &res);
+
+  if (napi_make_callback(env, NULL, ctx, callback, 4, argv, &res) == napi_pending_exception) {
+    napi_value fatal_exception;
+    napi_get_and_clear_last_exception(env, &fatal_exception);
+    napi_fatal_exception(env, fatal_exception);
+    {
+      UDX_NAPI_CALLBACK(n, n->realloc_message, {
+        NAPI_MAKE_CALLBACK(env, NULL, ctx, callback, 0, NULL, &res);
+        UDX_NAPI_SET_READ_BUFFER(n->udx, &res);
+      })
+    }
+  } else {
+    UDX_NAPI_SET_READ_BUFFER(n->udx, &res);
+  }
 
   napi_close_handle_scope(env, scope);
 }
@@ -415,7 +413,19 @@ on_udx_stream_recv (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
 
   napi_value res;
 
-  UDX_NAPI_MAKE_MESSAGE_ALLOC_CALLBACK(n, env, NULL, ctx, callback, 1, argv, &res);
+  if (napi_make_callback(env, NULL, ctx, callback, 1, argv, &res) == napi_pending_exception) {
+    napi_value fatal_exception;
+    napi_get_and_clear_last_exception(env, &fatal_exception);
+    napi_fatal_exception(env, fatal_exception);
+    {
+      UDX_NAPI_CALLBACK(n, n->realloc_message, {
+        NAPI_MAKE_CALLBACK(env, NULL, ctx, callback, 0, NULL, &res);
+        UDX_NAPI_SET_READ_BUFFER(n->udx, &res);
+      })
+    }
+  } else {
+    UDX_NAPI_SET_READ_BUFFER(n->udx, &res);
+  }
 
   napi_close_handle_scope(env, scope);
 }
