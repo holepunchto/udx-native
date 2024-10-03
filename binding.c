@@ -21,9 +21,6 @@
   src \
     napi_close_handle_scope(env, scope);
 
-#define UDX_NAPI_SET_READ_BUFFER(self, res) \
-  napi_get_buffer_info(env, *res, (void **) &(self->read_buf), &(self->read_buf_free));
-
 typedef struct {
   udx_t udx;
 
@@ -168,11 +165,11 @@ on_udx_message (udx_socket_t *self, ssize_t read_len, const uv_buf_t *buf, const
     {
       UDX_NAPI_CALLBACK(n, n->realloc_message, {
         NAPI_MAKE_CALLBACK(env, NULL, ctx, callback, 0, NULL, &res);
-        UDX_NAPI_SET_READ_BUFFER(n->udx, &res);
+        napi_get_buffer_info(env, res, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free));
       })
     }
   } else {
-    UDX_NAPI_SET_READ_BUFFER(n->udx, &res);
+    napi_get_buffer_info(env, res, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free));
   }
 
   napi_close_handle_scope(env, scope);
@@ -299,12 +296,12 @@ on_udx_stream_read (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
     {
       UDX_NAPI_CALLBACK(n, n->realloc_data, {
         NAPI_MAKE_CALLBACK(env, NULL, ctx, callback, 0, NULL, &res);
-        UDX_NAPI_SET_READ_BUFFER(n, &res);
+        napi_get_buffer_info(env, res, (void **) &(n->read_buf), &(n->read_buf_free));
         n->read_buf_head = n->read_buf;
       })
     }
   } else {
-    UDX_NAPI_SET_READ_BUFFER(n, &res);
+    napi_get_buffer_info(env, res, (void **) &(n->read_buf), &(n->read_buf_free));
     n->read_buf_head = n->read_buf;
   }
 
@@ -418,11 +415,11 @@ on_udx_stream_recv (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
     {
       UDX_NAPI_CALLBACK(n, n->realloc_message, {
         NAPI_MAKE_CALLBACK(env, NULL, ctx, callback, 0, NULL, &res);
-        UDX_NAPI_SET_READ_BUFFER(n->udx, &res);
+        napi_get_buffer_info(env, res, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free));
       })
     }
   } else {
-    UDX_NAPI_SET_READ_BUFFER(n->udx, &res);
+    napi_get_buffer_info(env, res, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free));
   }
 
   napi_close_handle_scope(env, scope);
