@@ -1559,14 +1559,42 @@ NAPI_INIT() {
     NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "offsetof_udx_t_packets_tx", packets_tx_offsetof))
   }
 
-  NAPI_EXPORT_SIZEOF(udx_napi_t)
-  NAPI_EXPORT_SIZEOF(udx_napi_socket_t)
-  NAPI_EXPORT_SIZEOF(udx_napi_stream_t)
-  NAPI_EXPORT_SIZEOF(udx_napi_lookup_t)
-  NAPI_EXPORT_SIZEOF(udx_napi_interface_event_t)
+  {
+    napi_value udx_napi_t_sizeof;
+    NAPI_STATUS_THROWS_VOID(napi_create_uint32(env, sizeof(udx_napi_t), &udx_napi_t_sizeof))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "sizeof_udx_napi_t", udx_napi_t_sizeof))
+  }
+  {
+    napi_value udx_napi_socket_t_sizeof;
+    NAPI_STATUS_THROWS_VOID(napi_create_uint32(env, sizeof(udx_napi_socket_t), &udx_napi_socket_t_sizeof))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "sizeof_udx_napi_socket_t", udx_napi_socket_t_sizeof))
+  }
+  {
+    napi_value udx_napi_stream_t_sizeof;
+    NAPI_STATUS_THROWS_VOID(napi_create_uint32(env, sizeof(udx_napi_stream_t), &udx_napi_stream_t_sizeof))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "sizeof_udx_napi_stream_t", udx_napi_stream_t_sizeof))
+  }
+  {
+    napi_value udx_napi_lookup_t_sizeof;
+    NAPI_STATUS_THROWS_VOID(napi_create_uint32(env, sizeof(udx_napi_lookup_t), &udx_napi_lookup_t_sizeof))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "sizeof_udx_napi_lookup_t", udx_napi_lookup_t_sizeof))
+  }
+  {
+    napi_value udx_napi_interface_event_t_sizeof;
+    NAPI_STATUS_THROWS_VOID(napi_create_uint32(env, sizeof(udx_napi_interface_event_t), &udx_napi_interface_event_t_sizeof))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "sizeof_udx_napi_interface_event_t", udx_napi_interface_event_t_sizeof))
+  }
 
-  NAPI_EXPORT_SIZEOF(udx_socket_send_t)
-  NAPI_EXPORT_SIZEOF(udx_stream_send_t)
+  {
+    napi_value udx_socket_send_t_sizeof;
+    NAPI_STATUS_THROWS_VOID(napi_create_uint32(env, sizeof(udx_socket_send_t), &udx_socket_send_t_sizeof))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "sizeof_udx_socket_send_t", udx_socket_send_t_sizeof))
+  }
+  {
+    napi_value udx_stream_send_t_sizeof;
+    NAPI_STATUS_THROWS_VOID(napi_create_uint32(env, sizeof(udx_stream_send_t), &udx_stream_send_t_sizeof))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "sizeof_udx_stream_send_t", udx_stream_send_t_sizeof))
+  }
 
   NAPI_EXPORT_FUNCTION(udx_napi_init)
 
