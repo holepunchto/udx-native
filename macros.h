@@ -36,14 +36,6 @@
     return NULL; \
   }
 
-#define NAPI_BUFFER_CAST(type, name, val) \
-  type name; \
-  size_t name##_len; \
-  NAPI_STATUS_THROWS(napi_get_buffer_info(env, val, (void **) &name, &name##_len))
-
-#define NAPI_BUFFER(name, val) \
-  NAPI_BUFFER_CAST(char *, name, val)
-
 #define NAPI_FOR_EACH(arr, element) \
   uint32_t arr##_len; \
   napi_get_array_length(env, arr, &arr##_len); \

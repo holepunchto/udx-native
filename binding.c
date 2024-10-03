@@ -697,8 +697,13 @@ udx_napi_init (napi_env env, napi_callback_info info) {
   size_t argc = 2;
   NAPI_STATUS_THROWS(napi_get_cb_info(env, info, &argc, argv, NULL, NULL))
 
-  NAPI_BUFFER_CAST(udx_napi_t *, self, argv[0])
-  NAPI_BUFFER_CAST(char *, read_buf, argv[1])
+  udx_napi_t *self;
+  size_t self_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[0], (void **) &self, &self_len))
+
+  char *read_buf;
+  size_t read_buf_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[1], (void **) &read_buf, &read_buf_len))
 
   uv_loop_t *loop;
   napi_get_uv_event_loop(env, &loop);
@@ -717,8 +722,13 @@ udx_napi_socket_init (napi_env env, napi_callback_info info) {
   size_t argc = 7;
   NAPI_STATUS_THROWS(napi_get_cb_info(env, info, &argc, argv, NULL, NULL))
 
-  NAPI_BUFFER_CAST(udx_napi_t *, udx, argv[0])
-  NAPI_BUFFER_CAST(udx_napi_socket_t *, self, argv[1])
+  udx_napi_t *udx;
+  size_t udx_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[0], (void **) &udx, &udx_len))
+
+  udx_napi_socket_t *self;
+  size_t self_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[1], (void **) &self, &self_len))
 
   udx_socket_t *socket = (udx_socket_t *) self;
 
@@ -745,7 +755,10 @@ udx_napi_socket_bind (napi_env env, napi_callback_info info) {
   size_t argc = 5;
   NAPI_STATUS_THROWS(napi_get_cb_info(env, info, &argc, argv, NULL, NULL))
 
-  NAPI_BUFFER_CAST(udx_socket_t *, self, argv[0])
+  udx_socket_t *self;
+  size_t self_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[0], (void **) &self, &self_len))
+
   NAPI_UINT32(port, argv[1])
 
   char ip[INET6_ADDRSTRLEN];
@@ -819,7 +832,10 @@ udx_napi_socket_set_ttl (napi_env env, napi_callback_info info) {
   size_t argc = 2;
   NAPI_STATUS_THROWS(napi_get_cb_info(env, info, &argc, argv, NULL, NULL))
 
-  NAPI_BUFFER_CAST(udx_socket_t *, self, argv[0])
+  udx_socket_t *self;
+  size_t self_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[0], (void **) &self, &self_len))
+
   NAPI_UINT32(ttl, argv[1])
 
   int err = udx_socket_set_ttl(self, ttl);
@@ -837,7 +853,9 @@ udx_napi_socket_get_recv_buffer_size (napi_env env, napi_callback_info info) {
   size_t argc = 1;
   NAPI_STATUS_THROWS(napi_get_cb_info(env, info, &argc, argv, NULL, NULL))
 
-  NAPI_BUFFER_CAST(udx_socket_t *, self, argv[0])
+  udx_socket_t *self;
+  size_t self_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[0], (void **) &self, &self_len))
 
   int size = 0;
 
@@ -858,7 +876,10 @@ udx_napi_socket_set_recv_buffer_size (napi_env env, napi_callback_info info) {
   size_t argc = 2;
   NAPI_STATUS_THROWS(napi_get_cb_info(env, info, &argc, argv, NULL, NULL))
 
-  NAPI_BUFFER_CAST(udx_socket_t *, self, argv[0])
+  udx_socket_t *self;
+  size_t self_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[0], (void **) &self, &self_len))
+
   NAPI_INT32(size, argv[1])
 
   int err = udx_socket_set_recv_buffer_size(self, size);
@@ -876,7 +897,9 @@ udx_napi_socket_get_send_buffer_size (napi_env env, napi_callback_info info) {
   size_t argc = 1;
   NAPI_STATUS_THROWS(napi_get_cb_info(env, info, &argc, argv, NULL, NULL))
 
-  NAPI_BUFFER_CAST(udx_socket_t *, self, argv[0])
+  udx_socket_t *self;
+  size_t self_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[0], (void **) &self, &self_len))
 
   int size = 0;
 
@@ -897,7 +920,10 @@ udx_napi_socket_set_send_buffer_size (napi_env env, napi_callback_info info) {
   size_t argc = 2;
   NAPI_STATUS_THROWS(napi_get_cb_info(env, info, &argc, argv, NULL, NULL))
 
-  NAPI_BUFFER_CAST(udx_socket_t *, self, argv[0])
+  udx_socket_t *self;
+  size_t self_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[0], (void **) &self, &self_len))
+
   NAPI_INT32(size, argv[1])
 
   int err = udx_socket_set_send_buffer_size(self, size);
@@ -917,10 +943,20 @@ udx_napi_socket_send_ttl (napi_env env, napi_callback_info info) {
   size_t argc = 8;
   NAPI_STATUS_THROWS(napi_get_cb_info(env, info, &argc, argv, NULL, NULL))
 
-  NAPI_BUFFER_CAST(udx_socket_t *, self, argv[0])
-  NAPI_BUFFER_CAST(udx_socket_send_t *, req, argv[1])
+  udx_socket_t *self;
+  size_t self_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[0], (void **) &self, &self_len))
+
+  udx_socket_send_t *req;
+  size_t req_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[1], (void **) &req, &req_len))
+
   NAPI_UINT32(rid, argv[2])
-  NAPI_BUFFER_CAST(char *, buf, argv[3])
+
+  char *buf;
+  size_t buf_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[3], (void **) &buf, &buf_len))
+
   NAPI_UINT32(port, argv[4])
 
   char ip[INET6_ADDRSTRLEN];
@@ -968,7 +1004,9 @@ udx_napi_socket_close (napi_env env, napi_callback_info info) {
   size_t argc = 1;
   NAPI_STATUS_THROWS(napi_get_cb_info(env, info, &argc, argv, NULL, NULL))
 
-  NAPI_BUFFER_CAST(udx_socket_t *, self, argv[0])
+  udx_socket_t *self;
+  size_t self_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[0], (void **) &self, &self_len))
 
   int err = udx_socket_close(self, on_udx_close);
   if (err < 0) {
@@ -985,8 +1023,14 @@ udx_napi_stream_init (napi_env env, napi_callback_info info) {
   size_t argc = 16;
   NAPI_STATUS_THROWS(napi_get_cb_info(env, info, &argc, argv, NULL, NULL))
 
-  NAPI_BUFFER_CAST(udx_napi_t *, udx, argv[0])
-  NAPI_BUFFER_CAST(udx_napi_stream_t *, self, argv[1])
+  udx_napi_t *udx;
+  size_t udx_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[0], (void **) &udx, &udx_len))
+
+  udx_napi_stream_t *self;
+  size_t self_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[1], (void **) &self, &self_len))
+
   NAPI_UINT32(id, argv[2])
   NAPI_UINT32(framed, argv[3])
 
@@ -1033,7 +1077,10 @@ udx_napi_stream_set_seq (napi_env env, napi_callback_info info) {
   size_t argc = 2;
   NAPI_STATUS_THROWS(napi_get_cb_info(env, info, &argc, argv, NULL, NULL))
 
-  NAPI_BUFFER_CAST(udx_stream_t *, stream, argv[0])
+  udx_stream_t *stream;
+  size_t stream_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[0], (void **) &stream, &stream_len))
+
   NAPI_UINT32(seq, argv[1])
 
   int err = udx_stream_set_seq(stream, seq);
@@ -1051,7 +1098,10 @@ udx_napi_stream_set_ack (napi_env env, napi_callback_info info) {
   size_t argc = 2;
   NAPI_STATUS_THROWS(napi_get_cb_info(env, info, &argc, argv, NULL, NULL))
 
-  NAPI_BUFFER_CAST(udx_stream_t *, stream, argv[0])
+  udx_stream_t *stream;
+  size_t stream_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[0], (void **) &stream, &stream_len))
+
   NAPI_UINT32(ack, argv[1])
 
   int err = udx_stream_set_ack(stream, ack);
@@ -1069,7 +1119,10 @@ udx_napi_stream_set_mode (napi_env env, napi_callback_info info) {
   size_t argc = 2;
   NAPI_STATUS_THROWS(napi_get_cb_info(env, info, &argc, argv, NULL, NULL))
 
-  NAPI_BUFFER_CAST(udx_napi_stream_t *, stream, argv[0])
+  udx_napi_stream_t *stream;
+  size_t stream_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[0], (void **) &stream, &stream_len))
+
   NAPI_UINT32(mode, argv[1])
 
   stream->mode = mode;
@@ -1083,8 +1136,13 @@ udx_napi_stream_recv_start (napi_env env, napi_callback_info info) {
   size_t argc = 2;
   NAPI_STATUS_THROWS(napi_get_cb_info(env, info, &argc, argv, NULL, NULL))
 
-  NAPI_BUFFER_CAST(udx_napi_stream_t *, stream, argv[0])
-  NAPI_BUFFER_CAST(char *, read_buf, argv[1])
+  udx_napi_stream_t *stream;
+  size_t stream_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[0], (void **) &stream, &stream_len))
+
+  char *read_buf;
+  size_t read_buf_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[1], (void **) &read_buf, &read_buf_len))
 
   stream->read_buf = read_buf;
   stream->read_buf_head = read_buf;
@@ -1102,8 +1160,14 @@ udx_napi_stream_connect (napi_env env, napi_callback_info info) {
   size_t argc = 6;
   NAPI_STATUS_THROWS(napi_get_cb_info(env, info, &argc, argv, NULL, NULL))
 
-  NAPI_BUFFER_CAST(udx_stream_t *, stream, argv[0])
-  NAPI_BUFFER_CAST(udx_socket_t *, socket, argv[1])
+  udx_stream_t *stream;
+  size_t stream_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[0], (void **) &stream, &stream_len))
+
+  udx_socket_t *socket;
+  size_t socket_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[1], (void **) &socket, &socket_len))
+
   NAPI_UINT32(remote_id, argv[2])
   NAPI_UINT32(port, argv[3])
 
@@ -1147,8 +1211,14 @@ udx_napi_stream_change_remote (napi_env env, napi_callback_info info) {
   size_t argc = 6;
   NAPI_STATUS_THROWS(napi_get_cb_info(env, info, &argc, argv, NULL, NULL))
 
-  NAPI_BUFFER_CAST(udx_stream_t *, stream, argv[0])
-  NAPI_BUFFER_CAST(udx_socket_t *, socket, argv[1])
+  udx_stream_t *stream;
+  size_t stream_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[0], (void **) &stream, &stream_len))
+
+  udx_socket_t *socket;
+  size_t socket_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[1], (void **) &socket, &socket_len))
+
   NAPI_UINT32(remote_id, argv[2])
   NAPI_UINT32(port, argv[3])
 
@@ -1192,8 +1262,13 @@ udx_napi_stream_relay_to (napi_env env, napi_callback_info info) {
   size_t argc = 2;
   NAPI_STATUS_THROWS(napi_get_cb_info(env, info, &argc, argv, NULL, NULL))
 
-  NAPI_BUFFER_CAST(udx_stream_t *, stream, argv[0])
-  NAPI_BUFFER_CAST(udx_stream_t *, destination, argv[1])
+  udx_stream_t *stream;
+  size_t stream_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[0], (void **) &stream, &stream_len))
+
+  udx_stream_t *destination;
+  size_t destination_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[1], (void **) &destination, &destination_len))
 
   int err = udx_stream_relay_to(stream, destination);
   if (err < 0) {
@@ -1210,10 +1285,19 @@ udx_napi_stream_send (napi_env env, napi_callback_info info) {
   size_t argc = 4;
   NAPI_STATUS_THROWS(napi_get_cb_info(env, info, &argc, argv, NULL, NULL))
 
-  NAPI_BUFFER_CAST(udx_stream_t *, stream, argv[0])
-  NAPI_BUFFER_CAST(udx_stream_send_t *, req, argv[1])
+  udx_stream_t *stream;
+  size_t stream_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[0], (void **) &stream, &stream_len))
+
+  udx_stream_send_t *req;
+  size_t req_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[1], (void **) &req, &req_len))
+
   NAPI_UINT32(rid, argv[2])
-  NAPI_BUFFER_CAST(char *, buf, argv[3])
+
+  char *buf;
+  size_t buf_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[3], (void **) &buf, &buf_len))
 
   req->data = (void *) ((uintptr_t) rid);
 
@@ -1236,10 +1320,19 @@ udx_napi_stream_write (napi_env env, napi_callback_info info) {
   size_t argc = 4;
   NAPI_STATUS_THROWS(napi_get_cb_info(env, info, &argc, argv, NULL, NULL))
 
-  NAPI_BUFFER_CAST(udx_stream_t *, stream, argv[0])
-  NAPI_BUFFER_CAST(udx_stream_write_t *, req, argv[1])
+  udx_stream_t *stream;
+  size_t stream_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[0], (void **) &stream, &stream_len))
+
+  udx_stream_write_t *req;
+  size_t req_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[1], (void **) &req, &req_len))
+
   NAPI_UINT32(rid, argv[2])
-  NAPI_BUFFER_CAST(char *, buf, argv[3])
+
+  char *buf;
+  size_t buf_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[3], (void **) &buf, &buf_len))
 
   req->data = (void *) ((uintptr_t) rid);
 
@@ -1262,8 +1355,14 @@ udx_napi_stream_writev (napi_env env, napi_callback_info info) {
   size_t argc = 4;
   NAPI_STATUS_THROWS(napi_get_cb_info(env, info, &argc, argv, NULL, NULL))
 
-  NAPI_BUFFER_CAST(udx_stream_t *, stream, argv[0])
-  NAPI_BUFFER_CAST(udx_stream_write_t *, req, argv[1])
+  udx_stream_t *stream;
+  size_t stream_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[0], (void **) &stream, &stream_len))
+
+  udx_stream_write_t *req;
+  size_t req_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[1], (void **) &req, &req_len))
+
   NAPI_UINT32(rid, argv[2])
 
   napi_value buffers = argv[3];
@@ -1277,7 +1376,11 @@ udx_napi_stream_writev (napi_env env, napi_callback_info info) {
   napi_value element;
   for (uint32_t i = 0; i < len; i++) {
     napi_get_element(env, buffers, i, &element);
-    NAPI_BUFFER(buf, element)
+
+    char *buf;
+    size_t buf_len;
+    NAPI_STATUS_THROWS(napi_get_buffer_info(env, element, (void **) &buf, &buf_len))
+
     batch[i] = uv_buf_init(buf, buf_len);
   }
 
@@ -1313,10 +1416,19 @@ udx_napi_stream_write_end (napi_env env, napi_callback_info info) {
   size_t argc = 4;
   NAPI_STATUS_THROWS(napi_get_cb_info(env, info, &argc, argv, NULL, NULL))
 
-  NAPI_BUFFER_CAST(udx_stream_t *, stream, argv[0])
-  NAPI_BUFFER_CAST(udx_stream_write_t *, req, argv[1])
+  udx_stream_t *stream;
+  size_t stream_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[0], (void **) &stream, &stream_len))
+
+  udx_stream_write_t *req;
+  size_t req_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[1], (void **) &req, &req_len))
+
   NAPI_UINT32(rid, argv[2])
-  NAPI_BUFFER_CAST(char *, buf, argv[3])
+
+  char *buf;
+  size_t buf_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[3], (void **) &buf, &buf_len))
 
   req->data = (void *) ((uintptr_t) rid);
 
@@ -1339,7 +1451,9 @@ udx_napi_stream_destroy (napi_env env, napi_callback_info info) {
   size_t argc = 1;
   NAPI_STATUS_THROWS(napi_get_cb_info(env, info, &argc, argv, NULL, NULL))
 
-  NAPI_BUFFER_CAST(udx_stream_t *, stream, argv[0])
+  udx_stream_t *stream;
+  size_t stream_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[0], (void **) &stream, &stream_len))
 
   int err = udx_stream_destroy(stream);
   if (err < 0) {
@@ -1358,7 +1472,9 @@ udx_napi_lookup (napi_env env, napi_callback_info info) {
   size_t argc = 5;
   NAPI_STATUS_THROWS(napi_get_cb_info(env, info, &argc, argv, NULL, NULL))
 
-  NAPI_BUFFER_CAST(udx_napi_lookup_t *, self, argv[0])
+  udx_napi_lookup_t *self;
+  size_t self_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[0], (void **) &self, &self_len))
 
   size_t host_size = 0;
   NAPI_STATUS_THROWS(napi_get_value_string_utf8(env, argv[1], NULL, 0, &host_size))
@@ -1399,7 +1515,9 @@ udx_napi_interface_event_init (napi_env env, napi_callback_info info) {
   size_t argc = 4;
   NAPI_STATUS_THROWS(napi_get_cb_info(env, info, &argc, argv, NULL, NULL))
 
-  NAPI_BUFFER_CAST(udx_napi_interface_event_t *, self, argv[0])
+  udx_napi_interface_event_t *self;
+  size_t self_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[0], (void **) &self, &self_len))
 
   udx_interface_event_t *event = (udx_interface_event_t *) self;
 
@@ -1432,7 +1550,9 @@ udx_napi_interface_event_start (napi_env env, napi_callback_info info) {
   size_t argc = 1;
   NAPI_STATUS_THROWS(napi_get_cb_info(env, info, &argc, argv, NULL, NULL))
 
-  NAPI_BUFFER_CAST(udx_interface_event_t *, event, argv[0])
+  udx_interface_event_t *event;
+  size_t event_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[0], (void **) &event, &event_len))
 
   int err = udx_interface_event_start(event, on_udx_interface_event, 5000);
   if (err < 0) {
@@ -1449,7 +1569,9 @@ udx_napi_interface_event_stop (napi_env env, napi_callback_info info) {
   size_t argc = 1;
   NAPI_STATUS_THROWS(napi_get_cb_info(env, info, &argc, argv, NULL, NULL))
 
-  NAPI_BUFFER_CAST(udx_interface_event_t *, event, argv[0])
+  udx_interface_event_t *event;
+  size_t event_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[0], (void **) &event, &event_len))
 
   int err = udx_interface_event_stop(event);
   if (err < 0) {
@@ -1466,7 +1588,9 @@ udx_napi_interface_event_close (napi_env env, napi_callback_info info) {
   size_t argc = 1;
   NAPI_STATUS_THROWS(napi_get_cb_info(env, info, &argc, argv, NULL, NULL))
 
-  NAPI_BUFFER_CAST(udx_interface_event_t *, event, argv[0])
+  udx_interface_event_t *event;
+  size_t event_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[0], (void **) &event, &event_len))
 
   int err = udx_interface_event_close(event, on_udx_interface_event_close);
   if (err < 0) {
@@ -1483,7 +1607,9 @@ udx_napi_interface_event_get_addrs (napi_env env, napi_callback_info info) {
   size_t argc = 1;
   NAPI_STATUS_THROWS(napi_get_cb_info(env, info, &argc, argv, NULL, NULL))
 
-  NAPI_BUFFER_CAST(udx_interface_event_t *, event, argv[0])
+  udx_interface_event_t *event;
+  size_t event_len;
+  NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[0], (void **) &event, &event_len))
 
   char ip[INET6_ADDRSTRLEN];
   int family = 0;
