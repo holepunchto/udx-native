@@ -792,7 +792,9 @@ udx_napi_socket_bind (napi_env env, napi_callback_info info) {
     return NULL;
   }
 
-  NAPI_RETURN_UINT32(local_port)
+  napi_value return_uint32;
+  NAPI_STATUS_THROWS(napi_create_uint32(env, local_port, &return_uint32))
+  return return_uint32;
 }
 
 napi_value
@@ -823,7 +825,9 @@ udx_napi_socket_get_recv_buffer_size (napi_env env, napi_callback_info info) {
     return NULL;
   }
 
-  NAPI_RETURN_UINT32(size)
+  napi_value return_uint32;
+  NAPI_STATUS_THROWS(napi_create_uint32(env, size, &return_uint32))
+  return return_uint32;
 }
 
 napi_value
@@ -854,7 +858,9 @@ udx_napi_socket_get_send_buffer_size (napi_env env, napi_callback_info info) {
     return NULL;
   }
 
-  NAPI_RETURN_UINT32(size)
+  napi_value return_uint32;
+  NAPI_STATUS_THROWS(napi_create_uint32(env, size, &return_uint32))
+  return return_uint32;
 }
 
 napi_value
@@ -869,7 +875,9 @@ udx_napi_socket_set_send_buffer_size (napi_env env, napi_callback_info info) {
     return NULL;
   }
 
-  NAPI_RETURN_UINT32(size)
+  napi_value return_uint32;
+  NAPI_STATUS_THROWS(napi_create_uint32(env, size, &return_uint32))
+  return return_uint32;
 }
 
 napi_value
@@ -1132,7 +1140,9 @@ udx_napi_stream_send (napi_env env, napi_callback_info info) {
     return NULL;
   }
 
-  NAPI_RETURN_UINT32(err);
+  napi_value return_uint32;
+  NAPI_STATUS_THROWS(napi_create_uint32(env, err, &return_uint32))
+  return return_uint32;
 }
 
 napi_value
@@ -1153,7 +1163,9 @@ udx_napi_stream_write (napi_env env, napi_callback_info info) {
     return NULL;
   }
 
-  NAPI_RETURN_UINT32(err);
+  napi_value return_uint32;
+  NAPI_STATUS_THROWS(napi_create_uint32(env, err, &return_uint32))
+  return return_uint32;
 }
 
 napi_value
@@ -1186,14 +1198,19 @@ udx_napi_stream_writev (napi_env env, napi_callback_info info) {
     return NULL;
   }
 
-  NAPI_RETURN_UINT32(err);
+  napi_value return_uint32;
+  NAPI_STATUS_THROWS(napi_create_uint32(env, err, &return_uint32))
+  return return_uint32;
 }
 
 napi_value
 udx_napi_stream_write_sizeof (napi_env env, napi_callback_info info) {
   NAPI_ARGV(1)
   NAPI_ARGV_UINT32(bufs, 0)
-  NAPI_RETURN_UINT32(udx_stream_write_sizeof(bufs));
+
+  napi_value return_uint32;
+  NAPI_STATUS_THROWS(napi_create_uint32(env, udx_stream_write_sizeof(bufs), &return_uint32))
+  return return_uint32;
 }
 
 napi_value
@@ -1214,7 +1231,9 @@ udx_napi_stream_write_end (napi_env env, napi_callback_info info) {
     return NULL;
   }
 
-  NAPI_RETURN_UINT32(err);
+  napi_value return_uint32;
+  NAPI_STATUS_THROWS(napi_create_uint32(env, err, &return_uint32))
+  return return_uint32;
 }
 
 napi_value
@@ -1228,7 +1247,9 @@ udx_napi_stream_destroy (napi_env env, napi_callback_info info) {
     return NULL;
   }
 
-  NAPI_RETURN_UINT32(err);
+  napi_value return_uint32;
+  NAPI_STATUS_THROWS(napi_create_uint32(env, err, &return_uint32))
+  return return_uint32;
 }
 
 napi_value
@@ -1383,7 +1404,11 @@ udx_napi_interface_event_get_addrs (napi_env env, napi_callback_info info) {
 }
 
 NAPI_INIT() {
-  NAPI_EXPORT_UINT32(UV_UDP_IPV6ONLY)
+  {
+    napi_value UV_UDP_IPV6ONLY_uint32;
+    NAPI_STATUS_THROWS_VOID(napi_create_uint32(env, UV_UDP_IPV6ONLY, &UV_UDP_IPV6ONLY_uint32))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "UV_UDP_IPV6ONLY", UV_UDP_IPV6ONLY_uint32))
+  }
 
   {
     napi_value inflight_offsetof;
