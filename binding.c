@@ -747,7 +747,14 @@ udx_napi_socket_bind (napi_env env, napi_callback_info info) {
 
   NAPI_BUFFER_CAST(udx_socket_t *, self, argv[0])
   NAPI_UINT32(port, argv[1])
-  NAPI_UTF8(ip, INET6_ADDRSTRLEN, argv[2])
+
+  char ip[INET6_ADDRSTRLEN];
+  size_t ip_len;
+  if (napi_get_value_string_utf8(env, argv[2], (char *) &ip, INET6_ADDRSTRLEN, &ip_len) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Expected string");
+    return NULL;
+  }
+
   NAPI_UINT32(family, argv[3])
   NAPI_UINT32(flags, argv[4])
 
@@ -915,7 +922,14 @@ udx_napi_socket_send_ttl (napi_env env, napi_callback_info info) {
   NAPI_UINT32(rid, argv[2])
   NAPI_BUFFER_CAST(char *, buf, argv[3])
   NAPI_UINT32(port, argv[4])
-  NAPI_UTF8(ip, INET6_ADDRSTRLEN, argv[5])
+
+  char ip[INET6_ADDRSTRLEN];
+  size_t ip_len;
+  if (napi_get_value_string_utf8(env, argv[5], (char *) &ip, INET6_ADDRSTRLEN, &ip_len) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Expected string");
+    return NULL;
+  }
+
   NAPI_UINT32(family, argv[6])
   NAPI_UINT32(ttl, argv[7])
 
@@ -1092,7 +1106,14 @@ udx_napi_stream_connect (napi_env env, napi_callback_info info) {
   NAPI_BUFFER_CAST(udx_socket_t *, socket, argv[1])
   NAPI_UINT32(remote_id, argv[2])
   NAPI_UINT32(port, argv[3])
-  NAPI_UTF8(ip, INET6_ADDRSTRLEN, argv[4])
+
+  char ip[INET6_ADDRSTRLEN];
+  size_t ip_len;
+  if (napi_get_value_string_utf8(env, argv[4], (char *) &ip, INET6_ADDRSTRLEN, &ip_len) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Expected string");
+    return NULL;
+  }
+
   NAPI_UINT32(family, argv[5])
 
   int err;
@@ -1130,7 +1151,14 @@ udx_napi_stream_change_remote (napi_env env, napi_callback_info info) {
   NAPI_BUFFER_CAST(udx_socket_t *, socket, argv[1])
   NAPI_UINT32(remote_id, argv[2])
   NAPI_UINT32(port, argv[3])
-  NAPI_UTF8(ip, INET6_ADDRSTRLEN, argv[4])
+
+  char ip[INET6_ADDRSTRLEN];
+  size_t ip_len;
+  if (napi_get_value_string_utf8(env, argv[4], (char *) &ip, INET6_ADDRSTRLEN, &ip_len) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Expected string");
+    return NULL;
+  }
+
   NAPI_UINT32(family, argv[5])
 
   int err;
@@ -1331,7 +1359,14 @@ udx_napi_lookup (napi_env env, napi_callback_info info) {
   NAPI_STATUS_THROWS(napi_get_cb_info(env, info, &argc, argv, NULL, NULL))
 
   NAPI_BUFFER_CAST(udx_napi_lookup_t *, self, argv[0])
-  NAPI_UTF8_MALLOC(host, argv[1])
+
+  size_t host_size = 0;
+  NAPI_STATUS_THROWS(napi_get_value_string_utf8(env, argv[1], NULL, 0, &host_size))
+  char *host = (char *) malloc((host_size + 1) * sizeof(char));
+  size_t host_len;
+  NAPI_STATUS_THROWS(napi_get_value_string_utf8(env, argv[1], host, host_size + 1, &host_len))
+  host[host_size] = '\0';
+
   NAPI_UINT32(family, argv[2])
 
   udx_lookup_t *lookup = (udx_lookup_t *) self;

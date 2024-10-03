@@ -22,22 +22,6 @@
     return NULL; \
   }
 
-#define NAPI_UTF8(name, size, val) \
-  char name[size]; \
-  size_t name##_len; \
-  if (napi_get_value_string_utf8(env, val, (char *) &name, size, &name##_len) != napi_ok) { \
-    napi_throw_error(env, "EINVAL", "Expected string"); \
-    return NULL; \
-  }
-
-#define NAPI_UTF8_MALLOC(name, val) \
-  size_t name##_size = 0; \
-  NAPI_STATUS_THROWS(napi_get_value_string_utf8(env, val, NULL, 0, &name##_size)) \
-  char *name = (char *) malloc((name##_size + 1) * sizeof(char)); \
-  size_t name##_len; \
-  NAPI_STATUS_THROWS(napi_get_value_string_utf8(env, val, name, name##_size + 1, &name##_len)) \
-  name[name##_size] = '\0';
-
 #define NAPI_UINT32(name, val) \
   uint32_t name; \
   if (napi_get_value_uint32(env, val, &name) != napi_ok) { \
