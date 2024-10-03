@@ -655,7 +655,8 @@ on_udx_interface_event_close (udx_interface_event_t *handle) {
   napi_delete_reference(env, e->ctx);
 }
 
-NAPI_METHOD(udx_napi_init) {
+napi_value
+udx_napi_init (napi_env env, napi_callback_info info) {
   NAPI_ARGV(2)
   NAPI_ARGV_BUFFER_CAST(udx_napi_t *, self, 0)
   NAPI_ARGV_BUFFER(read_buf, 1)
@@ -671,7 +672,8 @@ NAPI_METHOD(udx_napi_init) {
   return NULL;
 }
 
-NAPI_METHOD(udx_napi_socket_init) {
+napi_value
+udx_napi_socket_init (napi_env env, napi_callback_info info) {
   NAPI_ARGV(7)
   NAPI_ARGV_BUFFER_CAST(udx_napi_t *, udx, 0)
   NAPI_ARGV_BUFFER_CAST(udx_napi_socket_t *, self, 1)
@@ -692,7 +694,8 @@ NAPI_METHOD(udx_napi_socket_init) {
   return NULL;
 }
 
-NAPI_METHOD(udx_napi_socket_bind) {
+napi_value
+udx_napi_socket_bind (napi_env env, napi_callback_info info) {
   NAPI_ARGV(5)
   NAPI_ARGV_BUFFER_CAST(udx_socket_t *, self, 0)
   NAPI_ARGV_UINT32(port, 1)
@@ -741,7 +744,8 @@ NAPI_METHOD(udx_napi_socket_bind) {
   NAPI_RETURN_UINT32(local_port)
 }
 
-NAPI_METHOD(udx_napi_socket_set_ttl) {
+napi_value
+udx_napi_socket_set_ttl (napi_env env, napi_callback_info info) {
   NAPI_ARGV(2)
   NAPI_ARGV_BUFFER_CAST(udx_socket_t *, self, 0)
   NAPI_ARGV_UINT32(ttl, 1)
@@ -752,7 +756,8 @@ NAPI_METHOD(udx_napi_socket_set_ttl) {
   return NULL;
 }
 
-NAPI_METHOD(udx_napi_socket_get_recv_buffer_size) {
+napi_value
+udx_napi_socket_get_recv_buffer_size (napi_env env, napi_callback_info info) {
   NAPI_ARGV(1)
   NAPI_ARGV_BUFFER_CAST(udx_socket_t *, self, 0)
 
@@ -764,7 +769,8 @@ NAPI_METHOD(udx_napi_socket_get_recv_buffer_size) {
   NAPI_RETURN_UINT32(size)
 }
 
-NAPI_METHOD(udx_napi_socket_set_recv_buffer_size) {
+napi_value
+udx_napi_socket_set_recv_buffer_size (napi_env env, napi_callback_info info) {
   NAPI_ARGV(2)
   NAPI_ARGV_BUFFER_CAST(udx_socket_t *, self, 0)
   NAPI_ARGV_INT32(size, 1)
@@ -775,7 +781,8 @@ NAPI_METHOD(udx_napi_socket_set_recv_buffer_size) {
   return NULL;
 }
 
-NAPI_METHOD(udx_napi_socket_get_send_buffer_size) {
+napi_value
+udx_napi_socket_get_send_buffer_size (napi_env env, napi_callback_info info) {
   NAPI_ARGV(1)
   NAPI_ARGV_BUFFER_CAST(udx_socket_t *, self, 0)
 
@@ -787,7 +794,8 @@ NAPI_METHOD(udx_napi_socket_get_send_buffer_size) {
   NAPI_RETURN_UINT32(size)
 }
 
-NAPI_METHOD(udx_napi_socket_set_send_buffer_size) {
+napi_value
+udx_napi_socket_set_send_buffer_size (napi_env env, napi_callback_info info) {
   NAPI_ARGV(2)
   NAPI_ARGV_BUFFER_CAST(udx_socket_t *, self, 0)
   NAPI_ARGV_INT32(size, 1)
@@ -798,7 +806,8 @@ NAPI_METHOD(udx_napi_socket_set_send_buffer_size) {
   NAPI_RETURN_UINT32(size)
 }
 
-NAPI_METHOD(udx_napi_socket_send_ttl) {
+napi_value
+udx_napi_socket_send_ttl (napi_env env, napi_callback_info info) {
   NAPI_ARGV(8)
   NAPI_ARGV_BUFFER_CAST(udx_socket_t *, self, 0)
   NAPI_ARGV_BUFFER_CAST(udx_socket_send_t *, req, 1)
@@ -832,7 +841,8 @@ NAPI_METHOD(udx_napi_socket_send_ttl) {
   return NULL;
 }
 
-NAPI_METHOD(udx_napi_socket_close) {
+napi_value
+udx_napi_socket_close (napi_env env, napi_callback_info info) {
   NAPI_ARGV(1)
   NAPI_ARGV_BUFFER_CAST(udx_socket_t *, self, 0)
 
@@ -842,7 +852,8 @@ NAPI_METHOD(udx_napi_socket_close) {
   return NULL;
 }
 
-NAPI_METHOD(udx_napi_stream_init) {
+napi_value
+udx_napi_stream_init (napi_env env, napi_callback_info info) {
   NAPI_ARGV(16)
   NAPI_ARGV_BUFFER_CAST(udx_napi_t *, udx, 0)
   NAPI_ARGV_BUFFER_CAST(udx_napi_stream_t *, self, 1)
@@ -883,7 +894,8 @@ NAPI_METHOD(udx_napi_stream_init) {
   return NULL;
 }
 
-NAPI_METHOD(udx_napi_stream_set_seq) {
+napi_value
+udx_napi_stream_set_seq (napi_env env, napi_callback_info info) {
   NAPI_ARGV(2)
   NAPI_ARGV_BUFFER_CAST(udx_stream_t *, stream, 0)
   NAPI_ARGV_UINT32(seq, 1)
@@ -894,7 +906,8 @@ NAPI_METHOD(udx_napi_stream_set_seq) {
   return NULL;
 }
 
-NAPI_METHOD(udx_napi_stream_set_ack) {
+napi_value
+udx_napi_stream_set_ack (napi_env env, napi_callback_info info) {
   NAPI_ARGV(2)
   NAPI_ARGV_BUFFER_CAST(udx_stream_t *, stream, 0)
   NAPI_ARGV_UINT32(ack, 1)
@@ -905,7 +918,8 @@ NAPI_METHOD(udx_napi_stream_set_ack) {
   return NULL;
 }
 
-NAPI_METHOD(udx_napi_stream_set_mode) {
+napi_value
+udx_napi_stream_set_mode (napi_env env, napi_callback_info info) {
   NAPI_ARGV(2)
   NAPI_ARGV_BUFFER_CAST(udx_napi_stream_t *, stream, 0)
   NAPI_ARGV_UINT32(mode, 1)
@@ -915,7 +929,8 @@ NAPI_METHOD(udx_napi_stream_set_mode) {
   return NULL;
 }
 
-NAPI_METHOD(udx_napi_stream_recv_start) {
+napi_value
+udx_napi_stream_recv_start (napi_env env, napi_callback_info info) {
   NAPI_ARGV(2)
   NAPI_ARGV_BUFFER_CAST(udx_napi_stream_t *, stream, 0)
   NAPI_ARGV_BUFFER(read_buf, 1)
@@ -930,7 +945,8 @@ NAPI_METHOD(udx_napi_stream_recv_start) {
   return NULL;
 }
 
-NAPI_METHOD(udx_napi_stream_connect) {
+napi_value
+udx_napi_stream_connect (napi_env env, napi_callback_info info) {
   NAPI_ARGV(6)
   NAPI_ARGV_BUFFER_CAST(udx_stream_t *, stream, 0)
   NAPI_ARGV_BUFFER_CAST(udx_socket_t *, socket, 1)
@@ -958,7 +974,8 @@ NAPI_METHOD(udx_napi_stream_connect) {
   return NULL;
 }
 
-NAPI_METHOD(udx_napi_stream_change_remote) {
+napi_value
+udx_napi_stream_change_remote (napi_env env, napi_callback_info info) {
   NAPI_ARGV(6)
   NAPI_ARGV_BUFFER_CAST(udx_stream_t *, stream, 0)
   NAPI_ARGV_BUFFER_CAST(udx_socket_t *, socket, 1)
@@ -986,7 +1003,8 @@ NAPI_METHOD(udx_napi_stream_change_remote) {
   return NULL;
 }
 
-NAPI_METHOD(udx_napi_stream_relay_to) {
+napi_value
+udx_napi_stream_relay_to (napi_env env, napi_callback_info info) {
   NAPI_ARGV(2)
   NAPI_ARGV_BUFFER_CAST(udx_stream_t *, stream, 0)
   NAPI_ARGV_BUFFER_CAST(udx_stream_t *, destination, 1)
@@ -997,7 +1015,8 @@ NAPI_METHOD(udx_napi_stream_relay_to) {
   return NULL;
 }
 
-NAPI_METHOD(udx_napi_stream_send) {
+napi_value
+udx_napi_stream_send (napi_env env, napi_callback_info info) {
   NAPI_ARGV(4)
   NAPI_ARGV_BUFFER_CAST(udx_stream_t *, stream, 0)
   NAPI_ARGV_BUFFER_CAST(udx_stream_send_t *, req, 1)
@@ -1014,7 +1033,8 @@ NAPI_METHOD(udx_napi_stream_send) {
   NAPI_RETURN_UINT32(err);
 }
 
-NAPI_METHOD(udx_napi_stream_write) {
+napi_value
+udx_napi_stream_write (napi_env env, napi_callback_info info) {
   NAPI_ARGV(4)
   NAPI_ARGV_BUFFER_CAST(udx_stream_t *, stream, 0)
   NAPI_ARGV_BUFFER_CAST(udx_stream_write_t *, req, 1)
@@ -1031,7 +1051,8 @@ NAPI_METHOD(udx_napi_stream_write) {
   NAPI_RETURN_UINT32(err);
 }
 
-NAPI_METHOD(udx_napi_stream_writev) {
+napi_value
+udx_napi_stream_writev (napi_env env, napi_callback_info info) {
   NAPI_ARGV(4)
   NAPI_ARGV_BUFFER_CAST(udx_stream_t *, stream, 0)
   NAPI_ARGV_BUFFER_CAST(udx_stream_write_t *, req, 1)
@@ -1060,13 +1081,15 @@ NAPI_METHOD(udx_napi_stream_writev) {
   NAPI_RETURN_UINT32(err);
 }
 
-NAPI_METHOD(udx_napi_stream_write_sizeof) {
+napi_value
+udx_napi_stream_write_sizeof (napi_env env, napi_callback_info info) {
   NAPI_ARGV(1)
   NAPI_ARGV_UINT32(bufs, 0)
   NAPI_RETURN_UINT32(udx_stream_write_sizeof(bufs));
 }
 
-NAPI_METHOD(udx_napi_stream_write_end) {
+napi_value
+udx_napi_stream_write_end (napi_env env, napi_callback_info info) {
   NAPI_ARGV(4)
   NAPI_ARGV_BUFFER_CAST(udx_stream_t *, stream, 0)
   NAPI_ARGV_BUFFER_CAST(udx_stream_write_t *, req, 1)
@@ -1083,7 +1106,8 @@ NAPI_METHOD(udx_napi_stream_write_end) {
   NAPI_RETURN_UINT32(err);
 }
 
-NAPI_METHOD(udx_napi_stream_destroy) {
+napi_value
+udx_napi_stream_destroy (napi_env env, napi_callback_info info) {
   NAPI_ARGV(1)
   NAPI_ARGV_BUFFER_CAST(udx_stream_t *, stream, 0)
 
@@ -1093,7 +1117,8 @@ NAPI_METHOD(udx_napi_stream_destroy) {
   NAPI_RETURN_UINT32(err);
 }
 
-NAPI_METHOD(udx_napi_lookup) {
+napi_value
+udx_napi_lookup (napi_env env, napi_callback_info info) {
   NAPI_ARGV(5)
   NAPI_ARGV_BUFFER_CAST(udx_napi_lookup_t *, self, 0)
   NAPI_ARGV_UTF8_MALLOC(host, 1)
@@ -1120,7 +1145,8 @@ NAPI_METHOD(udx_napi_lookup) {
   return NULL;
 }
 
-NAPI_METHOD(udx_napi_interface_event_init) {
+napi_value
+udx_napi_interface_event_init (napi_env env, napi_callback_info info) {
   NAPI_ARGV(4)
   NAPI_ARGV_BUFFER_CAST(udx_napi_interface_event_t *, self, 0)
 
@@ -1143,7 +1169,8 @@ NAPI_METHOD(udx_napi_interface_event_init) {
   return NULL;
 }
 
-NAPI_METHOD(udx_napi_interface_event_start) {
+napi_value
+udx_napi_interface_event_start (napi_env env, napi_callback_info info) {
   NAPI_ARGV(1)
   NAPI_ARGV_BUFFER_CAST(udx_interface_event_t *, event, 0)
 
@@ -1153,7 +1180,8 @@ NAPI_METHOD(udx_napi_interface_event_start) {
   return NULL;
 }
 
-NAPI_METHOD(udx_napi_interface_event_stop) {
+napi_value
+udx_napi_interface_event_stop (napi_env env, napi_callback_info info) {
   NAPI_ARGV(1)
   NAPI_ARGV_BUFFER_CAST(udx_interface_event_t *, event, 0)
 
@@ -1163,7 +1191,8 @@ NAPI_METHOD(udx_napi_interface_event_stop) {
   return NULL;
 }
 
-NAPI_METHOD(udx_napi_interface_event_close) {
+napi_value
+udx_napi_interface_event_close (napi_env env, napi_callback_info info) {
   NAPI_ARGV(1)
   NAPI_ARGV_BUFFER_CAST(udx_interface_event_t *, event, 0)
 
@@ -1173,7 +1202,8 @@ NAPI_METHOD(udx_napi_interface_event_close) {
   return NULL;
 }
 
-NAPI_METHOD(udx_napi_interface_event_get_addrs) {
+napi_value
+udx_napi_interface_event_get_addrs (napi_env env, napi_callback_info info) {
   NAPI_ARGV(1)
   NAPI_ARGV_BUFFER_CAST(udx_interface_event_t *, event, 0)
 

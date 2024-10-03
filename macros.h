@@ -56,9 +56,6 @@
     return NULL; \
   }
 
-#define NAPI_METHOD(name) \
-  napi_value name(napi_env env, napi_callback_info info)
-
 #define NAPI_UV_THROWS(err, fn) \
   err = fn; \
   if (err < 0) { \
