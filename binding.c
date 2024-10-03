@@ -6,12 +6,6 @@
 
 #include "macros.h"
 
-#define UDX_NAPI_THROW(err) \
-  { \
-    napi_throw_error(env, uv_err_name(err), uv_strerror(err)); \
-    return NULL; \
-  }
-
 #define UDX_NAPI_INTERACTIVE     0
 #define UDX_NAPI_NON_INTERACTIVE 1
 #define UDX_NAPI_FRAMED          2
@@ -689,7 +683,10 @@ udx_napi_socket_init (napi_env env, napi_callback_info info) {
   napi_create_reference(env, argv[6], 1, &(self->realloc_message));
 
   int err = udx_socket_init((udx_t *) udx, socket);
-  if (err < 0) UDX_NAPI_THROW(err)
+  if (err < 0) {
+    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    return NULL;
+  }
 
   return NULL;
 }
@@ -716,10 +713,16 @@ udx_napi_socket_bind (napi_env env, napi_callback_info info) {
     err = uv_ip6_addr(ip, port, (struct sockaddr_in6 *) &addr);
   }
 
-  if (err < 0) UDX_NAPI_THROW(err)
+  if (err < 0) {
+    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    return NULL;
+  }
 
   err = udx_socket_bind(self, (struct sockaddr *) &addr, flags);
-  if (err < 0) UDX_NAPI_THROW(err)
+  if (err < 0) {
+    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    return NULL;
+  }
 
   // TODO: move the bottom stuff into another function, start, so error handling is easier
 
@@ -727,7 +730,10 @@ udx_napi_socket_bind (napi_env env, napi_callback_info info) {
 
   // wont error in practice
   err = udx_socket_getsockname(self, (struct sockaddr *) &name, &addr_len);
-  if (err < 0) UDX_NAPI_THROW(err)
+  if (err < 0) {
+    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    return NULL;
+  }
 
   int local_port;
 
@@ -739,7 +745,10 @@ udx_napi_socket_bind (napi_env env, napi_callback_info info) {
 
   // wont error in practice
   err = udx_socket_recv_start(self, on_udx_message);
-  if (err < 0) UDX_NAPI_THROW(err)
+  if (err < 0) {
+    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    return NULL;
+  }
 
   NAPI_RETURN_UINT32(local_port)
 }
@@ -751,7 +760,10 @@ udx_napi_socket_set_ttl (napi_env env, napi_callback_info info) {
   NAPI_ARGV_UINT32(ttl, 1)
 
   int err = udx_socket_set_ttl(self, ttl);
-  if (err < 0) UDX_NAPI_THROW(err)
+  if (err < 0) {
+    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    return NULL;
+  }
 
   return NULL;
 }
@@ -764,7 +776,10 @@ udx_napi_socket_get_recv_buffer_size (napi_env env, napi_callback_info info) {
   int size = 0;
 
   int err = udx_socket_get_recv_buffer_size(self, &size);
-  if (err < 0) UDX_NAPI_THROW(err)
+  if (err < 0) {
+    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    return NULL;
+  }
 
   NAPI_RETURN_UINT32(size)
 }
@@ -776,7 +791,10 @@ udx_napi_socket_set_recv_buffer_size (napi_env env, napi_callback_info info) {
   NAPI_ARGV_INT32(size, 1)
 
   int err = udx_socket_set_recv_buffer_size(self, size);
-  if (err < 0) UDX_NAPI_THROW(err)
+  if (err < 0) {
+    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    return NULL;
+  }
 
   return NULL;
 }
@@ -789,7 +807,10 @@ udx_napi_socket_get_send_buffer_size (napi_env env, napi_callback_info info) {
   int size = 0;
 
   int err = udx_socket_get_send_buffer_size(self, &size);
-  if (err < 0) UDX_NAPI_THROW(err)
+  if (err < 0) {
+    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    return NULL;
+  }
 
   NAPI_RETURN_UINT32(size)
 }
@@ -801,7 +822,10 @@ udx_napi_socket_set_send_buffer_size (napi_env env, napi_callback_info info) {
   NAPI_ARGV_INT32(size, 1)
 
   int err = udx_socket_set_send_buffer_size(self, size);
-  if (err < 0) UDX_NAPI_THROW(err)
+  if (err < 0) {
+    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    return NULL;
+  }
 
   NAPI_RETURN_UINT32(size)
 }
@@ -830,13 +854,19 @@ udx_napi_socket_send_ttl (napi_env env, napi_callback_info info) {
     err = uv_ip6_addr(ip, port, (struct sockaddr_in6 *) &addr);
   }
 
-  if (err < 0) UDX_NAPI_THROW(err)
+  if (err < 0) {
+    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    return NULL;
+  }
 
   uv_buf_t b = uv_buf_init(buf, buf_len);
 
   udx_socket_send_ttl(req, self, &b, 1, (const struct sockaddr *) &addr, ttl, on_udx_send);
 
-  if (err < 0) UDX_NAPI_THROW(err)
+  if (err < 0) {
+    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    return NULL;
+  }
 
   return NULL;
 }
@@ -847,7 +877,10 @@ udx_napi_socket_close (napi_env env, napi_callback_info info) {
   NAPI_ARGV_BUFFER_CAST(udx_socket_t *, self, 0)
 
   int err = udx_socket_close(self, on_udx_close);
-  if (err < 0) UDX_NAPI_THROW(err)
+  if (err < 0) {
+    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    return NULL;
+  }
 
   return NULL;
 }
@@ -886,7 +919,10 @@ udx_napi_stream_init (napi_env env, napi_callback_info info) {
   napi_create_reference(env, argv[15], 1, &(self->realloc_message));
 
   int err = udx_stream_init((udx_t *) udx, stream, id, on_udx_stream_close, on_udx_stream_finalize);
-  if (err < 0) UDX_NAPI_THROW(err)
+  if (err < 0) {
+    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    return NULL;
+  }
 
   udx_stream_firewall(stream, on_udx_stream_firewall);
   udx_stream_write_resume(stream, on_udx_stream_drain);
@@ -901,7 +937,10 @@ udx_napi_stream_set_seq (napi_env env, napi_callback_info info) {
   NAPI_ARGV_UINT32(seq, 1)
 
   int err = udx_stream_set_seq(stream, seq);
-  if (err < 0) UDX_NAPI_THROW(err)
+  if (err < 0) {
+    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    return NULL;
+  }
 
   return NULL;
 }
@@ -913,7 +952,10 @@ udx_napi_stream_set_ack (napi_env env, napi_callback_info info) {
   NAPI_ARGV_UINT32(ack, 1)
 
   int err = udx_stream_set_ack(stream, ack);
-  if (err < 0) UDX_NAPI_THROW(err)
+  if (err < 0) {
+    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    return NULL;
+  }
 
   return NULL;
 }
@@ -965,11 +1007,17 @@ udx_napi_stream_connect (napi_env env, napi_callback_info info) {
     err = uv_ip6_addr(ip, port, (struct sockaddr_in6 *) &addr);
   }
 
-  if (err < 0) UDX_NAPI_THROW(err)
+  if (err < 0) {
+    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    return NULL;
+  }
 
   err = udx_stream_connect(stream, socket, remote_id, (const struct sockaddr *) &addr);
 
-  if (err < 0) UDX_NAPI_THROW(err)
+  if (err < 0) {
+    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    return NULL;
+  }
 
   return NULL;
 }
@@ -994,11 +1042,17 @@ udx_napi_stream_change_remote (napi_env env, napi_callback_info info) {
     err = uv_ip6_addr(ip, port, (struct sockaddr_in6 *) &addr);
   }
 
-  if (err < 0) UDX_NAPI_THROW(err)
+  if (err < 0) {
+    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    return NULL;
+  }
 
   err = udx_stream_change_remote(stream, socket, remote_id, (const struct sockaddr *) &addr, on_udx_stream_remote_changed);
 
-  if (err < 0) UDX_NAPI_THROW(err)
+  if (err < 0) {
+    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    return NULL;
+  }
 
   return NULL;
 }
@@ -1010,7 +1064,10 @@ udx_napi_stream_relay_to (napi_env env, napi_callback_info info) {
   NAPI_ARGV_BUFFER_CAST(udx_stream_t *, destination, 1)
 
   int err = udx_stream_relay_to(stream, destination);
-  if (err < 0) UDX_NAPI_THROW(err)
+  if (err < 0) {
+    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    return NULL;
+  }
 
   return NULL;
 }
@@ -1028,7 +1085,10 @@ udx_napi_stream_send (napi_env env, napi_callback_info info) {
   uv_buf_t b = uv_buf_init(buf, buf_len);
 
   int err = udx_stream_send(req, stream, &b, 1, on_udx_stream_send);
-  if (err < 0) UDX_NAPI_THROW(err)
+  if (err < 0) {
+    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    return NULL;
+  }
 
   NAPI_RETURN_UINT32(err);
 }
@@ -1046,7 +1106,10 @@ udx_napi_stream_write (napi_env env, napi_callback_info info) {
   uv_buf_t b = uv_buf_init(buf, buf_len);
 
   int err = udx_stream_write(req, stream, &b, 1, on_udx_stream_ack);
-  if (err < 0) UDX_NAPI_THROW(err)
+  if (err < 0) {
+    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    return NULL;
+  }
 
   NAPI_RETURN_UINT32(err);
 }
@@ -1076,7 +1139,10 @@ udx_napi_stream_writev (napi_env env, napi_callback_info info) {
   int err = udx_stream_write(req, stream, batch, len, on_udx_stream_ack);
   free(batch);
 
-  if (err < 0) UDX_NAPI_THROW(err)
+  if (err < 0) {
+    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    return NULL;
+  }
 
   NAPI_RETURN_UINT32(err);
 }
@@ -1101,7 +1167,10 @@ udx_napi_stream_write_end (napi_env env, napi_callback_info info) {
   uv_buf_t b = uv_buf_init(buf, buf_len);
 
   int err = udx_stream_write_end(req, stream, &b, 1, on_udx_stream_ack);
-  if (err < 0) UDX_NAPI_THROW(err)
+  if (err < 0) {
+    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    return NULL;
+  }
 
   NAPI_RETURN_UINT32(err);
 }
@@ -1112,7 +1181,10 @@ udx_napi_stream_destroy (napi_env env, napi_callback_info info) {
   NAPI_ARGV_BUFFER_CAST(udx_stream_t *, stream, 0)
 
   int err = udx_stream_destroy(stream);
-  if (err < 0) UDX_NAPI_THROW(err)
+  if (err < 0) {
+    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    return NULL;
+  }
 
   NAPI_RETURN_UINT32(err);
 }
@@ -1140,7 +1212,10 @@ udx_napi_lookup (napi_env env, napi_callback_info info) {
   if (family == 6) flags |= UDX_LOOKUP_FAMILY_IPV6;
 
   int err = udx_lookup(loop, lookup, host, flags, on_udx_lookup);
-  if (err < 0) UDX_NAPI_THROW(err)
+  if (err < 0) {
+    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    return NULL;
+  }
 
   return NULL;
 }
@@ -1161,10 +1236,16 @@ udx_napi_interface_event_init (napi_env env, napi_callback_info info) {
   napi_create_reference(env, argv[3], 1, &(self->on_close));
 
   int err = udx_interface_event_init(loop, event);
-  if (err < 0) UDX_NAPI_THROW(err)
+  if (err < 0) {
+    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    return NULL;
+  }
 
   err = udx_interface_event_start(event, on_udx_interface_event, 5000);
-  if (err < 0) UDX_NAPI_THROW(err)
+  if (err < 0) {
+    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    return NULL;
+  }
 
   return NULL;
 }
@@ -1175,7 +1256,10 @@ udx_napi_interface_event_start (napi_env env, napi_callback_info info) {
   NAPI_ARGV_BUFFER_CAST(udx_interface_event_t *, event, 0)
 
   int err = udx_interface_event_start(event, on_udx_interface_event, 5000);
-  if (err < 0) UDX_NAPI_THROW(err)
+  if (err < 0) {
+    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    return NULL;
+  }
 
   return NULL;
 }
@@ -1186,7 +1270,10 @@ udx_napi_interface_event_stop (napi_env env, napi_callback_info info) {
   NAPI_ARGV_BUFFER_CAST(udx_interface_event_t *, event, 0)
 
   int err = udx_interface_event_stop(event);
-  if (err < 0) UDX_NAPI_THROW(err)
+  if (err < 0) {
+    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    return NULL;
+  }
 
   return NULL;
 }
@@ -1197,7 +1284,10 @@ udx_napi_interface_event_close (napi_env env, napi_callback_info info) {
   NAPI_ARGV_BUFFER_CAST(udx_interface_event_t *, event, 0)
 
   int err = udx_interface_event_close(event, on_udx_interface_event_close);
-  if (err < 0) UDX_NAPI_THROW(err)
+  if (err < 0) {
+    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    return NULL;
+  }
 
   return NULL;
 }
