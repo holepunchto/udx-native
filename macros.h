@@ -10,17 +10,6 @@
   NAPI_MODULE(NODE_GYP_MODULE_NAME, napi_macros_init_wrap) \
   static void napi_macros_init(napi_env env, napi_value exports)
 
-#define NAPI_TEST_GC(env) \
-  { \
-    napi_handle_scope scope; \
-    napi_open_handle_scope(env, &scope); \
-    napi_value s; \
-    napi_value r; \
-    napi_create_string_utf8(env, "try { global.gc() } catch {}", NAPI_AUTO_LENGTH, &s); \
-    napi_run_script(env, s, &r); \
-    napi_close_handle_scope(env, scope); \
-  }
-
 #define NAPI_STATUS_THROWS_VOID(call) \
   if ((call) != napi_ok) { \
     napi_throw_error(env, NULL, #call " failed!"); \
@@ -30,13 +19,6 @@
 #define NAPI_STATUS_THROWS(call) \
   if ((call) != napi_ok) { \
     napi_throw_error(env, NULL, #call " failed!"); \
-    return NULL; \
-  }
-
-#define NAPI_UV_THROWS(err, fn) \
-  err = fn; \
-  if (err < 0) { \
-    napi_throw_error(env, uv_err_name(err), uv_strerror(err)); \
     return NULL; \
   }
 
@@ -83,28 +65,5 @@
   napi_get_array_length(env, arr, &arr##_len); \
   napi_value element; \
   for (uint32_t i = 0; i < arr##_len && napi_get_element(env, arr, i, &element) == napi_ok; i++)
-
-#define NAPI_ARGV(n) \
-  napi_value argv[n]; \
-  size_t argc = n; \
-  NAPI_STATUS_THROWS(napi_get_cb_info(env, info, &argc, argv, NULL, NULL))
-
-#define NAPI_ARGV_UTF8(name, size, i) \
-  NAPI_UTF8(name, size, argv[i])
-
-#define NAPI_ARGV_UTF8_MALLOC(name, i) \
-  NAPI_UTF8_MALLOC(name, argv[i])
-
-#define NAPI_ARGV_UINT32(name, i) \
-  NAPI_UINT32(name, argv[i])
-
-#define NAPI_ARGV_INT32(name, i) \
-  NAPI_INT32(name, argv[i])
-
-#define NAPI_ARGV_BUFFER_CAST(type, name, i) \
-  NAPI_BUFFER_CAST(type, name, argv[i])
-
-#define NAPI_ARGV_BUFFER(name, i) \
-  NAPI_ARGV_BUFFER_CAST(char *, name, i)
 
 #endif
