@@ -1596,38 +1596,158 @@ NAPI_INIT() {
     NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "sizeof_udx_stream_send_t", udx_stream_send_t_sizeof))
   }
 
-  NAPI_EXPORT_FUNCTION(udx_napi_init)
+  {
+    napi_value udx_napi_init_fn;
+    NAPI_STATUS_THROWS_VOID(napi_create_function(env, NULL, 0, udx_napi_init, NULL, &udx_napi_init_fn))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "udx_napi_init", udx_napi_init_fn))
+  }
 
-  NAPI_EXPORT_FUNCTION(udx_napi_socket_init)
-  NAPI_EXPORT_FUNCTION(udx_napi_socket_bind)
-  NAPI_EXPORT_FUNCTION(udx_napi_socket_set_ttl)
-  NAPI_EXPORT_FUNCTION(udx_napi_socket_get_recv_buffer_size)
-  NAPI_EXPORT_FUNCTION(udx_napi_socket_set_recv_buffer_size)
-  NAPI_EXPORT_FUNCTION(udx_napi_socket_get_send_buffer_size)
-  NAPI_EXPORT_FUNCTION(udx_napi_socket_set_send_buffer_size)
-  NAPI_EXPORT_FUNCTION(udx_napi_socket_send_ttl)
-  NAPI_EXPORT_FUNCTION(udx_napi_socket_close)
+  {
+    napi_value udx_napi_socket_init_fn;
+    NAPI_STATUS_THROWS_VOID(napi_create_function(env, NULL, 0, udx_napi_socket_init, NULL, &udx_napi_socket_init_fn))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "udx_napi_socket_init", udx_napi_socket_init_fn))
+  }
+  {
+    napi_value udx_napi_socket_bind_fn;
+    NAPI_STATUS_THROWS_VOID(napi_create_function(env, NULL, 0, udx_napi_socket_bind, NULL, &udx_napi_socket_bind_fn))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "udx_napi_socket_bind", udx_napi_socket_bind_fn))
+  }
+  {
+    napi_value udx_napi_socket_set_ttl_fn;
+    NAPI_STATUS_THROWS_VOID(napi_create_function(env, NULL, 0, udx_napi_socket_set_ttl, NULL, &udx_napi_socket_set_ttl_fn))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "udx_napi_socket_set_ttl", udx_napi_socket_set_ttl_fn))
+  }
+  {
+    napi_value udx_napi_socket_get_recv_buffer_size_fn;
+    NAPI_STATUS_THROWS_VOID(napi_create_function(env, NULL, 0, udx_napi_socket_get_recv_buffer_size, NULL, &udx_napi_socket_get_recv_buffer_size_fn))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "udx_napi_socket_get_recv_buffer_size", udx_napi_socket_get_recv_buffer_size_fn))
+  }
+  {
+    napi_value udx_napi_socket_set_recv_buffer_size_fn;
+    NAPI_STATUS_THROWS_VOID(napi_create_function(env, NULL, 0, udx_napi_socket_set_recv_buffer_size, NULL, &udx_napi_socket_set_recv_buffer_size_fn))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "udx_napi_socket_set_recv_buffer_size", udx_napi_socket_set_recv_buffer_size_fn))
+  }
+  {
+    napi_value udx_napi_socket_get_send_buffer_size_fn;
+    NAPI_STATUS_THROWS_VOID(napi_create_function(env, NULL, 0, udx_napi_socket_get_send_buffer_size, NULL, &udx_napi_socket_get_send_buffer_size_fn))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "udx_napi_socket_get_send_buffer_size", udx_napi_socket_get_send_buffer_size_fn))
+  }
+  {
+    napi_value udx_napi_socket_set_send_buffer_size_fn;
+    NAPI_STATUS_THROWS_VOID(napi_create_function(env, NULL, 0, udx_napi_socket_set_send_buffer_size, NULL, &udx_napi_socket_set_send_buffer_size_fn))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "udx_napi_socket_set_send_buffer_size", udx_napi_socket_set_send_buffer_size_fn))
+  }
+  {
+    napi_value udx_napi_socket_send_ttl_fn;
+    NAPI_STATUS_THROWS_VOID(napi_create_function(env, NULL, 0, udx_napi_socket_send_ttl, NULL, &udx_napi_socket_send_ttl_fn))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "udx_napi_socket_send_ttl", udx_napi_socket_send_ttl_fn))
+  }
+  {
+    napi_value udx_napi_socket_close_fn;
+    NAPI_STATUS_THROWS_VOID(napi_create_function(env, NULL, 0, udx_napi_socket_close, NULL, &udx_napi_socket_close_fn))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "udx_napi_socket_close", udx_napi_socket_close_fn))
+  }
 
-  NAPI_EXPORT_FUNCTION(udx_napi_stream_init)
-  NAPI_EXPORT_FUNCTION(udx_napi_stream_set_seq)
-  NAPI_EXPORT_FUNCTION(udx_napi_stream_set_ack)
-  NAPI_EXPORT_FUNCTION(udx_napi_stream_set_mode)
-  NAPI_EXPORT_FUNCTION(udx_napi_stream_connect)
-  NAPI_EXPORT_FUNCTION(udx_napi_stream_change_remote)
-  NAPI_EXPORT_FUNCTION(udx_napi_stream_relay_to)
-  NAPI_EXPORT_FUNCTION(udx_napi_stream_send)
-  NAPI_EXPORT_FUNCTION(udx_napi_stream_recv_start)
-  NAPI_EXPORT_FUNCTION(udx_napi_stream_write)
-  NAPI_EXPORT_FUNCTION(udx_napi_stream_writev)
-  NAPI_EXPORT_FUNCTION(udx_napi_stream_write_sizeof)
-  NAPI_EXPORT_FUNCTION(udx_napi_stream_write_end)
-  NAPI_EXPORT_FUNCTION(udx_napi_stream_destroy)
+  {
+    napi_value udx_napi_stream_init_fn;
+    NAPI_STATUS_THROWS_VOID(napi_create_function(env, NULL, 0, udx_napi_stream_init, NULL, &udx_napi_stream_init_fn))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "udx_napi_stream_init", udx_napi_stream_init_fn))
+  }
+  {
+    napi_value udx_napi_stream_set_seq_fn;
+    NAPI_STATUS_THROWS_VOID(napi_create_function(env, NULL, 0, udx_napi_stream_set_seq, NULL, &udx_napi_stream_set_seq_fn))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "udx_napi_stream_set_seq", udx_napi_stream_set_seq_fn))
+  }
+  {
+    napi_value udx_napi_stream_set_ack_fn;
+    NAPI_STATUS_THROWS_VOID(napi_create_function(env, NULL, 0, udx_napi_stream_set_ack, NULL, &udx_napi_stream_set_ack_fn))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "udx_napi_stream_set_ack", udx_napi_stream_set_ack_fn))
+  }
+  {
+    napi_value udx_napi_stream_set_mode_fn;
+    NAPI_STATUS_THROWS_VOID(napi_create_function(env, NULL, 0, udx_napi_stream_set_mode, NULL, &udx_napi_stream_set_mode_fn))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "udx_napi_stream_set_mode", udx_napi_stream_set_mode_fn))
+  }
+  {
+    napi_value udx_napi_stream_connect_fn;
+    NAPI_STATUS_THROWS_VOID(napi_create_function(env, NULL, 0, udx_napi_stream_connect, NULL, &udx_napi_stream_connect_fn))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "udx_napi_stream_connect", udx_napi_stream_connect_fn))
+  }
+  {
+    napi_value udx_napi_stream_change_remote_fn;
+    NAPI_STATUS_THROWS_VOID(napi_create_function(env, NULL, 0, udx_napi_stream_change_remote, NULL, &udx_napi_stream_change_remote_fn))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "udx_napi_stream_change_remote", udx_napi_stream_change_remote_fn))
+  }
+  {
+    napi_value udx_napi_stream_relay_to_fn;
+    NAPI_STATUS_THROWS_VOID(napi_create_function(env, NULL, 0, udx_napi_stream_relay_to, NULL, &udx_napi_stream_relay_to_fn))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "udx_napi_stream_relay_to", udx_napi_stream_relay_to_fn))
+  }
+  {
+    napi_value udx_napi_stream_send_fn;
+    NAPI_STATUS_THROWS_VOID(napi_create_function(env, NULL, 0, udx_napi_stream_send, NULL, &udx_napi_stream_send_fn))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "udx_napi_stream_send", udx_napi_stream_send_fn))
+  }
+  {
+    napi_value udx_napi_stream_recv_start_fn;
+    NAPI_STATUS_THROWS_VOID(napi_create_function(env, NULL, 0, udx_napi_stream_recv_start, NULL, &udx_napi_stream_recv_start_fn))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "udx_napi_stream_recv_start", udx_napi_stream_recv_start_fn))
+  }
+  {
+    napi_value udx_napi_stream_write_fn;
+    NAPI_STATUS_THROWS_VOID(napi_create_function(env, NULL, 0, udx_napi_stream_write, NULL, &udx_napi_stream_write_fn))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "udx_napi_stream_write", udx_napi_stream_write_fn))
+  }
+  {
+    napi_value udx_napi_stream_writev_fn;
+    NAPI_STATUS_THROWS_VOID(napi_create_function(env, NULL, 0, udx_napi_stream_writev, NULL, &udx_napi_stream_writev_fn))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "udx_napi_stream_writev", udx_napi_stream_writev_fn))
+  }
+  {
+    napi_value udx_napi_stream_write_sizeof_fn;
+    NAPI_STATUS_THROWS_VOID(napi_create_function(env, NULL, 0, udx_napi_stream_write_sizeof, NULL, &udx_napi_stream_write_sizeof_fn))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "udx_napi_stream_write_sizeof", udx_napi_stream_write_sizeof_fn))
+  }
+  {
+    napi_value udx_napi_stream_write_end_fn;
+    NAPI_STATUS_THROWS_VOID(napi_create_function(env, NULL, 0, udx_napi_stream_write_end, NULL, &udx_napi_stream_write_end_fn))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "udx_napi_stream_write_end", udx_napi_stream_write_end_fn))
+  }
+  {
+    napi_value udx_napi_stream_destroy_fn;
+    NAPI_STATUS_THROWS_VOID(napi_create_function(env, NULL, 0, udx_napi_stream_destroy, NULL, &udx_napi_stream_destroy_fn))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "udx_napi_stream_destroy", udx_napi_stream_destroy_fn))
+  }
 
-  NAPI_EXPORT_FUNCTION(udx_napi_lookup)
+  {
+    napi_value udx_napi_lookup_fn;
+    NAPI_STATUS_THROWS_VOID(napi_create_function(env, NULL, 0, udx_napi_lookup, NULL, &udx_napi_lookup_fn))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "udx_napi_lookup", udx_napi_lookup_fn))
+  }
 
-  NAPI_EXPORT_FUNCTION(udx_napi_interface_event_init)
-  NAPI_EXPORT_FUNCTION(udx_napi_interface_event_start)
-  NAPI_EXPORT_FUNCTION(udx_napi_interface_event_stop)
-  NAPI_EXPORT_FUNCTION(udx_napi_interface_event_close)
-  NAPI_EXPORT_FUNCTION(udx_napi_interface_event_get_addrs)
+  {
+    napi_value udx_napi_interface_event_init_fn;
+    NAPI_STATUS_THROWS_VOID(napi_create_function(env, NULL, 0, udx_napi_interface_event_init, NULL, &udx_napi_interface_event_init_fn))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "udx_napi_interface_event_init", udx_napi_interface_event_init_fn))
+  }
+  {
+    napi_value udx_napi_interface_event_start_fn;
+    NAPI_STATUS_THROWS_VOID(napi_create_function(env, NULL, 0, udx_napi_interface_event_start, NULL, &udx_napi_interface_event_start_fn))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "udx_napi_interface_event_start", udx_napi_interface_event_start_fn))
+  }
+  {
+    napi_value udx_napi_interface_event_stop_fn;
+    NAPI_STATUS_THROWS_VOID(napi_create_function(env, NULL, 0, udx_napi_interface_event_stop, NULL, &udx_napi_interface_event_stop_fn))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "udx_napi_interface_event_stop", udx_napi_interface_event_stop_fn))
+  }
+  {
+    napi_value udx_napi_interface_event_close_fn;
+    NAPI_STATUS_THROWS_VOID(napi_create_function(env, NULL, 0, udx_napi_interface_event_close, NULL, &udx_napi_interface_event_close_fn))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "udx_napi_interface_event_close", udx_napi_interface_event_close_fn))
+  }
+  {
+    napi_value udx_napi_interface_event_get_addrs_fn;
+    NAPI_STATUS_THROWS_VOID(napi_create_function(env, NULL, 0, udx_napi_interface_event_get_addrs, NULL, &udx_napi_interface_event_get_addrs_fn))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "udx_napi_interface_event_get_addrs", udx_napi_interface_event_get_addrs_fn))
+  }
 }

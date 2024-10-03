@@ -54,13 +54,6 @@
     NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, #name, name##_int32)) \
   }
 
-#define NAPI_EXPORT_FUNCTION(name) \
-  { \
-    napi_value name##_fn; \
-    NAPI_STATUS_THROWS_VOID(napi_create_function(env, NULL, 0, name, NULL, &name##_fn)) \
-    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, #name, name##_fn)) \
-  }
-
 #define NAPI_EXPORT_UTF8(name, len) \
   { \
     napi_value name##_utf8; \
