@@ -1385,27 +1385,179 @@ udx_napi_interface_event_get_addrs (napi_env env, napi_callback_info info) {
 NAPI_INIT() {
   NAPI_EXPORT_UINT32(UV_UDP_IPV6ONLY)
 
-  NAPI_EXPORT_OFFSETOF(udx_stream_t, inflight)
-  NAPI_EXPORT_OFFSETOF(udx_stream_t, mtu)
-  NAPI_EXPORT_OFFSETOF(udx_stream_t, cwnd)
-  NAPI_EXPORT_OFFSETOF(udx_stream_t, srtt)
-  NAPI_EXPORT_OFFSETOF(udx_stream_t, bytes_rx)
-  NAPI_EXPORT_OFFSETOF(udx_stream_t, packets_rx)
-  NAPI_EXPORT_OFFSETOF(udx_stream_t, bytes_tx)
-  NAPI_EXPORT_OFFSETOF(udx_stream_t, packets_tx)
-  NAPI_EXPORT_OFFSETOF(udx_stream_t, rto_count)
-  NAPI_EXPORT_OFFSETOF(udx_stream_t, retransmit_count)
-  NAPI_EXPORT_OFFSETOF(udx_stream_t, fast_recovery_count)
+  {
+    napi_value inflight_offsetof;
+    udx_stream_t tmp;
+    void *ptr = &(tmp.inflight);
+    void *ptr_base = &tmp;
+    int offset = (char *) ptr - (char *) ptr_base;
+    NAPI_STATUS_THROWS_VOID(napi_create_uint32(env, offset, &inflight_offsetof))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "offsetof_udx_stream_t_inflight", inflight_offsetof))
+  }
+  {
+    napi_value mtu_offsetof;
+    udx_stream_t tmp;
+    void *ptr = &(tmp.mtu);
+    void *ptr_base = &tmp;
+    int offset = (char *) ptr - (char *) ptr_base;
+    NAPI_STATUS_THROWS_VOID(napi_create_uint32(env, offset, &mtu_offsetof))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "offsetof_udx_stream_t_mtu", mtu_offsetof))
+  }
+  {
+    napi_value cwnd_offsetof;
+    udx_stream_t tmp;
+    void *ptr = &(tmp.cwnd);
+    void *ptr_base = &tmp;
+    int offset = (char *) ptr - (char *) ptr_base;
+    NAPI_STATUS_THROWS_VOID(napi_create_uint32(env, offset, &cwnd_offsetof))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "offsetof_udx_stream_t_cwnd", cwnd_offsetof))
+  }
+  {
+    napi_value srtt_offsetof;
+    udx_stream_t tmp;
+    void *ptr = &(tmp.srtt);
+    void *ptr_base = &tmp;
+    int offset = (char *) ptr - (char *) ptr_base;
+    NAPI_STATUS_THROWS_VOID(napi_create_uint32(env, offset, &srtt_offsetof))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "offsetof_udx_stream_t_srtt", srtt_offsetof))
+  }
+  {
+    napi_value bytes_rx_offsetof;
+    udx_stream_t tmp;
+    void *ptr = &(tmp.bytes_rx);
+    void *ptr_base = &tmp;
+    int offset = (char *) ptr - (char *) ptr_base;
+    NAPI_STATUS_THROWS_VOID(napi_create_uint32(env, offset, &bytes_rx_offsetof))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "offsetof_udx_stream_t_bytes_rx", bytes_rx_offsetof))
+  }
+  {
+    napi_value packets_rx_offsetof;
+    udx_stream_t tmp;
+    void *ptr = &(tmp.packets_rx);
+    void *ptr_base = &tmp;
+    int offset = (char *) ptr - (char *) ptr_base;
+    NAPI_STATUS_THROWS_VOID(napi_create_uint32(env, offset, &packets_rx_offsetof))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "offsetof_udx_stream_t_packets_rx", packets_rx_offsetof))
+  }
+  {
+    napi_value bytes_tx_offsetof;
+    udx_stream_t tmp;
+    void *ptr = &(tmp.bytes_tx);
+    void *ptr_base = &tmp;
+    int offset = (char *) ptr - (char *) ptr_base;
+    NAPI_STATUS_THROWS_VOID(napi_create_uint32(env, offset, &bytes_tx_offsetof))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "offsetof_udx_stream_t_bytes_tx", bytes_tx_offsetof))
+  }
+  {
+    napi_value packets_tx_offsetof;
+    udx_stream_t tmp;
+    void *ptr = &(tmp.packets_tx);
+    void *ptr_base = &tmp;
+    int offset = (char *) ptr - (char *) ptr_base;
+    NAPI_STATUS_THROWS_VOID(napi_create_uint32(env, offset, &packets_tx_offsetof))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "offsetof_udx_stream_t_packets_tx", packets_tx_offsetof))
+  }
+  {
+    napi_value rto_count_offsetof;
+    udx_stream_t tmp;
+    void *ptr = &(tmp.rto_count);
+    void *ptr_base = &tmp;
+    int offset = (char *) ptr - (char *) ptr_base;
+    NAPI_STATUS_THROWS_VOID(napi_create_uint32(env, offset, &rto_count_offsetof))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "offsetof_udx_stream_t_rto_count", rto_count_offsetof))
+  }
+  {
+    napi_value retransmit_count_offsetof;
+    udx_stream_t tmp;
+    void *ptr = &(tmp.retransmit_count);
+    void *ptr_base = &tmp;
+    int offset = (char *) ptr - (char *) ptr_base;
+    NAPI_STATUS_THROWS_VOID(napi_create_uint32(env, offset, &retransmit_count_offsetof))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "offsetof_udx_stream_t_retransmit_count", retransmit_count_offsetof))
+  }
+  {
+    napi_value fast_recovery_count_offsetof;
+    udx_stream_t tmp;
+    void *ptr = &(tmp.fast_recovery_count);
+    void *ptr_base = &tmp;
+    int offset = (char *) ptr - (char *) ptr_base;
+    NAPI_STATUS_THROWS_VOID(napi_create_uint32(env, offset, &fast_recovery_count_offsetof))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "offsetof_udx_stream_t_fast_recovery_count", fast_recovery_count_offsetof))
+  }
 
-  NAPI_EXPORT_OFFSETOF(udx_socket_t, bytes_rx)
-  NAPI_EXPORT_OFFSETOF(udx_socket_t, packets_rx)
-  NAPI_EXPORT_OFFSETOF(udx_socket_t, bytes_tx)
-  NAPI_EXPORT_OFFSETOF(udx_socket_t, packets_tx)
+  {
+    napi_value bytes_rx_offsetof;
+    udx_socket_t tmp;
+    void *ptr = &(tmp.bytes_rx);
+    void *ptr_base = &tmp;
+    int offset = (char *) ptr - (char *) ptr_base;
+    NAPI_STATUS_THROWS_VOID(napi_create_uint32(env, offset, &bytes_rx_offsetof))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "offsetof_udx_socket_t_bytes_rx", bytes_rx_offsetof))
+  }
+  {
+    napi_value packets_rx_offsetof;
+    udx_socket_t tmp;
+    void *ptr = &(tmp.packets_rx);
+    void *ptr_base = &tmp;
+    int offset = (char *) ptr - (char *) ptr_base;
+    NAPI_STATUS_THROWS_VOID(napi_create_uint32(env, offset, &packets_rx_offsetof))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "offsetof_udx_socket_t_packets_rx", packets_rx_offsetof))
+  }
+  {
+    napi_value bytes_tx_offsetof;
+    udx_socket_t tmp;
+    void *ptr = &(tmp.bytes_tx);
+    void *ptr_base = &tmp;
+    int offset = (char *) ptr - (char *) ptr_base;
+    NAPI_STATUS_THROWS_VOID(napi_create_uint32(env, offset, &bytes_tx_offsetof))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "offsetof_udx_socket_t_bytes_tx", bytes_tx_offsetof))
+  }
+  {
+    napi_value packets_tx_offsetof;
+    udx_socket_t tmp;
+    void *ptr = &(tmp.packets_tx);
+    void *ptr_base = &tmp;
+    int offset = (char *) ptr - (char *) ptr_base;
+    NAPI_STATUS_THROWS_VOID(napi_create_uint32(env, offset, &packets_tx_offsetof))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "offsetof_udx_socket_t_packets_tx", packets_tx_offsetof))
+  }
 
-  NAPI_EXPORT_OFFSETOF(udx_t, bytes_rx)
-  NAPI_EXPORT_OFFSETOF(udx_t, packets_rx)
-  NAPI_EXPORT_OFFSETOF(udx_t, bytes_tx)
-  NAPI_EXPORT_OFFSETOF(udx_t, packets_tx)
+  {
+    napi_value bytes_rx_offsetof;
+    udx_t tmp;
+    void *ptr = &(tmp.bytes_rx);
+    void *ptr_base = &tmp;
+    int offset = (char *) ptr - (char *) ptr_base;
+    NAPI_STATUS_THROWS_VOID(napi_create_uint32(env, offset, &bytes_rx_offsetof))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "offsetof_udx_t_bytes_rx", bytes_rx_offsetof))
+  }
+  {
+    napi_value packets_rx_offsetof;
+    udx_t tmp;
+    void *ptr = &(tmp.packets_rx);
+    void *ptr_base = &tmp;
+    int offset = (char *) ptr - (char *) ptr_base;
+    NAPI_STATUS_THROWS_VOID(napi_create_uint32(env, offset, &packets_rx_offsetof))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "offsetof_udx_t_packets_rx", packets_rx_offsetof))
+  }
+  {
+    napi_value bytes_tx_offsetof;
+    udx_t tmp;
+    void *ptr = &(tmp.bytes_tx);
+    void *ptr_base = &tmp;
+    int offset = (char *) ptr - (char *) ptr_base;
+    NAPI_STATUS_THROWS_VOID(napi_create_uint32(env, offset, &bytes_tx_offsetof))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "offsetof_udx_t_bytes_tx", bytes_tx_offsetof))
+  }
+  {
+    napi_value packets_tx_offsetof;
+    udx_t tmp;
+    void *ptr = &(tmp.packets_tx);
+    void *ptr_base = &tmp;
+    int offset = (char *) ptr - (char *) ptr_base;
+    NAPI_STATUS_THROWS_VOID(napi_create_uint32(env, offset, &packets_tx_offsetof))
+    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "offsetof_udx_t_packets_tx", packets_tx_offsetof))
+  }
 
   NAPI_EXPORT_SIZEOF(udx_napi_t)
   NAPI_EXPORT_SIZEOF(udx_napi_socket_t)

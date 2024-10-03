@@ -56,17 +56,6 @@
     return NULL; \
   }
 
-#define NAPI_EXPORT_OFFSETOF(type, name) \
-  { \
-    napi_value name##_offsetof; \
-    type tmp; \
-    void *ptr = &(tmp.name); \
-    void *ptr_base = &tmp; \
-    int offset = (char *) ptr - (char *) ptr_base; \
-    NAPI_STATUS_THROWS_VOID(napi_create_uint32(env, offset, &name##_offsetof)) \
-    NAPI_STATUS_THROWS_VOID(napi_set_named_property(env, exports, "offsetof_" #type "_" #name, name##_offsetof)) \
-  }
-
 #define NAPI_EXPORT_OFFSETOF_STRUCT(type, name) \
   { \
     napi_value name##_offsetof; \
