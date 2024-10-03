@@ -37,13 +37,6 @@
     napi_set_element(env, arr, i++, entry); \
   }
 
-#define NAPI_MAKE_CALLBACK(env, nil, ctx, cb, n, argv, res) \
-  if (napi_make_callback(env, nil, ctx, cb, n, argv, res) == napi_pending_exception) { \
-    napi_value fatal_exception; \
-    napi_get_and_clear_last_exception(env, &fatal_exception); \
-    napi_fatal_exception(env, fatal_exception); \
-  }
-
 #define NAPI_STATUS_THROWS_VOID(call) \
   if ((call) != napi_ok) { \
     napi_throw_error(env, NULL, #call " failed!"); \
