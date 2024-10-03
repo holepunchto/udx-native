@@ -759,7 +759,11 @@ udx_napi_socket_bind (napi_env env, napi_callback_info info) {
   size_t self_len;
   NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[0], (void **) &self, &self_len))
 
-  NAPI_UINT32(port, argv[1])
+  uint32_t port;
+  if (napi_get_value_uint32(env, argv[1], &port) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Expected unsigned number");
+    return NULL;
+  }
 
   char ip[INET6_ADDRSTRLEN];
   size_t ip_len;
@@ -768,8 +772,17 @@ udx_napi_socket_bind (napi_env env, napi_callback_info info) {
     return NULL;
   }
 
-  NAPI_UINT32(family, argv[3])
-  NAPI_UINT32(flags, argv[4])
+  uint32_t family;
+  if (napi_get_value_uint32(env, argv[3], &family) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Expected unsigned number");
+    return NULL;
+  }
+
+  uint32_t flags;
+  if (napi_get_value_uint32(env, argv[4], &flags) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Expected unsigned number");
+    return NULL;
+  }
 
   int err;
 
@@ -836,7 +849,11 @@ udx_napi_socket_set_ttl (napi_env env, napi_callback_info info) {
   size_t self_len;
   NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[0], (void **) &self, &self_len))
 
-  NAPI_UINT32(ttl, argv[1])
+  uint32_t ttl;
+  if (napi_get_value_uint32(env, argv[1], &ttl) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Expected unsigned number");
+    return NULL;
+  }
 
   int err = udx_socket_set_ttl(self, ttl);
   if (err < 0) {
@@ -880,7 +897,11 @@ udx_napi_socket_set_recv_buffer_size (napi_env env, napi_callback_info info) {
   size_t self_len;
   NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[0], (void **) &self, &self_len))
 
-  NAPI_INT32(size, argv[1])
+  int32_t size;
+  if (napi_get_value_int32(env, argv[1], &size) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Expected number");
+    return NULL;
+  }
 
   int err = udx_socket_set_recv_buffer_size(self, size);
   if (err < 0) {
@@ -924,7 +945,11 @@ udx_napi_socket_set_send_buffer_size (napi_env env, napi_callback_info info) {
   size_t self_len;
   NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[0], (void **) &self, &self_len))
 
-  NAPI_INT32(size, argv[1])
+  int32_t size;
+  if (napi_get_value_int32(env, argv[1], &size) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Expected number");
+    return NULL;
+  }
 
   int err = udx_socket_set_send_buffer_size(self, size);
   if (err < 0) {
@@ -951,13 +976,21 @@ udx_napi_socket_send_ttl (napi_env env, napi_callback_info info) {
   size_t req_len;
   NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[1], (void **) &req, &req_len))
 
-  NAPI_UINT32(rid, argv[2])
+  uint32_t rid;
+  if (napi_get_value_uint32(env, argv[2], &rid) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Expected unsigned number");
+    return NULL;
+  }
 
   char *buf;
   size_t buf_len;
   NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[3], (void **) &buf, &buf_len))
 
-  NAPI_UINT32(port, argv[4])
+  uint32_t port;
+  if (napi_get_value_uint32(env, argv[4], &port) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Expected unsigned number");
+    return NULL;
+  }
 
   char ip[INET6_ADDRSTRLEN];
   size_t ip_len;
@@ -966,8 +999,17 @@ udx_napi_socket_send_ttl (napi_env env, napi_callback_info info) {
     return NULL;
   }
 
-  NAPI_UINT32(family, argv[6])
-  NAPI_UINT32(ttl, argv[7])
+  uint32_t family;
+  if (napi_get_value_uint32(env, argv[6], &family) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Expected unsigned number");
+    return NULL;
+  }
+
+  uint32_t ttl;
+  if (napi_get_value_uint32(env, argv[7], &ttl) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Expected unsigned number");
+    return NULL;
+  }
 
   req->data = (void *) ((uintptr_t) rid);
 
@@ -1031,8 +1073,17 @@ udx_napi_stream_init (napi_env env, napi_callback_info info) {
   size_t self_len;
   NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[1], (void **) &self, &self_len))
 
-  NAPI_UINT32(id, argv[2])
-  NAPI_UINT32(framed, argv[3])
+  uint32_t id;
+  if (napi_get_value_uint32(env, argv[2], &id) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Expected unsigned number");
+    return NULL;
+  }
+
+  uint32_t framed;
+  if (napi_get_value_uint32(env, argv[3], &framed) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Expected unsigned number");
+    return NULL;
+  }
 
   udx_stream_t *stream = (udx_stream_t *) self;
 
@@ -1081,7 +1132,11 @@ udx_napi_stream_set_seq (napi_env env, napi_callback_info info) {
   size_t stream_len;
   NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[0], (void **) &stream, &stream_len))
 
-  NAPI_UINT32(seq, argv[1])
+  uint32_t seq;
+  if (napi_get_value_uint32(env, argv[1], &seq) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Expected unsigned number");
+    return NULL;
+  }
 
   int err = udx_stream_set_seq(stream, seq);
   if (err < 0) {
@@ -1102,7 +1157,11 @@ udx_napi_stream_set_ack (napi_env env, napi_callback_info info) {
   size_t stream_len;
   NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[0], (void **) &stream, &stream_len))
 
-  NAPI_UINT32(ack, argv[1])
+  uint32_t ack;
+  if (napi_get_value_uint32(env, argv[1], &ack) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Expected unsigned number");
+    return NULL;
+  }
 
   int err = udx_stream_set_ack(stream, ack);
   if (err < 0) {
@@ -1123,7 +1182,11 @@ udx_napi_stream_set_mode (napi_env env, napi_callback_info info) {
   size_t stream_len;
   NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[0], (void **) &stream, &stream_len))
 
-  NAPI_UINT32(mode, argv[1])
+  uint32_t mode;
+  if (napi_get_value_uint32(env, argv[1], &mode) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Expected unsigned number");
+    return NULL;
+  }
 
   stream->mode = mode;
 
@@ -1168,8 +1231,17 @@ udx_napi_stream_connect (napi_env env, napi_callback_info info) {
   size_t socket_len;
   NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[1], (void **) &socket, &socket_len))
 
-  NAPI_UINT32(remote_id, argv[2])
-  NAPI_UINT32(port, argv[3])
+  uint32_t remote_id;
+  if (napi_get_value_uint32(env, argv[2], &remote_id) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Expected unsigned number");
+    return NULL;
+  }
+
+  uint32_t port;
+  if (napi_get_value_uint32(env, argv[3], &port) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Expected unsigned number");
+    return NULL;
+  }
 
   char ip[INET6_ADDRSTRLEN];
   size_t ip_len;
@@ -1178,7 +1250,11 @@ udx_napi_stream_connect (napi_env env, napi_callback_info info) {
     return NULL;
   }
 
-  NAPI_UINT32(family, argv[5])
+  uint32_t family;
+  if (napi_get_value_uint32(env, argv[5], &family) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Expected unsigned number");
+    return NULL;
+  }
 
   int err;
 
@@ -1219,8 +1295,17 @@ udx_napi_stream_change_remote (napi_env env, napi_callback_info info) {
   size_t socket_len;
   NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[1], (void **) &socket, &socket_len))
 
-  NAPI_UINT32(remote_id, argv[2])
-  NAPI_UINT32(port, argv[3])
+  uint32_t remote_id;
+  if (napi_get_value_uint32(env, argv[2], &remote_id) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Expected unsigned number");
+    return NULL;
+  }
+
+  uint32_t port;
+  if (napi_get_value_uint32(env, argv[3], &port) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Expected unsigned number");
+    return NULL;
+  }
 
   char ip[INET6_ADDRSTRLEN];
   size_t ip_len;
@@ -1229,7 +1314,11 @@ udx_napi_stream_change_remote (napi_env env, napi_callback_info info) {
     return NULL;
   }
 
-  NAPI_UINT32(family, argv[5])
+  uint32_t family;
+  if (napi_get_value_uint32(env, argv[5], &family) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Expected unsigned number");
+    return NULL;
+  }
 
   int err;
 
@@ -1293,7 +1382,11 @@ udx_napi_stream_send (napi_env env, napi_callback_info info) {
   size_t req_len;
   NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[1], (void **) &req, &req_len))
 
-  NAPI_UINT32(rid, argv[2])
+  uint32_t rid;
+  if (napi_get_value_uint32(env, argv[2], &rid) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Expected unsigned number");
+    return NULL;
+  }
 
   char *buf;
   size_t buf_len;
@@ -1328,7 +1421,11 @@ udx_napi_stream_write (napi_env env, napi_callback_info info) {
   size_t req_len;
   NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[1], (void **) &req, &req_len))
 
-  NAPI_UINT32(rid, argv[2])
+  uint32_t rid;
+  if (napi_get_value_uint32(env, argv[2], &rid) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Expected unsigned number");
+    return NULL;
+  }
 
   char *buf;
   size_t buf_len;
@@ -1363,7 +1460,11 @@ udx_napi_stream_writev (napi_env env, napi_callback_info info) {
   size_t req_len;
   NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[1], (void **) &req, &req_len))
 
-  NAPI_UINT32(rid, argv[2])
+  uint32_t rid;
+  if (napi_get_value_uint32(env, argv[2], &rid) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Expected unsigned number");
+    return NULL;
+  }
 
   napi_value buffers = argv[3];
 
@@ -1403,7 +1504,11 @@ udx_napi_stream_write_sizeof (napi_env env, napi_callback_info info) {
   size_t argc = 1;
   NAPI_STATUS_THROWS(napi_get_cb_info(env, info, &argc, argv, NULL, NULL))
 
-  NAPI_UINT32(bufs, argv[0])
+  uint32_t bufs;
+  if (napi_get_value_uint32(env, argv[0], &bufs) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Expected unsigned number");
+    return NULL;
+  }
 
   napi_value return_uint32;
   NAPI_STATUS_THROWS(napi_create_uint32(env, udx_stream_write_sizeof(bufs), &return_uint32))
@@ -1424,7 +1529,11 @@ udx_napi_stream_write_end (napi_env env, napi_callback_info info) {
   size_t req_len;
   NAPI_STATUS_THROWS(napi_get_buffer_info(env, argv[1], (void **) &req, &req_len))
 
-  NAPI_UINT32(rid, argv[2])
+  uint32_t rid;
+  if (napi_get_value_uint32(env, argv[2], &rid) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Expected unsigned number");
+    return NULL;
+  }
 
   char *buf;
   size_t buf_len;
@@ -1483,7 +1592,11 @@ udx_napi_lookup (napi_env env, napi_callback_info info) {
   NAPI_STATUS_THROWS(napi_get_value_string_utf8(env, argv[1], host, host_size + 1, &host_len))
   host[host_size] = '\0';
 
-  NAPI_UINT32(family, argv[2])
+  uint32_t family;
+  if (napi_get_value_uint32(env, argv[2], &family) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Expected unsigned number");
+    return NULL;
+  }
 
   udx_lookup_t *lookup = (udx_lookup_t *) self;
 

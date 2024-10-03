@@ -22,20 +22,6 @@
     return NULL; \
   }
 
-#define NAPI_UINT32(name, val) \
-  uint32_t name; \
-  if (napi_get_value_uint32(env, val, &name) != napi_ok) { \
-    napi_throw_error(env, "EINVAL", "Expected unsigned number"); \
-    return NULL; \
-  }
-
-#define NAPI_INT32(name, val) \
-  int32_t name; \
-  if (napi_get_value_int32(env, val, &name) != napi_ok) { \
-    napi_throw_error(env, "EINVAL", "Expected number"); \
-    return NULL; \
-  }
-
 #define NAPI_FOR_EACH(arr, element) \
   uint32_t arr##_len; \
   napi_get_array_length(env, arr, &arr##_len); \
