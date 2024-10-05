@@ -3,7 +3,7 @@ const b4a = require('b4a')
 const { Readable } = require('streamx')
 const proxy = require('./helpers/proxy')
 const UDX = require('../')
-const { makeTwoStreams, uncaught } = require('./helpers')
+const { makeTwoStreams, uncaught, createSocket } = require('./helpers')
 
 test('tiny echo stream', async function (t) {
   t.plan(8)
@@ -157,7 +157,7 @@ test('only one side writes', async function (t) {
 test('emit connect', async function (t) {
   const udx = new UDX()
 
-  const socket = udx.createSocket()
+  const socket = createSocket(t, udx)
   socket.bind(0, '127.0.0.1')
 
   const a = udx.createStream(1)
@@ -606,13 +606,13 @@ test('throw in data callback', async function (t) {
 
   b.end(b4a.from('hello'))
 
-  uncaught(async (err) => {
+  uncaught((err) => {
     t.is(err.message, 'boom')
 
     a.destroy()
     b.destroy()
 
-    await socket.close()
+    socket.close()
   })
 })
 
@@ -636,13 +636,13 @@ test('throw in message callback', async function (t) {
 
   b.send(b4a.from('hello'))
 
-  uncaught(async (err) => {
+  uncaught((err) => {
     t.is(err.message, 'boom')
 
     a.destroy()
     b.destroy()
 
-    await socket.close()
+    socket.close()
   })
 })
 
@@ -684,7 +684,7 @@ test('busy and idle events', async function (t) {
 
   const udx = new UDX()
 
-  const socket = udx.createSocket()
+  const socket = createSocket(t, udx)
   socket.bind(0, '127.0.0.1')
 
   let idle = false
@@ -732,7 +732,7 @@ test('no idle after close', async function (t) {
 
   const udx = new UDX()
 
-  const socket = udx.createSocket()
+  const socket = createSocket(t, udx)
   socket.bind(0, '127.0.0.1')
 
   const stream = udx.createStream(1)
@@ -758,7 +758,7 @@ test('localHost, localFamily and localPort', async function (t) {
 
   const udx = new UDX()
 
-  const socket = udx.createSocket()
+  const socket = createSocket(t, udx)
   socket.bind(0, '127.0.0.1')
 
   const stream = udx.createStream(1)
@@ -784,7 +784,7 @@ test('write to unconnected stream', async function (t) {
 
   const udx = new UDX()
 
-  const socket = udx.createSocket()
+  const socket = createSocket(t, udx)
   socket.bind(0, '127.0.0.1')
 
   const stream = udx.createStream(1)
@@ -839,6 +839,9 @@ test('backpressures stream', async function (t) {
     b.end()
     socket.close()
   })
+
+  b.on('error', (err) => t.fail('b errored: ' + err.message))
+  a.on('error', (err) => t.fail('a errored: ' + err.message))
 })
 
 test('UDX - basic stats', async function (t) {

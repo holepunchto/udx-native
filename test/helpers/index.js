@@ -1,7 +1,7 @@
 const b4a = require('b4a')
 const UDX = require('../../')
 
-module.exports = { makeTwoStreams, makePairs, pipeStreamPairs, uncaught }
+module.exports = { makeTwoStreams, makePairs, pipeStreamPairs, uncaught, createSocket }
 
 function uncaught (fn) {
   if (global.Bare) {
@@ -11,12 +11,19 @@ function uncaught (fn) {
   }
 }
 
+function createSocket (t, udx, opts) {
+  const socket = udx.createSocket(opts)
+  const closed = new Promise(resolve => socket.once('close', resolve))
+  t.teardown(() => socket.bound && closed, { order: Infinity })
+  return socket
+}
+
 function makeTwoStreams (t, opts) {
   const a = new UDX()
   const b = new UDX()
 
-  const aSocket = a.createSocket()
-  const bSocket = b.createSocket()
+  const aSocket = createSocket(t, a)
+  const bSocket = createSocket(t, b)
 
   aSocket.bind(0, '127.0.0.1')
   bSocket.bind(0, '127.0.0.1')

@@ -1,11 +1,11 @@
 const test = require('brittle')
 const b4a = require('b4a')
 const UDX = require('../')
-const { uncaught } = require('./helpers')
+const { uncaught, createSocket } = require('./helpers')
 
 test('can bind and close', async function (t) {
   const u = new UDX()
-  const s = u.createSocket()
+  const s = createSocket(t, u)
 
   s.bind(0, '127.0.0.1')
   await s.close()
@@ -15,7 +15,7 @@ test('can bind and close', async function (t) {
 
 test('can bind to ipv6 and close', async function (t) {
   const u = new UDX()
-  const s = u.createSocket()
+  const s = createSocket(t, u)
 
   s.bind(0, '::1')
   await s.close()
@@ -26,8 +26,8 @@ test('can bind to ipv6 and close', async function (t) {
 test('bind is effectively sync', async function (t) {
   const u = new UDX()
 
-  const a = u.createSocket()
-  const b = u.createSocket()
+  const a = createSocket(t, u)
+  const b = createSocket(t, u)
 
   a.bind(0, '127.0.0.1')
 
@@ -42,7 +42,7 @@ test('simple message', async function (t) {
   t.plan(4)
 
   const u = new UDX()
-  const a = u.createSocket()
+  const a = createSocket(t, u)
 
   a.on('message', function (message, { host, family, port }) {
     t.alike(message, b4a.from('hello'))
@@ -60,7 +60,7 @@ test('simple message ipv6', async function (t) {
   t.plan(4)
 
   const u = new UDX()
-  const a = u.createSocket()
+  const a = createSocket(t, u)
 
   a.on('message', function (message, { host, family, port }) {
     t.alike(message, b4a.from('hello'))
@@ -78,7 +78,7 @@ test('empty message', async function (t) {
   t.plan(1)
 
   const u = new UDX()
-  const a = u.createSocket()
+  const a = createSocket(t, u)
 
   a.on('message', function (message) {
     t.alike(message, b4a.alloc(0))
@@ -93,8 +93,8 @@ test('handshake', async function (t) {
   t.plan(2)
 
   const u = new UDX()
-  const a = u.createSocket()
-  const b = u.createSocket()
+  const a = createSocket(t, u)
+  const b = createSocket(t, u)
 
   t.teardown(async () => {
     await a.close()
@@ -121,8 +121,8 @@ test('echo sockets (250 messages)', async function (t) {
 
   const u = new UDX()
 
-  const a = u.createSocket()
-  const b = u.createSocket()
+  const a = createSocket(t, u)
+  const b = createSocket(t, u)
 
   const send = []
   const recv = []
@@ -159,7 +159,7 @@ test('echo sockets (250 messages)', async function (t) {
 
 test('close socket while sending', async function (t) {
   const u = new UDX()
-  const a = u.createSocket()
+  const a = createSocket(t, u)
 
   a.bind(0, '127.0.0.1')
   const flushed = a.send(b4a.from('hello'), a.address().port)
@@ -175,11 +175,11 @@ test('close waits for all streams to close', async function (t) {
   const u = new UDX()
 
   // just so we can a udx port, to avoid weird failures
-  const dummy = u.createSocket()
+  const dummy = createSocket(t, u)
   dummy.bind(0, '127.0.0.1')
   t.teardown(() => dummy.close())
 
-  const a = u.createSocket()
+  const a = createSocket(t, u)
   const s = u.createStream(1)
 
   s.connect(a, 2, dummy.address().port)
@@ -216,7 +216,7 @@ test('open + close a bunch of sockets', async function (t) {
   async function loop () {
     count++
 
-    const a = u.createSocket()
+    const a = createSocket(t, u)
 
     a.bind(0, '127.0.0.1')
     l.pass('opened socket')
@@ -231,7 +231,7 @@ test('open + close a bunch of sockets', async function (t) {
   p.plan(5)
 
   for (let i = 0; i < 5; i++) {
-    const a = u.createSocket()
+    const a = createSocket(t, u)
     a.bind(0, '127.0.0.1')
     a.close().then(function () {
       p.pass('opened and closed socket')
@@ -246,8 +246,8 @@ test('can bind to ipv6 and receive from ipv4', async function (t) {
 
   const u = new UDX()
 
-  const a = u.createSocket()
-  const b = u.createSocket()
+  const a = createSocket(t, u)
+  const b = createSocket(t, u)
 
   a.on('message', async function (message, { host, family, port }) {
     t.alike(message, b4a.from('hello'))
@@ -269,8 +269,8 @@ test('can bind to ipv6 and send to ipv4', async function (t) {
 
   const u = new UDX()
 
-  const a = u.createSocket()
-  const b = u.createSocket()
+  const a = createSocket(t, u)
+  const b = createSocket(t, u)
 
   b.on('message', async function (message, { host, family, port }) {
     t.alike(message, b4a.from('hello'))
@@ -292,8 +292,8 @@ test('can bind to ipv6 only and not receive from ipv4', async function (t) {
 
   const u = new UDX()
 
-  const a = u.createSocket({ ipv6Only: true })
-  const b = u.createSocket()
+  const a = createSocket(t, u, { ipv6Only: true })
+  const b = createSocket(t, u)
 
   a.on('message', async function () {
     t.fail('a received message')
@@ -315,7 +315,7 @@ test('can bind to ipv6 only and not receive from ipv4', async function (t) {
 test('send after close', async function (t) {
   const u = new UDX()
 
-  const a = u.createSocket()
+  const a = createSocket(t, u)
 
   a.bind(0, '127.0.0.1')
   a.close()
@@ -327,7 +327,7 @@ test('try send simple message', async function (t) {
   t.plan(4)
 
   const u = new UDX()
-  const a = u.createSocket()
+  const a = createSocket(t, u)
 
   a.on('message', function (message, { host, family, port }) {
     t.alike(message, b4a.from('hello'))
@@ -345,7 +345,7 @@ test('try send simple message ipv6', async function (t) {
   t.plan(4)
 
   const u = new UDX()
-  const a = u.createSocket()
+  const a = createSocket(t, u)
 
   a.on('message', function (message, { host, family, port }) {
     t.alike(message, b4a.from('hello'))
@@ -363,7 +363,7 @@ test('try send empty message', async function (t) {
   t.plan(1)
 
   const u = new UDX()
-  const a = u.createSocket()
+  const a = createSocket(t, u)
 
   a.on('message', function (message) {
     t.alike(message, b4a.alloc(0))
@@ -378,7 +378,7 @@ test('close socket while try sending', async function (t) {
   t.plan(2)
 
   const u = new UDX()
-  const a = u.createSocket()
+  const a = createSocket(t, u)
 
   a.bind(0, '127.0.0.1')
 
@@ -400,7 +400,7 @@ test('try send after close', async function (t) {
 
   const u = new UDX()
 
-  const a = u.createSocket()
+  const a = createSocket(t, u)
 
   a.on('message', function (message) {
     t.fail('should not receive message')
@@ -416,14 +416,13 @@ test('try send after close', async function (t) {
   t.is(a.trySend(b4a.from('hello'), a.address().port), undefined)
 })
 
-test('connect to invalid host ip', function (t) {
+test('connect to invalid host ip', async function (t) {
   t.plan(1)
 
   const u = new UDX()
 
-  const a = u.createSocket()
+  const a = createSocket(t, u)
   const s = u.createStream(1)
-  t.teardown(() => s.destroy())
 
   const invalidHost = '0.-1.0.0'
 
@@ -432,13 +431,15 @@ test('connect to invalid host ip', function (t) {
   } catch (error) {
     t.is(error.message, `${invalidHost} is not a valid IP address`)
   }
+
+  s.destroy()
 })
 
 test('bind to invalid host ip', function (t) {
   t.plan(1)
 
   const u = new UDX()
-  const a = u.createSocket()
+  const a = createSocket(t, u)
 
   const invalidHost = '0.-1.0.0'
 
@@ -453,7 +454,7 @@ test('send to invalid host ip', async function (t) {
   t.plan(1)
 
   const u = new UDX()
-  const a = u.createSocket()
+  const a = createSocket(t, u)
 
   a.bind(0, '127.0.0.1')
 
@@ -472,7 +473,7 @@ test('try send to invalid host ip', async function (t) {
   t.plan(1)
 
   const u = new UDX()
-  const a = u.createSocket()
+  const a = createSocket(t, u)
 
   a.bind(0, '127.0.0.1')
 
@@ -492,8 +493,8 @@ test('send without bind', async function (t) {
 
   const u = new UDX()
 
-  const a = u.createSocket()
-  const b = u.createSocket()
+  const a = createSocket(t, u)
+  const b = createSocket(t, u)
 
   b.on('message', function (message) {
     t.alike(message, b4a.from('hello'))
@@ -510,8 +511,8 @@ test('try send without bind', async function (t) {
 
   const u = new UDX()
 
-  const a = u.createSocket()
-  const b = u.createSocket()
+  const a = createSocket(t, u)
+  const b = createSocket(t, u)
 
   b.on('message', function (message) {
     t.alike(message, b4a.from('hello'))
@@ -528,8 +529,8 @@ test('throw in message callback', async function (t) {
 
   const u = new UDX()
 
-  const a = u.createSocket()
-  const b = u.createSocket()
+  const a = createSocket(t, u)
+  const b = createSocket(t, u)
 
   a.on('message', function () {
     throw new Error('boom')
@@ -549,7 +550,7 @@ test('throw in message callback', async function (t) {
 
 test('get address without bind', async function (t) {
   const u = new UDX()
-  const a = u.createSocket()
+  const a = createSocket(t, u)
   t.is(a.address(), null)
   await a.close()
 })
@@ -558,7 +559,7 @@ test('bind twice', async function (t) {
   t.plan(1)
 
   const u = new UDX()
-  const a = u.createSocket()
+  const a = createSocket(t, u)
 
   a.bind(0, '127.0.0.1')
 
@@ -575,7 +576,7 @@ test('bind while closing', function (t) {
   t.plan(1)
 
   const u = new UDX()
-  const a = u.createSocket()
+  const a = createSocket(t, u)
 
   a.close()
 
@@ -590,8 +591,8 @@ test('different socket binds to same host and port', async function (t) {
   t.plan(1)
 
   const u = new UDX()
-  const a = u.createSocket()
-  const b = u.createSocket()
+  const a = createSocket(t, u)
+  const b = createSocket(t, u)
 
   a.bind(0, '0.0.0.0')
 
@@ -609,8 +610,8 @@ test('different socket binds to default host but same port', async function (t) 
   t.plan(1)
 
   const u = new UDX()
-  const a = u.createSocket()
-  const b = u.createSocket()
+  const a = createSocket(t, u)
+  const b = createSocket(t, u)
 
   a.bind()
 
@@ -628,7 +629,7 @@ test('close twice', async function (t) {
   t.plan(1)
 
   const u = new UDX()
-  const a = u.createSocket()
+  const a = createSocket(t, u)
 
   a.bind(0, '127.0.0.1')
 
@@ -644,7 +645,7 @@ test('set TTL', async function (t) {
   t.plan(2)
 
   const u = new UDX()
-  const a = u.createSocket()
+  const a = createSocket(t, u)
 
   a.on('message', function (message) {
     t.alike(message, b4a.from('hello'))
@@ -667,7 +668,7 @@ test('get recv buffer size', async function (t) {
   t.plan(2)
 
   const u = new UDX()
-  const a = u.createSocket()
+  const a = createSocket(t, u)
 
   try {
     a.getRecvBufferSize()
@@ -685,7 +686,7 @@ test('set recv buffer size', async function (t) {
   t.plan(2)
 
   const u = new UDX()
-  const a = u.createSocket()
+  const a = createSocket(t, u)
 
   const NEW_BUFFER_SIZE = 8192
 
@@ -707,7 +708,7 @@ test('get send buffer size', async function (t) {
   t.plan(2)
 
   const u = new UDX()
-  const a = u.createSocket()
+  const a = createSocket(t, u)
 
   try {
     a.getSendBufferSize()
@@ -725,7 +726,7 @@ test('set send buffer size', async function (t) {
   t.plan(2)
 
   const u = new UDX()
-  const a = u.createSocket()
+  const a = createSocket(t, u)
 
   const NEW_BUFFER_SIZE = 8192
 
