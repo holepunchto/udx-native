@@ -14,7 +14,7 @@ function uncaught (fn) {
 function createSocket (t, udx, opts) {
   const socket = udx.createSocket(opts)
   const closed = new Promise(resolve => socket.once('close', resolve))
-  t.teardown(() => socket.bound && closed, { order: Infinity })
+  t.teardown(() => closed, { order: Infinity })
   return socket
 }
 

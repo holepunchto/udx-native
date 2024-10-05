@@ -433,9 +433,11 @@ test('connect to invalid host ip', async function (t) {
   }
 
   s.destroy()
+
+  await a.close()
 })
 
-test('bind to invalid host ip', function (t) {
+test('bind to invalid host ip', async function (t) {
   t.plan(1)
 
   const u = new UDX()
@@ -448,6 +450,8 @@ test('bind to invalid host ip', function (t) {
   } catch (error) {
     t.is(error.message, `${invalidHost} is not a valid IP address`)
   }
+
+  await a.close()
 })
 
 test('send to invalid host ip', async function (t) {
