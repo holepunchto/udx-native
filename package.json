@@ -8,7 +8,6 @@
     "prebuilds",
     "binding.c",
     "binding.js",
-    "macros.h",
     "CMakeLists.txt",
     "vendor/libudx/LICENSE",
     "vendor/libudx/include",
