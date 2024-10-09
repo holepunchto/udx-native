@@ -11,9 +11,9 @@ jobs:
       - run: gh run download
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: mkdir prebuilds
-        run: mv */* prebuilds/
-        run: zip prebuilds.zip prebuilds/
+      - run: mkdir prebuilds
+      - run: mv */* prebuilds/
+      - run: zip prebuilds.zip prebuilds/
       - uses: actions/upload-artifact@v4
         with:
           name: prebuilds
