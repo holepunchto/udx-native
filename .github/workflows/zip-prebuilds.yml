@@ -19,8 +19,12 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Zip
         run: |
+          ls
+          cd sandbox
+          ls
           mkdir prebuilds
           mv */* prebuilds
+          ls prebuilds
           zip prebuilds.zip prebuilds
       - uses: actions/upload-artifact@v4
         with:
