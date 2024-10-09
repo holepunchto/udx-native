@@ -10,23 +10,20 @@ jobs:
   zip:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout repo
         uses: actions/checkout@v4
-      - name: Get last run id
+      - name: Get last prebuild workflow id
         run: |
           RUN_ID=$(gh run list --workflow 'Prebuild' --limit 1 --status 'completed' --json databaseId --jq '.[0].databaseId')
           echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Download prebuilds
-        run: gh run download $RUN_ID --pattern '*' --dir sandbox
+        run: gh run download $RUN_ID --pattern '*' --dir prebuilds
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Zip
-        run: |
-          mkdir prebuilds
-          mv sandbox/* prebuilds/
-          zip -r prebuilds.zip prebuilds/
+        run: zip -r prebuilds.zip prebuilds/
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
