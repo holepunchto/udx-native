@@ -18,7 +18,7 @@ jobs:
         run: |
           mkdir prebuilds
           mv sandbox/* prebuilds/
-          zip prebuilds.zip prebuilds/
+          zip -r prebuilds.zip prebuilds/
       - uses: actions/upload-artifact@v4
         with:
           name: prebuilds
