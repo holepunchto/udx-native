@@ -10,19 +10,19 @@ jobs:
   zip:
     runs-on: ubuntu-latest
     steps:
-      - name: Download prebuilds
-        uses: actions/checkout@v4
-        run: mkdir sandbox
-        run: cd sandbox
-        run: gh run download
+      - uses: actions/checkout@v4
+      - run: |
+          mkdir sandbox
+          cd sandbox
+      - run: gh run download
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Zip
-        run: mkdir prebuilds
-        run: mv */* prebuilds
-        run: zip prebuilds.zip prebuilds
-      - name: Upload
-        uses: actions/upload-artifact@v4
+        run: |
+          mkdir prebuilds
+          mv */* prebuilds
+          zip prebuilds.zip prebuilds
+      - uses: actions/upload-artifact@v4
         with:
           name: prebuilds
           path: prebuilds.zip
