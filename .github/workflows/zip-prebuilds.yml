@@ -1,0 +1,20 @@
+name: Zip Prebuilds
+on:
+  workflow_run:
+    workflows: [Prebuild]
+    types: [completed]
+  workflow_dispatch:
+jobs:
+  zip:
+    runs-on: ubuntu-latest
+    steps:
+      - run: gh run download
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: mkdir prebuilds
+        run: mv */* prebuilds/
+        run: zip prebuilds.zip prebuilds/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prebuilds
+          path: prebuilds.zip
