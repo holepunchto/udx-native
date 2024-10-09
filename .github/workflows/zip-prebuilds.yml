@@ -3,6 +3,8 @@ on:
   workflow_run:
     workflows: [Prebuild]
     types: [completed]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 jobs:
   zip:
