@@ -1,7 +1,5 @@
 name: Prebuild
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 jobs:
   prebuild:
@@ -71,18 +69,14 @@ jobs:
       with:
         name: ${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.tags }}
         path: prebuilds/*
-  zip:
+  merge:
     needs: prebuild
     runs-on: ubuntu-latest
     steps:
-      - name: Download prebuilds
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
           path: prebuilds
-      - name: Zip prebuilds
-        run: zip -r prebuilds.zip prebuilds/
-      - name: Upload zip
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: prebuilds
-          path: prebuilds.zip
+          path: prebuilds
