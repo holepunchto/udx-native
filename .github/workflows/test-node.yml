@@ -29,12 +29,14 @@ jobs:
           node-version: ${{ matrix.node-version }}
       - run: npm install -g bare-runtime bare-make
       - run: npm install
-      - run: bare-make generate --debug
+      - run: bare-make generate
       - run: bare-make build
-      - run: bare-make install --link
+      - run: bare-make install
       - run: npm test
       - run: bare test/all.js
+      - run: bare-make generate --debug --no-cache
       - run: bare-make build
+      - run: bare-make install
       - run: npm test
       - run: bare test/all.js
   trigger_canary:
