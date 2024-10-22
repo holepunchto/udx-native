@@ -52,6 +52,8 @@
   },
   "devDependencies": {
     "brittle": "^3.1.0",
+    "cmake-bare": "^1.1.10",
+    "cmake-napi": "^1.0.5",
     "is-ci": "^3.0.1",
     "standard": "^17.1.0",
     "tiny-byte-size": "^1.1.0"
