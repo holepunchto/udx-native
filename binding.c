@@ -150,28 +150,27 @@ on_udx_message (udx_socket_t *self, ssize_t read_len, const uv_buf_t *buf, const
     napi_value fatal_exception;
     napi_get_and_clear_last_exception(env, &fatal_exception);
     napi_fatal_exception(env, fatal_exception);
-    {
-      napi_env env = n->env;
+    napi_env env = n->env;
 
-      napi_handle_scope scope;
-      napi_open_handle_scope(env, &scope);
+    napi_handle_scope scope;
+    napi_open_handle_scope(env, &scope);
 
-      napi_value ctx;
-      napi_get_reference_value(env, n->ctx, &ctx);
+    napi_value ctx;
+    napi_get_reference_value(env, n->ctx, &ctx);
 
-      napi_value callback;
-      napi_get_reference_value(env, n->realloc_message, &callback);
+    napi_value callback;
+    napi_get_reference_value(env, n->realloc_message, &callback);
 
-      if (napi_make_callback(env, NULL, ctx, callback, 0, NULL, &res) == napi_pending_exception) {
-        napi_value fatal_exception;
-        napi_get_and_clear_last_exception(env, &fatal_exception);
-        napi_fatal_exception(env, fatal_exception);
-      }
-
-      napi_get_buffer_info(env, res, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free));
-
-      napi_close_handle_scope(env, scope);
+    if (napi_make_callback(env, NULL, ctx, callback, 0, NULL, &res) == napi_pending_exception) {
+      napi_value fatal_exception;
+      napi_get_and_clear_last_exception(env, &fatal_exception);
+      napi_fatal_exception(env, fatal_exception);
     }
+
+    napi_get_buffer_info(env, res, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free));
+
+    napi_close_handle_scope(env, scope);
+
   } else {
     napi_get_buffer_info(env, res, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free));
   }
@@ -299,29 +298,28 @@ on_udx_stream_read (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
     napi_value fatal_exception;
     napi_get_and_clear_last_exception(env, &fatal_exception);
     napi_fatal_exception(env, fatal_exception);
-    {
-      napi_env env = n->env;
 
-      napi_handle_scope scope;
-      napi_open_handle_scope(env, &scope);
+    napi_env env = n->env;
 
-      napi_value ctx;
-      napi_get_reference_value(env, n->ctx, &ctx);
+    napi_handle_scope scope;
+    napi_open_handle_scope(env, &scope);
 
-      napi_value callback;
-      napi_get_reference_value(env, n->realloc_data, &callback);
+    napi_value ctx;
+    napi_get_reference_value(env, n->ctx, &ctx);
 
-      if (napi_make_callback(env, NULL, ctx, callback, 0, NULL, &res) == napi_pending_exception) {
-        napi_value fatal_exception;
-        napi_get_and_clear_last_exception(env, &fatal_exception);
-        napi_fatal_exception(env, fatal_exception);
-      }
+    napi_value callback;
+    napi_get_reference_value(env, n->realloc_data, &callback);
 
-      napi_get_buffer_info(env, res, (void **) &(n->read_buf), &(n->read_buf_free));
-      n->read_buf_head = n->read_buf;
-
-      napi_close_handle_scope(env, scope);
+    if (napi_make_callback(env, NULL, ctx, callback, 0, NULL, &res) == napi_pending_exception) {
+      napi_value fatal_exception;
+      napi_get_and_clear_last_exception(env, &fatal_exception);
+      napi_fatal_exception(env, fatal_exception);
     }
+
+    napi_get_buffer_info(env, res, (void **) &(n->read_buf), &(n->read_buf_free));
+    n->read_buf_head = n->read_buf;
+
+    napi_close_handle_scope(env, scope);
   } else {
     napi_get_buffer_info(env, res, (void **) &(n->read_buf), &(n->read_buf_free));
     n->read_buf_head = n->read_buf;
@@ -437,28 +435,27 @@ on_udx_stream_recv (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
     napi_value fatal_exception;
     napi_get_and_clear_last_exception(env, &fatal_exception);
     napi_fatal_exception(env, fatal_exception);
-    {
-      napi_env env = n->env;
 
-      napi_handle_scope scope;
-      napi_open_handle_scope(env, &scope);
+    napi_env env = n->env;
 
-      napi_value ctx;
-      napi_get_reference_value(env, n->ctx, &ctx);
+    napi_handle_scope scope;
+    napi_open_handle_scope(env, &scope);
 
-      napi_value callback;
-      napi_get_reference_value(env, n->realloc_message, &callback);
+    napi_value ctx;
+    napi_get_reference_value(env, n->ctx, &ctx);
 
-      if (napi_make_callback(env, NULL, ctx, callback, 0, NULL, &res) == napi_pending_exception) {
-        napi_value fatal_exception;
-        napi_get_and_clear_last_exception(env, &fatal_exception);
-        napi_fatal_exception(env, fatal_exception);
-      }
+    napi_value callback;
+    napi_get_reference_value(env, n->realloc_message, &callback);
 
-      napi_get_buffer_info(env, res, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free));
-
-      napi_close_handle_scope(env, scope);
+    if (napi_make_callback(env, NULL, ctx, callback, 0, NULL, &res) == napi_pending_exception) {
+      napi_value fatal_exception;
+      napi_get_and_clear_last_exception(env, &fatal_exception);
+      napi_fatal_exception(env, fatal_exception);
     }
+
+    napi_get_buffer_info(env, res, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free));
+
+    napi_close_handle_scope(env, scope);
   } else {
     napi_get_buffer_info(env, res, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free));
   }
