@@ -22,10 +22,13 @@
   },
   "addon": true,
   "scripts": {
-    "test": "standard && node test/all.js",
-    "test:all": "standard && brittle test/*.js test/slow/*.js",
+    "test": "npm run lint && npm run test:bare && npm run test:node",
+    "test:node": "node test/all.js",
+    "test:bare": "bare test/all.js",
+    "test:all": "brittle test/*.js test/slow/*.js",
     "test:generate": "brittle -r test/all.js test/*.js",
-    "bench": "brittle test/bench/*.js"
+    "bench": "brittle test/bench/*.js",
+    "lint": "standard"
   },
   "repository": {
     "type": "git",
