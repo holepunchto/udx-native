@@ -1,6 +1,6 @@
 {
   "name": "udx-native",
-  "version": "1.13.3",
+  "version": "1.14.1",
   "description": "udx is reliable, multiplexed, and congestion-controlled streams over udp",
   "main": "lib/udx.js",
   "files": [
@@ -22,10 +22,13 @@
   },
   "addon": true,
   "scripts": {
-    "test": "standard && node test/all.js",
-    "test:all": "standard && brittle test/*.js test/slow/*.js",
+    "test": "npm run lint && npm run test:bare && npm run test:node",
+    "test:node": "node test/all.js",
+    "test:bare": "bare test/all.js",
+    "test:all": "brittle test/*.js test/slow/*.js",
     "test:generate": "brittle -r test/all.js test/*.js",
-    "bench": "brittle test/bench/*.js"
+    "bench": "brittle test/bench/*.js",
+    "lint": "standard"
   },
   "repository": {
     "type": "git",
@@ -52,6 +55,8 @@
   },
   "devDependencies": {
     "brittle": "^3.1.0",
+    "cmake-bare": "^1.1.10",
+    "cmake-napi": "^1.0.5",
     "is-ci": "^3.0.1",
     "standard": "^17.1.0",
     "tiny-byte-size": "^1.1.0"
