@@ -1703,375 +1703,236 @@ napi_macros_init_wrap (napi_env env, napi_value exports) {
 NAPI_MODULE(NODE_GYP_MODULE_NAME, napi_macros_init_wrap)
 static void
 napi_macros_init (napi_env env, napi_value exports) {
-  {
-    napi_value UV_UDP_IPV6ONLY_uint32;
-    napi_create_uint32(env, UV_UDP_IPV6ONLY, &UV_UDP_IPV6ONLY_uint32);
-    napi_set_named_property(env, exports, "UV_UDP_IPV6ONLY", UV_UDP_IPV6ONLY_uint32);
-  }
 
-  {
-    napi_value inflight_offsetof;
-    udx_stream_t tmp;
-    void *ptr = &(tmp.inflight);
-    void *ptr_base = &tmp;
-    int offset = (char *) ptr - (char *) ptr_base;
-    napi_create_uint32(env, offset, &inflight_offsetof);
-    napi_set_named_property(env, exports, "offsetof_udx_stream_t_inflight", inflight_offsetof);
-  }
-  {
-    napi_value mtu_offsetof;
-    udx_stream_t tmp;
-    void *ptr = &(tmp.mtu);
-    void *ptr_base = &tmp;
-    int offset = (char *) ptr - (char *) ptr_base;
-    napi_create_uint32(env, offset, &mtu_offsetof);
-    napi_set_named_property(env, exports, "offsetof_udx_stream_t_mtu", mtu_offsetof);
-  }
-  {
-    napi_value cwnd_offsetof;
-    udx_stream_t tmp;
-    void *ptr = &(tmp.cwnd);
-    void *ptr_base = &tmp;
-    int offset = (char *) ptr - (char *) ptr_base;
-    napi_create_uint32(env, offset, &cwnd_offsetof);
-    napi_set_named_property(env, exports, "offsetof_udx_stream_t_cwnd", cwnd_offsetof);
-  }
-  {
-    napi_value srtt_offsetof;
-    udx_stream_t tmp;
-    void *ptr = &(tmp.srtt);
-    void *ptr_base = &tmp;
-    int offset = (char *) ptr - (char *) ptr_base;
-    napi_create_uint32(env, offset, &srtt_offsetof);
-    napi_set_named_property(env, exports, "offsetof_udx_stream_t_srtt", srtt_offsetof);
-  }
-  {
-    napi_value bytes_rx_offsetof;
-    udx_stream_t tmp;
-    void *ptr = &(tmp.bytes_rx);
-    void *ptr_base = &tmp;
-    int offset = (char *) ptr - (char *) ptr_base;
-    napi_create_uint32(env, offset, &bytes_rx_offsetof);
-    napi_set_named_property(env, exports, "offsetof_udx_stream_t_bytes_rx", bytes_rx_offsetof);
-  }
-  {
-    napi_value packets_rx_offsetof;
-    udx_stream_t tmp;
-    void *ptr = &(tmp.packets_rx);
-    void *ptr_base = &tmp;
-    int offset = (char *) ptr - (char *) ptr_base;
-    napi_create_uint32(env, offset, &packets_rx_offsetof);
-    napi_set_named_property(env, exports, "offsetof_udx_stream_t_packets_rx", packets_rx_offsetof);
-  }
-  {
-    napi_value bytes_tx_offsetof;
-    udx_stream_t tmp;
-    void *ptr = &(tmp.bytes_tx);
-    void *ptr_base = &tmp;
-    int offset = (char *) ptr - (char *) ptr_base;
-    napi_create_uint32(env, offset, &bytes_tx_offsetof);
-    napi_set_named_property(env, exports, "offsetof_udx_stream_t_bytes_tx", bytes_tx_offsetof);
-  }
-  {
-    napi_value packets_tx_offsetof;
-    udx_stream_t tmp;
-    void *ptr = &(tmp.packets_tx);
-    void *ptr_base = &tmp;
-    int offset = (char *) ptr - (char *) ptr_base;
-    napi_create_uint32(env, offset, &packets_tx_offsetof);
-    napi_set_named_property(env, exports, "offsetof_udx_stream_t_packets_tx", packets_tx_offsetof);
-  }
-  {
-    napi_value rto_count_offsetof;
-    udx_stream_t tmp;
-    void *ptr = &(tmp.rto_count);
-    void *ptr_base = &tmp;
-    int offset = (char *) ptr - (char *) ptr_base;
-    napi_create_uint32(env, offset, &rto_count_offsetof);
-    napi_set_named_property(env, exports, "offsetof_udx_stream_t_rto_count", rto_count_offsetof);
-  }
-  {
-    napi_value retransmit_count_offsetof;
-    udx_stream_t tmp;
-    void *ptr = &(tmp.retransmit_count);
-    void *ptr_base = &tmp;
-    int offset = (char *) ptr - (char *) ptr_base;
-    napi_create_uint32(env, offset, &retransmit_count_offsetof);
-    napi_set_named_property(env, exports, "offsetof_udx_stream_t_retransmit_count", retransmit_count_offsetof);
-  }
-  {
-    napi_value fast_recovery_count_offsetof;
-    udx_stream_t tmp;
-    void *ptr = &(tmp.fast_recovery_count);
-    void *ptr_base = &tmp;
-    int offset = (char *) ptr - (char *) ptr_base;
-    napi_create_uint32(env, offset, &fast_recovery_count_offsetof);
-    napi_set_named_property(env, exports, "offsetof_udx_stream_t_fast_recovery_count", fast_recovery_count_offsetof);
-  }
+  napi_value UV_UDP_IPV6ONLY_uint32;
+  napi_create_uint32(env, UV_UDP_IPV6ONLY, &UV_UDP_IPV6ONLY_uint32);
+  napi_set_named_property(env, exports, "UV_UDP_IPV6ONLY", UV_UDP_IPV6ONLY_uint32);
 
-  {
-    napi_value bytes_rx_offsetof;
-    udx_socket_t tmp;
-    void *ptr = &(tmp.bytes_rx);
-    void *ptr_base = &tmp;
-    int offset = (char *) ptr - (char *) ptr_base;
-    napi_create_uint32(env, offset, &bytes_rx_offsetof);
-    napi_set_named_property(env, exports, "offsetof_udx_socket_t_bytes_rx", bytes_rx_offsetof);
-  }
-  {
-    napi_value packets_rx_offsetof;
-    udx_socket_t tmp;
-    void *ptr = &(tmp.packets_rx);
-    void *ptr_base = &tmp;
-    int offset = (char *) ptr - (char *) ptr_base;
-    napi_create_uint32(env, offset, &packets_rx_offsetof);
-    napi_set_named_property(env, exports, "offsetof_udx_socket_t_packets_rx", packets_rx_offsetof);
-  }
-  {
-    napi_value bytes_tx_offsetof;
-    udx_socket_t tmp;
-    void *ptr = &(tmp.bytes_tx);
-    void *ptr_base = &tmp;
-    int offset = (char *) ptr - (char *) ptr_base;
-    napi_create_uint32(env, offset, &bytes_tx_offsetof);
-    napi_set_named_property(env, exports, "offsetof_udx_socket_t_bytes_tx", bytes_tx_offsetof);
-  }
-  {
-    napi_value packets_tx_offsetof;
-    udx_socket_t tmp;
-    void *ptr = &(tmp.packets_tx);
-    void *ptr_base = &tmp;
-    int offset = (char *) ptr - (char *) ptr_base;
-    napi_create_uint32(env, offset, &packets_tx_offsetof);
-    napi_set_named_property(env, exports, "offsetof_udx_socket_t_packets_tx", packets_tx_offsetof);
-  }
+  napi_value inflight_offsetof;
+  napi_create_uint32(env, offsetof(udx_stream_t, inflight), &inflight_offsetof);
+  napi_set_named_property(env, exports, "offsetof_udx_stream_t_inflight", inflight_offsetof);
 
-  {
-    napi_value bytes_rx_offsetof;
-    udx_t tmp;
-    void *ptr = &(tmp.bytes_rx);
-    void *ptr_base = &tmp;
-    int offset = (char *) ptr - (char *) ptr_base;
-    napi_create_uint32(env, offset, &bytes_rx_offsetof);
-    napi_set_named_property(env, exports, "offsetof_udx_t_bytes_rx", bytes_rx_offsetof);
-  }
-  {
-    napi_value packets_rx_offsetof;
-    udx_t tmp;
-    void *ptr = &(tmp.packets_rx);
-    void *ptr_base = &tmp;
-    int offset = (char *) ptr - (char *) ptr_base;
-    napi_create_uint32(env, offset, &packets_rx_offsetof);
-    napi_set_named_property(env, exports, "offsetof_udx_t_packets_rx", packets_rx_offsetof);
-  }
-  {
-    napi_value bytes_tx_offsetof;
-    udx_t tmp;
-    void *ptr = &(tmp.bytes_tx);
-    void *ptr_base = &tmp;
-    int offset = (char *) ptr - (char *) ptr_base;
-    napi_create_uint32(env, offset, &bytes_tx_offsetof);
-    napi_set_named_property(env, exports, "offsetof_udx_t_bytes_tx", bytes_tx_offsetof);
-  }
-  {
-    napi_value packets_tx_offsetof;
-    udx_t tmp;
-    void *ptr = &(tmp.packets_tx);
-    void *ptr_base = &tmp;
-    int offset = (char *) ptr - (char *) ptr_base;
-    napi_create_uint32(env, offset, &packets_tx_offsetof);
-    napi_set_named_property(env, exports, "offsetof_udx_t_packets_tx", packets_tx_offsetof);
-  }
+  napi_value mtu_offsetof;
+  napi_create_uint32(env, offsetof(udx_stream_t, mtu), &mtu_offsetof);
+  napi_set_named_property(env, exports, "offsetof_udx_stream_t_mtu", mtu_offsetof);
 
-  {
-    napi_value udx_napi_t_sizeof;
-    napi_create_uint32(env, sizeof(udx_napi_t), &udx_napi_t_sizeof);
-    napi_set_named_property(env, exports, "sizeof_udx_napi_t", udx_napi_t_sizeof);
-  }
-  {
-    napi_value udx_napi_socket_t_sizeof;
-    napi_create_uint32(env, sizeof(udx_napi_socket_t), &udx_napi_socket_t_sizeof);
-    napi_set_named_property(env, exports, "sizeof_udx_napi_socket_t", udx_napi_socket_t_sizeof);
-  }
-  {
-    napi_value udx_napi_stream_t_sizeof;
-    napi_create_uint32(env, sizeof(udx_napi_stream_t), &udx_napi_stream_t_sizeof);
-    napi_set_named_property(env, exports, "sizeof_udx_napi_stream_t", udx_napi_stream_t_sizeof);
-  }
-  {
-    napi_value udx_napi_lookup_t_sizeof;
-    napi_create_uint32(env, sizeof(udx_napi_lookup_t), &udx_napi_lookup_t_sizeof);
-    napi_set_named_property(env, exports, "sizeof_udx_napi_lookup_t", udx_napi_lookup_t_sizeof);
-  }
-  {
-    napi_value udx_napi_interface_event_t_sizeof;
-    napi_create_uint32(env, sizeof(udx_napi_interface_event_t), &udx_napi_interface_event_t_sizeof);
-    napi_set_named_property(env, exports, "sizeof_udx_napi_interface_event_t", udx_napi_interface_event_t_sizeof);
-  }
+  napi_value cwnd_offsetof;
+  napi_create_uint32(env, offsetof(udx_stream_t, cwnd), &cwnd_offsetof);
+  napi_set_named_property(env, exports, "offsetof_udx_stream_t_cwnd", cwnd_offsetof);
 
-  {
-    napi_value udx_socket_send_t_sizeof;
-    napi_create_uint32(env, sizeof(udx_socket_send_t), &udx_socket_send_t_sizeof);
-    napi_set_named_property(env, exports, "sizeof_udx_socket_send_t", udx_socket_send_t_sizeof);
-  }
-  {
-    napi_value udx_stream_send_t_sizeof;
-    napi_create_uint32(env, sizeof(udx_stream_send_t), &udx_stream_send_t_sizeof);
-    napi_set_named_property(env, exports, "sizeof_udx_stream_send_t", udx_stream_send_t_sizeof);
-  }
+  napi_value srtt_offsetof;
+  napi_create_uint32(env, offsetof(udx_stream_t, srtt), &srtt_offsetof);
+  napi_set_named_property(env, exports, "offsetof_udx_stream_t_srtt", srtt_offsetof);
 
-  {
-    napi_value udx_napi_init_fn;
-    napi_create_function(env, NULL, 0, udx_napi_init, NULL, &udx_napi_init_fn);
-    napi_set_named_property(env, exports, "udx_napi_init", udx_napi_init_fn);
-  }
+  napi_value bytes_rx_offsetof;
+  napi_create_uint32(env, offsetof(udx_stream_t, bytes_rx), &bytes_rx_offsetof);
+  napi_set_named_property(env, exports, "offsetof_udx_stream_t_bytes_rx", bytes_rx_offsetof);
 
-  {
-    napi_value udx_napi_socket_init_fn;
-    napi_create_function(env, NULL, 0, udx_napi_socket_init, NULL, &udx_napi_socket_init_fn);
-    napi_set_named_property(env, exports, "udx_napi_socket_init", udx_napi_socket_init_fn);
-  }
-  {
-    napi_value udx_napi_socket_bind_fn;
-    napi_create_function(env, NULL, 0, udx_napi_socket_bind, NULL, &udx_napi_socket_bind_fn);
-    napi_set_named_property(env, exports, "udx_napi_socket_bind", udx_napi_socket_bind_fn);
-  }
-  {
-    napi_value udx_napi_socket_set_ttl_fn;
-    napi_create_function(env, NULL, 0, udx_napi_socket_set_ttl, NULL, &udx_napi_socket_set_ttl_fn);
-    napi_set_named_property(env, exports, "udx_napi_socket_set_ttl", udx_napi_socket_set_ttl_fn);
-  }
-  {
-    napi_value udx_napi_socket_get_recv_buffer_size_fn;
-    napi_create_function(env, NULL, 0, udx_napi_socket_get_recv_buffer_size, NULL, &udx_napi_socket_get_recv_buffer_size_fn);
-    napi_set_named_property(env, exports, "udx_napi_socket_get_recv_buffer_size", udx_napi_socket_get_recv_buffer_size_fn);
-  }
-  {
-    napi_value udx_napi_socket_set_recv_buffer_size_fn;
-    napi_create_function(env, NULL, 0, udx_napi_socket_set_recv_buffer_size, NULL, &udx_napi_socket_set_recv_buffer_size_fn);
-    napi_set_named_property(env, exports, "udx_napi_socket_set_recv_buffer_size", udx_napi_socket_set_recv_buffer_size_fn);
-  }
-  {
-    napi_value udx_napi_socket_get_send_buffer_size_fn;
-    napi_create_function(env, NULL, 0, udx_napi_socket_get_send_buffer_size, NULL, &udx_napi_socket_get_send_buffer_size_fn);
-    napi_set_named_property(env, exports, "udx_napi_socket_get_send_buffer_size", udx_napi_socket_get_send_buffer_size_fn);
-  }
-  {
-    napi_value udx_napi_socket_set_send_buffer_size_fn;
-    napi_create_function(env, NULL, 0, udx_napi_socket_set_send_buffer_size, NULL, &udx_napi_socket_set_send_buffer_size_fn);
-    napi_set_named_property(env, exports, "udx_napi_socket_set_send_buffer_size", udx_napi_socket_set_send_buffer_size_fn);
-  }
-  {
-    napi_value udx_napi_socket_send_ttl_fn;
-    napi_create_function(env, NULL, 0, udx_napi_socket_send_ttl, NULL, &udx_napi_socket_send_ttl_fn);
-    napi_set_named_property(env, exports, "udx_napi_socket_send_ttl", udx_napi_socket_send_ttl_fn);
-  }
-  {
-    napi_value udx_napi_socket_close_fn;
-    napi_create_function(env, NULL, 0, udx_napi_socket_close, NULL, &udx_napi_socket_close_fn);
-    napi_set_named_property(env, exports, "udx_napi_socket_close", udx_napi_socket_close_fn);
-  }
+  napi_value packets_rx_offsetof;
+  napi_create_uint32(env, offsetof(udx_stream_t, packets_rx), &packets_rx_offsetof);
+  napi_set_named_property(env, exports, "offsetof_udx_stream_t_packets_rx", packets_rx_offsetof);
 
-  {
-    napi_value udx_napi_stream_init_fn;
-    napi_create_function(env, NULL, 0, udx_napi_stream_init, NULL, &udx_napi_stream_init_fn);
-    napi_set_named_property(env, exports, "udx_napi_stream_init", udx_napi_stream_init_fn);
-  }
-  {
-    napi_value udx_napi_stream_set_seq_fn;
-    napi_create_function(env, NULL, 0, udx_napi_stream_set_seq, NULL, &udx_napi_stream_set_seq_fn);
-    napi_set_named_property(env, exports, "udx_napi_stream_set_seq", udx_napi_stream_set_seq_fn);
-  }
-  {
-    napi_value udx_napi_stream_set_ack_fn;
-    napi_create_function(env, NULL, 0, udx_napi_stream_set_ack, NULL, &udx_napi_stream_set_ack_fn);
-    napi_set_named_property(env, exports, "udx_napi_stream_set_ack", udx_napi_stream_set_ack_fn);
-  }
-  {
-    napi_value udx_napi_stream_set_mode_fn;
-    napi_create_function(env, NULL, 0, udx_napi_stream_set_mode, NULL, &udx_napi_stream_set_mode_fn);
-    napi_set_named_property(env, exports, "udx_napi_stream_set_mode", udx_napi_stream_set_mode_fn);
-  }
-  {
-    napi_value udx_napi_stream_connect_fn;
-    napi_create_function(env, NULL, 0, udx_napi_stream_connect, NULL, &udx_napi_stream_connect_fn);
-    napi_set_named_property(env, exports, "udx_napi_stream_connect", udx_napi_stream_connect_fn);
-  }
-  {
-    napi_value udx_napi_stream_change_remote_fn;
-    napi_create_function(env, NULL, 0, udx_napi_stream_change_remote, NULL, &udx_napi_stream_change_remote_fn);
-    napi_set_named_property(env, exports, "udx_napi_stream_change_remote", udx_napi_stream_change_remote_fn);
-  }
-  {
-    napi_value udx_napi_stream_relay_to_fn;
-    napi_create_function(env, NULL, 0, udx_napi_stream_relay_to, NULL, &udx_napi_stream_relay_to_fn);
-    napi_set_named_property(env, exports, "udx_napi_stream_relay_to", udx_napi_stream_relay_to_fn);
-  }
-  {
-    napi_value udx_napi_stream_send_fn;
-    napi_create_function(env, NULL, 0, udx_napi_stream_send, NULL, &udx_napi_stream_send_fn);
-    napi_set_named_property(env, exports, "udx_napi_stream_send", udx_napi_stream_send_fn);
-  }
-  {
-    napi_value udx_napi_stream_recv_start_fn;
-    napi_create_function(env, NULL, 0, udx_napi_stream_recv_start, NULL, &udx_napi_stream_recv_start_fn);
-    napi_set_named_property(env, exports, "udx_napi_stream_recv_start", udx_napi_stream_recv_start_fn);
-  }
-  {
-    napi_value udx_napi_stream_write_fn;
-    napi_create_function(env, NULL, 0, udx_napi_stream_write, NULL, &udx_napi_stream_write_fn);
-    napi_set_named_property(env, exports, "udx_napi_stream_write", udx_napi_stream_write_fn);
-  }
-  {
-    napi_value udx_napi_stream_writev_fn;
-    napi_create_function(env, NULL, 0, udx_napi_stream_writev, NULL, &udx_napi_stream_writev_fn);
-    napi_set_named_property(env, exports, "udx_napi_stream_writev", udx_napi_stream_writev_fn);
-  }
-  {
-    napi_value udx_napi_stream_write_sizeof_fn;
-    napi_create_function(env, NULL, 0, udx_napi_stream_write_sizeof, NULL, &udx_napi_stream_write_sizeof_fn);
-    napi_set_named_property(env, exports, "udx_napi_stream_write_sizeof", udx_napi_stream_write_sizeof_fn);
-  }
-  {
-    napi_value udx_napi_stream_write_end_fn;
-    napi_create_function(env, NULL, 0, udx_napi_stream_write_end, NULL, &udx_napi_stream_write_end_fn);
-    napi_set_named_property(env, exports, "udx_napi_stream_write_end", udx_napi_stream_write_end_fn);
-  }
-  {
-    napi_value udx_napi_stream_destroy_fn;
-    napi_create_function(env, NULL, 0, udx_napi_stream_destroy, NULL, &udx_napi_stream_destroy_fn);
-    napi_set_named_property(env, exports, "udx_napi_stream_destroy", udx_napi_stream_destroy_fn);
-  }
+  napi_value bytes_tx_offsetof;
+  napi_create_uint32(env, offsetof(udx_stream_t, bytes_tx), &bytes_tx_offsetof);
+  napi_set_named_property(env, exports, "offsetof_udx_stream_t_bytes_tx", bytes_tx_offsetof);
 
-  {
-    napi_value udx_napi_lookup_fn;
-    napi_create_function(env, NULL, 0, udx_napi_lookup, NULL, &udx_napi_lookup_fn);
-    napi_set_named_property(env, exports, "udx_napi_lookup", udx_napi_lookup_fn);
-  }
+  napi_value packets_tx_offsetof;
+  napi_create_uint32(env, offsetof(udx_stream_t, packets_tx), &packets_tx_offsetof);
+  napi_set_named_property(env, exports, "offsetof_udx_stream_t_packets_tx", packets_tx_offsetof);
 
-  {
-    napi_value udx_napi_interface_event_init_fn;
-    napi_create_function(env, NULL, 0, udx_napi_interface_event_init, NULL, &udx_napi_interface_event_init_fn);
-    napi_set_named_property(env, exports, "udx_napi_interface_event_init", udx_napi_interface_event_init_fn);
-  }
-  {
-    napi_value udx_napi_interface_event_start_fn;
-    napi_create_function(env, NULL, 0, udx_napi_interface_event_start, NULL, &udx_napi_interface_event_start_fn);
-    napi_set_named_property(env, exports, "udx_napi_interface_event_start", udx_napi_interface_event_start_fn);
-  }
-  {
-    napi_value udx_napi_interface_event_stop_fn;
-    napi_create_function(env, NULL, 0, udx_napi_interface_event_stop, NULL, &udx_napi_interface_event_stop_fn);
-    napi_set_named_property(env, exports, "udx_napi_interface_event_stop", udx_napi_interface_event_stop_fn);
-  }
-  {
-    napi_value udx_napi_interface_event_close_fn;
-    napi_create_function(env, NULL, 0, udx_napi_interface_event_close, NULL, &udx_napi_interface_event_close_fn);
-    napi_set_named_property(env, exports, "udx_napi_interface_event_close", udx_napi_interface_event_close_fn);
-  }
-  {
-    napi_value udx_napi_interface_event_get_addrs_fn;
-    napi_create_function(env, NULL, 0, udx_napi_interface_event_get_addrs, NULL, &udx_napi_interface_event_get_addrs_fn);
-    napi_set_named_property(env, exports, "udx_napi_interface_event_get_addrs", udx_napi_interface_event_get_addrs_fn);
-  }
+  napi_value rto_count_offsetof;
+  napi_create_uint32(env, offsetof(udx_stream_t, rto_count), &rto_count_offsetof);
+  napi_set_named_property(env, exports, "offsetof_udx_stream_t_rto_count", rto_count_offsetof);
+
+  napi_value retransmit_count_offsetof;
+  napi_create_uint32(env, offsetof(udx_stream_t, retransmit_count), &retransmit_count_offsetof);
+  napi_set_named_property(env, exports, "offsetof_udx_stream_t_retransmit_count", retransmit_count_offsetof);
+
+  napi_value fast_recovery_count_offsetof;
+  napi_create_uint32(env, offsetof(udx_stream_t, fast_recovery_count), &fast_recovery_count_offsetof);
+  napi_set_named_property(env, exports, "offsetof_udx_stream_t_fast_recovery_count", fast_recovery_count_offsetof);
+
+  napi_value socket_bytes_rx_offsetof;
+  napi_create_uint32(env, offsetof(udx_socket_t, bytes_rx), &socket_bytes_rx_offsetof);
+  napi_set_named_property(env, exports, "offsetof_udx_socket_t_bytes_rx", socket_bytes_rx_offsetof);
+
+  napi_value socket_packets_rx_offsetof;
+  napi_create_uint32(env, offsetof(udx_socket_t, packets_rx), &socket_packets_rx_offsetof);
+  napi_set_named_property(env, exports, "offsetof_udx_socket_t_packets_rx", socket_packets_rx_offsetof);
+
+  napi_value socket_bytes_tx_offsetof;
+  napi_create_uint32(env, offsetof(udx_socket_t, bytes_tx), &socket_bytes_tx_offsetof);
+  napi_set_named_property(env, exports, "offsetof_udx_socket_t_bytes_tx", socket_bytes_tx_offsetof);
+
+  napi_value socket_packets_tx_offsetof;
+  napi_create_uint32(env, offsetof(udx_socket_t, packets_tx), &socket_packets_tx_offsetof);
+  napi_set_named_property(env, exports, "offsetof_udx_socket_t_packets_tx", socket_packets_tx_offsetof);
+
+  napi_value packets_dropped_by_kernel_offsetof;
+  napi_create_uint32(env, offsetof(udx_socket_t, packets_dropped_by_kernel), &packets_dropped_by_kernel_offsetof);
+  napi_set_named_property(env, exports, "offsetof_udx_socket_t_packets_dropped_by_kernel", packets_dropped_by_kernel_offsetof);
+
+  napi_value udx_bytes_rx_offsetof;
+  napi_create_uint32(env, offsetof(udx_t, bytes_rx), &udx_bytes_rx_offsetof);
+  napi_set_named_property(env, exports, "offsetof_udx_t_bytes_rx", udx_bytes_rx_offsetof);
+
+  napi_value udx_packets_rx_offsetof;
+  napi_create_uint32(env, offsetof(udx_t, packets_rx), &udx_packets_rx_offsetof);
+  napi_set_named_property(env, exports, "offsetof_udx_t_packets_rx", udx_packets_rx_offsetof);
+
+  napi_value udx_bytes_tx_offsetof;
+  napi_create_uint32(env, offsetof(udx_t, bytes_tx), &udx_bytes_tx_offsetof);
+  napi_set_named_property(env, exports, "offsetof_udx_t_bytes_tx", udx_bytes_tx_offsetof);
+
+  napi_value udx_packets_tx_offsetof;
+  napi_create_uint32(env, offsetof(udx_t, packets_tx), &udx_packets_tx_offsetof);
+  napi_set_named_property(env, exports, "offsetof_udx_t_packets_tx", udx_packets_tx_offsetof);
+
+  napi_value udx_napi_t_sizeof;
+  napi_create_uint32(env, sizeof(udx_napi_t), &udx_napi_t_sizeof);
+  napi_set_named_property(env, exports, "sizeof_udx_napi_t", udx_napi_t_sizeof);
+
+  napi_value udx_napi_socket_t_sizeof;
+  napi_create_uint32(env, sizeof(udx_napi_socket_t), &udx_napi_socket_t_sizeof);
+  napi_set_named_property(env, exports, "sizeof_udx_napi_socket_t", udx_napi_socket_t_sizeof);
+
+  napi_value udx_napi_stream_t_sizeof;
+  napi_create_uint32(env, sizeof(udx_napi_stream_t), &udx_napi_stream_t_sizeof);
+  napi_set_named_property(env, exports, "sizeof_udx_napi_stream_t", udx_napi_stream_t_sizeof);
+
+  napi_value udx_napi_lookup_t_sizeof;
+  napi_create_uint32(env, sizeof(udx_napi_lookup_t), &udx_napi_lookup_t_sizeof);
+  napi_set_named_property(env, exports, "sizeof_udx_napi_lookup_t", udx_napi_lookup_t_sizeof);
+
+  napi_value udx_napi_interface_event_t_sizeof;
+  napi_create_uint32(env, sizeof(udx_napi_interface_event_t), &udx_napi_interface_event_t_sizeof);
+  napi_set_named_property(env, exports, "sizeof_udx_napi_interface_event_t", udx_napi_interface_event_t_sizeof);
+
+  napi_value udx_socket_send_t_sizeof;
+  napi_create_uint32(env, sizeof(udx_socket_send_t), &udx_socket_send_t_sizeof);
+  napi_set_named_property(env, exports, "sizeof_udx_socket_send_t", udx_socket_send_t_sizeof);
+
+  napi_value udx_stream_send_t_sizeof;
+  napi_create_uint32(env, sizeof(udx_stream_send_t), &udx_stream_send_t_sizeof);
+  napi_set_named_property(env, exports, "sizeof_udx_stream_send_t", udx_stream_send_t_sizeof);
+
+  napi_value udx_napi_init_fn;
+  napi_create_function(env, NULL, 0, udx_napi_init, NULL, &udx_napi_init_fn);
+  napi_set_named_property(env, exports, "udx_napi_init", udx_napi_init_fn);
+
+  napi_value udx_napi_socket_init_fn;
+  napi_create_function(env, NULL, 0, udx_napi_socket_init, NULL, &udx_napi_socket_init_fn);
+  napi_set_named_property(env, exports, "udx_napi_socket_init", udx_napi_socket_init_fn);
+
+  napi_value udx_napi_socket_bind_fn;
+  napi_create_function(env, NULL, 0, udx_napi_socket_bind, NULL, &udx_napi_socket_bind_fn);
+  napi_set_named_property(env, exports, "udx_napi_socket_bind", udx_napi_socket_bind_fn);
+
+  napi_value udx_napi_socket_set_ttl_fn;
+  napi_create_function(env, NULL, 0, udx_napi_socket_set_ttl, NULL, &udx_napi_socket_set_ttl_fn);
+  napi_set_named_property(env, exports, "udx_napi_socket_set_ttl", udx_napi_socket_set_ttl_fn);
+
+  napi_value udx_napi_socket_get_recv_buffer_size_fn;
+  napi_create_function(env, NULL, 0, udx_napi_socket_get_recv_buffer_size, NULL, &udx_napi_socket_get_recv_buffer_size_fn);
+  napi_set_named_property(env, exports, "udx_napi_socket_get_recv_buffer_size", udx_napi_socket_get_recv_buffer_size_fn);
+
+  napi_value udx_napi_socket_set_recv_buffer_size_fn;
+  napi_create_function(env, NULL, 0, udx_napi_socket_set_recv_buffer_size, NULL, &udx_napi_socket_set_recv_buffer_size_fn);
+  napi_set_named_property(env, exports, "udx_napi_socket_set_recv_buffer_size", udx_napi_socket_set_recv_buffer_size_fn);
+
+  napi_value udx_napi_socket_get_send_buffer_size_fn;
+  napi_create_function(env, NULL, 0, udx_napi_socket_get_send_buffer_size, NULL, &udx_napi_socket_get_send_buffer_size_fn);
+  napi_set_named_property(env, exports, "udx_napi_socket_get_send_buffer_size", udx_napi_socket_get_send_buffer_size_fn);
+
+  napi_value udx_napi_socket_set_send_buffer_size_fn;
+  napi_create_function(env, NULL, 0, udx_napi_socket_set_send_buffer_size, NULL, &udx_napi_socket_set_send_buffer_size_fn);
+  napi_set_named_property(env, exports, "udx_napi_socket_set_send_buffer_size", udx_napi_socket_set_send_buffer_size_fn);
+
+  napi_value udx_napi_socket_send_ttl_fn;
+  napi_create_function(env, NULL, 0, udx_napi_socket_send_ttl, NULL, &udx_napi_socket_send_ttl_fn);
+  napi_set_named_property(env, exports, "udx_napi_socket_send_ttl", udx_napi_socket_send_ttl_fn);
+
+  napi_value udx_napi_socket_close_fn;
+  napi_create_function(env, NULL, 0, udx_napi_socket_close, NULL, &udx_napi_socket_close_fn);
+  napi_set_named_property(env, exports, "udx_napi_socket_close", udx_napi_socket_close_fn);
+
+  napi_value udx_napi_stream_init_fn;
+  napi_create_function(env, NULL, 0, udx_napi_stream_init, NULL, &udx_napi_stream_init_fn);
+  napi_set_named_property(env, exports, "udx_napi_stream_init", udx_napi_stream_init_fn);
+
+  napi_value udx_napi_stream_set_seq_fn;
+  napi_create_function(env, NULL, 0, udx_napi_stream_set_seq, NULL, &udx_napi_stream_set_seq_fn);
+  napi_set_named_property(env, exports, "udx_napi_stream_set_seq", udx_napi_stream_set_seq_fn);
+
+  napi_value udx_napi_stream_set_ack_fn;
+  napi_create_function(env, NULL, 0, udx_napi_stream_set_ack, NULL, &udx_napi_stream_set_ack_fn);
+  napi_set_named_property(env, exports, "udx_napi_stream_set_ack", udx_napi_stream_set_ack_fn);
+
+  napi_value udx_napi_stream_set_mode_fn;
+  napi_create_function(env, NULL, 0, udx_napi_stream_set_mode, NULL, &udx_napi_stream_set_mode_fn);
+  napi_set_named_property(env, exports, "udx_napi_stream_set_mode", udx_napi_stream_set_mode_fn);
+
+  napi_value udx_napi_stream_connect_fn;
+  napi_create_function(env, NULL, 0, udx_napi_stream_connect, NULL, &udx_napi_stream_connect_fn);
+  napi_set_named_property(env, exports, "udx_napi_stream_connect", udx_napi_stream_connect_fn);
+
+  napi_value udx_napi_stream_change_remote_fn;
+  napi_create_function(env, NULL, 0, udx_napi_stream_change_remote, NULL, &udx_napi_stream_change_remote_fn);
+  napi_set_named_property(env, exports, "udx_napi_stream_change_remote", udx_napi_stream_change_remote_fn);
+
+  napi_value udx_napi_stream_relay_to_fn;
+  napi_create_function(env, NULL, 0, udx_napi_stream_relay_to, NULL, &udx_napi_stream_relay_to_fn);
+  napi_set_named_property(env, exports, "udx_napi_stream_relay_to", udx_napi_stream_relay_to_fn);
+
+  napi_value udx_napi_stream_send_fn;
+  napi_create_function(env, NULL, 0, udx_napi_stream_send, NULL, &udx_napi_stream_send_fn);
+  napi_set_named_property(env, exports, "udx_napi_stream_send", udx_napi_stream_send_fn);
+
+  napi_value udx_napi_stream_recv_start_fn;
+  napi_create_function(env, NULL, 0, udx_napi_stream_recv_start, NULL, &udx_napi_stream_recv_start_fn);
+  napi_set_named_property(env, exports, "udx_napi_stream_recv_start", udx_napi_stream_recv_start_fn);
+
+  napi_value udx_napi_stream_write_fn;
+  napi_create_function(env, NULL, 0, udx_napi_stream_write, NULL, &udx_napi_stream_write_fn);
+  napi_set_named_property(env, exports, "udx_napi_stream_write", udx_napi_stream_write_fn);
+
+  napi_value udx_napi_stream_writev_fn;
+  napi_create_function(env, NULL, 0, udx_napi_stream_writev, NULL, &udx_napi_stream_writev_fn);
+  napi_set_named_property(env, exports, "udx_napi_stream_writev", udx_napi_stream_writev_fn);
+
+  napi_value udx_napi_stream_write_sizeof_fn;
+  napi_create_function(env, NULL, 0, udx_napi_stream_write_sizeof, NULL, &udx_napi_stream_write_sizeof_fn);
+  napi_set_named_property(env, exports, "udx_napi_stream_write_sizeof", udx_napi_stream_write_sizeof_fn);
+
+  napi_value udx_napi_stream_write_end_fn;
+  napi_create_function(env, NULL, 0, udx_napi_stream_write_end, NULL, &udx_napi_stream_write_end_fn);
+  napi_set_named_property(env, exports, "udx_napi_stream_write_end", udx_napi_stream_write_end_fn);
+
+  napi_value udx_napi_stream_destroy_fn;
+  napi_create_function(env, NULL, 0, udx_napi_stream_destroy, NULL, &udx_napi_stream_destroy_fn);
+  napi_set_named_property(env, exports, "udx_napi_stream_destroy", udx_napi_stream_destroy_fn);
+
+  napi_value udx_napi_lookup_fn;
+  napi_create_function(env, NULL, 0, udx_napi_lookup, NULL, &udx_napi_lookup_fn);
+  napi_set_named_property(env, exports, "udx_napi_lookup", udx_napi_lookup_fn);
+
+  napi_value udx_napi_interface_event_init_fn;
+  napi_create_function(env, NULL, 0, udx_napi_interface_event_init, NULL, &udx_napi_interface_event_init_fn);
+  napi_set_named_property(env, exports, "udx_napi_interface_event_init", udx_napi_interface_event_init_fn);
+
+  napi_value udx_napi_interface_event_start_fn;
+  napi_create_function(env, NULL, 0, udx_napi_interface_event_start, NULL, &udx_napi_interface_event_start_fn);
+  napi_set_named_property(env, exports, "udx_napi_interface_event_start", udx_napi_interface_event_start_fn);
+
+  napi_value udx_napi_interface_event_stop_fn;
+  napi_create_function(env, NULL, 0, udx_napi_interface_event_stop, NULL, &udx_napi_interface_event_stop_fn);
+  napi_set_named_property(env, exports, "udx_napi_interface_event_stop", udx_napi_interface_event_stop_fn);
+
+  napi_value udx_napi_interface_event_close_fn;
+  napi_create_function(env, NULL, 0, udx_napi_interface_event_close, NULL, &udx_napi_interface_event_close_fn);
+  napi_set_named_property(env, exports, "udx_napi_interface_event_close", udx_napi_interface_event_close_fn);
+
+  napi_value udx_napi_interface_event_get_addrs_fn;
+  napi_create_function(env, NULL, 0, udx_napi_interface_event_get_addrs, NULL, &udx_napi_interface_event_get_addrs_fn);
+  napi_set_named_property(env, exports, "udx_napi_interface_event_get_addrs", udx_napi_interface_event_get_addrs_fn);
 }
