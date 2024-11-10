@@ -1,3 +1,0 @@
-[submodule "vendor/libudx"]
-	path = vendor/libudx
-	url = ../../holepunchto/libudx.git

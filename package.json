@@ -8,11 +8,7 @@
     "prebuilds",
     "binding.c",
     "binding.js",
-    "CMakeLists.txt",
-    "vendor/libudx/LICENSE",
-    "vendor/libudx/include",
-    "vendor/libudx/src",
-    "vendor/libudx/CMakeLists.txt"
+    "CMakeLists.txt"
   ],
   "imports": {
     "events": {
@@ -56,6 +52,7 @@
   "devDependencies": {
     "brittle": "^3.1.0",
     "cmake-bare": "^1.1.10",
+    "cmake-fetch": "^1.0.1",
     "cmake-napi": "^1.0.5",
     "is-ci": "^3.0.1",
     "standard": "^17.1.0",
