@@ -1788,6 +1788,10 @@ napi_macros_init (napi_env env, napi_value exports) {
   napi_create_uint32(env, offsetof(udx_t, packets_tx), &udx_packets_tx_offsetof);
   napi_set_named_property(env, exports, "offsetof_udx_t_packets_tx", udx_packets_tx_offsetof);
 
+  napi_value udx_packets_dropped_by_kernel_offsetof;
+  napi_create_uint32(env, offsetof(udx_t, packets_dropped_by_kernel), &udx_packets_dropped_by_kernel_offsetof);
+  napi_set_named_property(env, exports, "offsetof_udx_t_packets_dropped_by_kernel", udx_packets_dropped_by_kernel_offsetof);
+
   napi_value udx_napi_t_sizeof;
   napi_create_uint32(env, sizeof(udx_napi_t), &udx_napi_t_sizeof);
   napi_set_named_property(env, exports, "sizeof_udx_napi_t", udx_napi_t_sizeof);
