@@ -8,7 +8,7 @@ project(udx_native C)
 
 bare_target(target)
 
-fetch_package("github:holepunchto/libudx#906ab07")
+fetch_package("github:holepunchto/libudx#4818326bcafdcf55504dad3d7e5c552e25a922b7")
 
 add_bare_module(udx_native_bare)
 
