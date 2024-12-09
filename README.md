@@ -363,6 +363,27 @@ Available `options`:
 }
 ```
 
+## Dev Setup
+
+To develop UDX locally, you need to create a libudx prebuild. [bare-make](https://github.com/holepunchto/bare-make) is used for this.
+
+Requirements: The Clang C-compiler should be installed.
+
+The other setup steps are:
+
+- `npm install -g bare-runtime bare-make`
+- `npm install`
+- `bare-make generate`
+- `bare-make build`
+- `bare-make install`
+
+When testing changes, rebuild the prebuilds:
+
+- `bare-make generate`
+- `bare-make build`
+- `bare-make install`
+
+
 ## License
 
 Apache-2.0
