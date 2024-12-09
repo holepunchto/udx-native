@@ -60,7 +60,7 @@ typedef struct {
 
 typedef struct {
   udx_lookup_t handle;
-  udx_napi_t* udx;
+  udx_napi_t *udx;
 
   char *host;
 
@@ -71,7 +71,7 @@ typedef struct {
 
 typedef struct {
   udx_interface_event_t handle;
-  udx_napi_t* udx;
+  udx_napi_t *udx;
 
   napi_env env;
   napi_ref ctx;
@@ -89,29 +89,6 @@ parse_address (struct sockaddr *name, char *ip, size_t size, int *port, int *fam
     *port = ntohs(((struct sockaddr_in6 *) name)->sin6_port);
     *family = 6;
     uv_ip6_name((struct sockaddr_in6 *) name, ip, size);
-  }
-}
-
-static void
-on_udx_teardown (napi_async_cleanup_hook_handle handle, void *data) {
-  udx_napi_t *self = (udx_napi_t *) data;
-  udx_t *udx = (udx_t *) data;
-
-  self->exiting = true;
-
-  if (udx->streams_len > 0) {
-    for (int i = udx->streams_len - 1; i >= 0; i--) {
-      udx_stream_t *stream = udx->streams[i];
-      udx_stream_destroy(stream);
-    }
-  }
-}
-
-static void
-ensure_teardown (napi_env env, udx_napi_t *udx) {
-  if (!udx->has_teardown) {
-    udx->has_teardown = true;
-    napi_add_async_cleanup_hook(env, on_udx_teardown, (void *) udx, &(udx->teardown));
   }
 }
 
@@ -242,6 +219,45 @@ on_udx_close (udx_socket_t *self) {
   napi_delete_reference(env, n->on_close);
   napi_delete_reference(env, n->realloc_message);
   napi_delete_reference(env, n->ctx);
+}
+
+static void
+auto_close_udx_sockets (udx_napi_t *n) {
+  if (!(n->exiting)) return;
+
+  udx_t *u = (udx_t *) n;
+  if (u->streams_len > 0) return;
+
+  printf("...\n");
+  for (int i = u->sockets_len - 1; i >= 0; i--) {
+    udx_socket_t *socket = u->sockets[i];
+    udx_socket_close(socket, on_udx_close);
+  }
+}
+
+static void
+on_udx_teardown (napi_async_cleanup_hook_handle handle, void *data) {
+  udx_napi_t *self = (udx_napi_t *) data;
+  udx_t *udx = (udx_t *) data;
+
+  self->exiting = true;
+  printf("teardown!\n");
+
+  if (udx->streams_len > 0) {
+    for (int i = udx->streams_len - 1; i >= 0; i--) {
+      udx_stream_t *stream = udx->streams[i];
+      udx_stream_destroy(stream);
+    }
+  }
+
+  auto_close_udx_sockets(self);
+}
+
+static void
+ensure_teardown (napi_env env, udx_napi_t *udx) {
+  if (udx->has_teardown) return;
+  udx->has_teardown = true;
+  napi_add_async_cleanup_hook(env, on_udx_teardown, (void *) udx, &(udx->teardown));
 }
 
 static void
@@ -511,6 +527,8 @@ static void
 on_udx_stream_finalize (udx_stream_t *stream) {
   udx_napi_stream_t *n = (udx_napi_stream_t *) stream;
 
+  auto_close_udx_sockets(n->udx);
+
   napi_delete_reference(n->env, n->on_data);
   napi_delete_reference(n->env, n->on_end);
   napi_delete_reference(n->env, n->on_drain);
@@ -747,6 +765,15 @@ on_udx_interface_event_close (udx_interface_event_t *handle) {
   napi_delete_reference(env, e->ctx);
 }
 
+static void
+on_udx_idle (udx_t *u) {
+  udx_napi_t *self = (udx_napi_t *) u;
+  if (!self->has_teardown) return;
+
+  self->has_teardown = false;
+  napi_remove_async_cleanup_hook(self->teardown);
+}
+
 napi_value
 udx_napi_init (napi_env env, napi_callback_info info) {
   napi_value argv[2];
@@ -765,6 +792,8 @@ udx_napi_init (napi_env env, napi_callback_info info) {
   napi_get_uv_event_loop(env, &loop);
 
   udx_init(loop, &(self->udx));
+
+  udx_idle(&(self->udx), on_udx_idle);
 
   self->read_buf = read_buf;
   self->read_buf_free = read_buf_len;
@@ -1586,9 +1615,6 @@ udx_napi_lookup (napi_env env, napi_callback_info info) {
 
   udx_lookup_t *lookup = (udx_lookup_t *) self;
 
-  uv_loop_t *loop;
-  napi_get_uv_event_loop(env, &loop);
-
   self->host = host;
   self->env = env;
   napi_create_reference(env, argv[4], 1, &(self->ctx));
@@ -1599,7 +1625,7 @@ udx_napi_lookup (napi_env env, napi_callback_info info) {
   if (family == 4) flags |= UDX_LOOKUP_FAMILY_IPV4;
   if (family == 6) flags |= UDX_LOOKUP_FAMILY_IPV6;
 
-  int err = udx_lookup(loop, lookup, host, flags, on_udx_lookup);
+  int err = udx_lookup((udx_t *) udx, lookup, host, flags, on_udx_lookup);
   if (err < 0) {
     napi_throw_error(env, uv_err_name(err), uv_strerror(err));
     return NULL;
@@ -1626,15 +1652,12 @@ udx_napi_interface_event_init (napi_env env, napi_callback_info info) {
 
   udx_interface_event_t *event = (udx_interface_event_t *) self;
 
-  uv_loop_t *loop;
-  napi_get_uv_event_loop(env, &loop);
-
   self->env = env;
   napi_create_reference(env, argv[2], 1, &(self->ctx));
   napi_create_reference(env, argv[3], 1, &(self->on_event));
   napi_create_reference(env, argv[4], 1, &(self->on_close));
 
-  int err = udx_interface_event_init(loop, event);
+  int err = udx_interface_event_init((udx_t *) udx, event);
   if (err < 0) {
     napi_throw_error(env, uv_err_name(err), uv_strerror(err));
     return NULL;
