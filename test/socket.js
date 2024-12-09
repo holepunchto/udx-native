@@ -748,7 +748,7 @@ test('set send buffer size', async function (t) {
   await a.close()
 })
 
-test.solo('UDX - socket stats 0 before bind is called', async function (t) {
+test('UDX - socket stats 0 before bind is called', async function (t) {
   t.plan(10)
   const a = new UDX()
 
@@ -759,7 +759,7 @@ test.solo('UDX - socket stats 0 before bind is called', async function (t) {
   t.is(aSocket.bytesReceived, 0)
   t.is(aSocket.packetsReceived, 0)
 
-  aSocket.on('message', function (message, { host, family, port }) {
+  aSocket.on('message', async function (message, { host, family, port }) {
     t.ok(aSocket.packetsTransmitted > 0)
     t.ok(aSocket.bytesTransmitted > 0)
     t.ok(aSocket.bytesReceived > 0)
@@ -769,6 +769,8 @@ test.solo('UDX - socket stats 0 before bind is called', async function (t) {
     console.log(aSocket.packetsDroppedByKernel) // ex output 105047750823040
     t.ok(aSocket.packetsDroppedByKernel <= 1)
     t.ok(a.packetsDroppedByKernel <= 1)
+
+    await aSocket.close()
   })
 
   aSocket.bind(0, '127.0.0.1')
