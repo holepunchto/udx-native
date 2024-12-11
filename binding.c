@@ -1809,6 +1809,10 @@ napi_macros_init (napi_env env, napi_value exports) {
   napi_create_uint32(env, UV_UDP_IPV6ONLY, &UV_UDP_IPV6ONLY_uint32);
   napi_set_named_property(env, exports, "UV_UDP_IPV6ONLY", UV_UDP_IPV6ONLY_uint32);
 
+  napi_value UV_UDP_REUSEADDR_uint32;
+  napi_create_uint32(env, UV_UDP_REUSEADDR, &UV_UDP_REUSEADDR_uint32);
+  napi_set_named_property(env, exports, "UV_UDP_REUSEADDR", UV_UDP_REUSEADDR_uint32);
+
   napi_value inflight_offsetof;
   napi_create_uint32(env, offsetof(udx_stream_t, inflight), &inflight_offsetof);
   napi_set_named_property(env, exports, "offsetof_udx_stream_t_inflight", inflight_offsetof);
