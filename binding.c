@@ -913,6 +913,39 @@ udx_napi_socket_set_ttl (napi_env env, napi_callback_info info) {
 }
 
 napi_value
+udx_napi_socket_set_membership (napi_env env, napi_callback_info info) {
+  napi_value argv[4];
+  size_t argc = 4;
+
+  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+
+  udx_socket_t *socket;
+  size_t socket_len;
+  napi_get_buffer_info(env, argv[0], (void **) &socket, &socket_len);
+
+  char mcast_addr[INET6_ADDRSTRLEN];
+  size_t mcast_addr_len;
+  napi_get_value_string_utf8(env, argv[1], mcast_addr, INET6_ADDRSTRLEN, &mcast_addr_len);
+
+  char iface_addr[INET6_ADDRSTRLEN];
+  size_t iface_addr_len;
+  napi_get_value_string_utf8(env, argv[2], iface_addr, INET6_ADDRSTRLEN, &iface_addr_len);
+
+  char *iface_param = iface_addr_len > 0 ? iface_addr : NULL;
+
+  bool join; // true for join, false for leave
+  napi_get_value_bool(env, argv[3], &join);
+
+  int err = udx_socket_set_membership(socket, mcast_addr, iface_param, join ? UV_JOIN_GROUP : UV_LEAVE_GROUP);
+  if (err < 0) {
+    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    return NULL;
+  }
+
+  return NULL;
+}
+
+napi_value
 udx_napi_socket_get_recv_buffer_size (napi_env env, napi_callback_info info) {
   napi_value argv[1];
   size_t argc = 1;
@@ -1776,6 +1809,10 @@ napi_macros_init (napi_env env, napi_value exports) {
   napi_create_uint32(env, UV_UDP_IPV6ONLY, &UV_UDP_IPV6ONLY_uint32);
   napi_set_named_property(env, exports, "UV_UDP_IPV6ONLY", UV_UDP_IPV6ONLY_uint32);
 
+  napi_value UV_UDP_REUSEADDR_uint32;
+  napi_create_uint32(env, UV_UDP_REUSEADDR, &UV_UDP_REUSEADDR_uint32);
+  napi_set_named_property(env, exports, "UV_UDP_REUSEADDR", UV_UDP_REUSEADDR_uint32);
+
   napi_value inflight_offsetof;
   napi_create_uint32(env, offsetof(udx_stream_t, inflight), &inflight_offsetof);
   napi_set_named_property(env, exports, "offsetof_udx_stream_t_inflight", inflight_offsetof);
@@ -1919,6 +1956,10 @@ napi_macros_init (napi_env env, napi_value exports) {
   napi_value udx_napi_socket_set_send_buffer_size_fn;
   napi_create_function(env, NULL, 0, udx_napi_socket_set_send_buffer_size, NULL, &udx_napi_socket_set_send_buffer_size_fn);
   napi_set_named_property(env, exports, "udx_napi_socket_set_send_buffer_size", udx_napi_socket_set_send_buffer_size_fn);
+
+  napi_value udx_napi_socket_set_membership_fn;
+  napi_create_function(env, NULL, 0, udx_napi_socket_set_membership, NULL, &udx_napi_socket_set_membership_fn);
+  napi_set_named_property(env, exports, "udx_napi_socket_set_membership", udx_napi_socket_set_membership_fn);
 
   napi_value udx_napi_socket_send_ttl_fn;
   napi_create_function(env, NULL, 0, udx_napi_socket_send_ttl, NULL, &udx_napi_socket_send_ttl_fn);

@@ -96,7 +96,8 @@ Creates a new socket instance.
 Available `options`:
 ```js
 {
-  ipv6Only: false
+  ipv6Only: false,
+  reuseAddress: false
 }
 ```
 
