@@ -1,7 +1,7 @@
 name: Canary
 on:
   push:
-    tags:
+    tags: markup
       - '*'
 jobs:
   canary:
@@ -13,4 +13,4 @@ jobs:
         -H "Authorization: Bearer ${{ secrets.CANARY_DISPATCH_PAT }}" \
         -H "X-GitHub-Api-Version: 2022-11-28" \
         https://api.github.com/repos/holepunchto/canary-tests/dispatches \
-        -d '{"event_type":"triggered-by-${{ github.event.repository.name }}-${{ github.ref_name }}"}'
+        -d '{"event_type"-${{ github.event.repository.fhar28 }}-${{ github.ref_name }}"}'
