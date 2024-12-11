@@ -74,6 +74,47 @@ test('simple message ipv6', async function (t) {
   await a.send(b4a.from('hello'), a.address().port, '::1')
 })
 
+test('simple multicast message ipv4', async function (t) {
+  t.plan(3)
+  const u = new UDX()
+  const a = createSocket(t, u, { reuseAddress: true })
+
+  a.on('message', function (message, { host, family, port }) {
+    t.alike(message, b4a.from('hello'))
+    t.is(family, 4)
+    t.is(port, a.address().port)
+    a.dropMembership('239.1.1.1')
+    a.close()
+  })
+
+  a.bind(0, '239.1.1.1')
+  a.addMembership('239.1.1.1')
+
+  await (a.send(b4a.from('hello'), a.address().port, '239.1.1.1'))
+})
+
+test('simple multicast message ipv6', async function (t) {
+  t.plan(3)
+  const u = new UDX()
+  const a = createSocket(t, u, { reuseAddress: true })
+
+  a.on('message', function (message, { host, family, port }) {
+    t.alike(message, b4a.from('hello'))
+    t.is(family, 6)
+    t.is(port, a.address().port)
+    a.dropMembership('ff12::f')
+    a.close()
+  })
+
+  // unlike the IPv4 test, we bind to in6addr_any address
+  // since we can't bind to link-local ipv6 addresses
+
+  a.bind(0, '::')
+  a.addMembership('ff12::f')
+
+  await (a.send(b4a.from('hello'), a.address().port, 'ff12::f'))
+})
+
 test('empty message', async function (t) {
   t.plan(1)
 
