@@ -87,7 +87,7 @@ test('simple multicast message ipv4', async function (t) {
     a.close()
   })
 
-  a.bind(0, '239.1.1.1')
+  a.bind(0, '0.0.0.0')
   a.addMembership('239.1.1.1')
 
   await (a.send(b4a.from('hello'), a.address().port, '239.1.1.1'))
@@ -105,9 +105,6 @@ test('simple multicast message ipv6', async function (t) {
     a.dropMembership('ff12::f')
     a.close()
   })
-
-  // unlike the IPv4 test, we bind to in6addr_any address
-  // since we can't bind to link-local ipv6 addresses
 
   a.bind(0, '::')
   a.addMembership('ff12::f')
