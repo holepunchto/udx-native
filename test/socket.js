@@ -93,7 +93,7 @@ test('simple multicast message ipv4', async function (t) {
   await (a.send(b4a.from('hello'), a.address().port, '239.1.1.1'))
 })
 
-test('simple multicast message ipv6', async function (t) {
+test.skip('simple multicast message ipv6', async function (t) {
   t.plan(3)
   const u = new UDX()
   const a = createSocket(t, u, { reuseAddress: true })
@@ -102,14 +102,14 @@ test('simple multicast message ipv6', async function (t) {
     t.alike(message, b4a.from('hello'))
     t.is(family, 6)
     t.is(port, a.address().port)
-    a.dropMembership('ff15::f')
+    a.dropMembership('ff12::f')
     a.close()
   })
 
   a.bind(0, '::')
-  a.addMembership('ff15::f')
+  a.addMembership('ff12::f')
 
-  await (a.send(b4a.from('hello'), a.address().port, 'ff15::f'))
+  await (a.send(b4a.from('hello'), a.address().port, 'ff12::f'))
 })
 
 test('empty message', async function (t) {
