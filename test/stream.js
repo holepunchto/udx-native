@@ -498,7 +498,7 @@ test('out of order reads but can destroy (memleak test)', async function (t) {
   })
 })
 
-test.solo('close socket on stream close', async function (t) {
+test('close socket on stream close', async function (t) {
   t.plan(2)
 
   const u = new UDX()
