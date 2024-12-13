@@ -520,7 +520,6 @@ test.solo('close socket on stream close', async function (t) {
       await aSocket.close()
       t.pass('a closed')
     })
-    .end()
 
   b
     .on('end', function () {
@@ -531,6 +530,11 @@ test.solo('close socket on stream close', async function (t) {
       await bSocket.close()
       t.pass('b closed')
     })
+
+  a.resume()
+  b.resume()
+
+  a.end()
 })
 
 test('write string', async function (t) {
