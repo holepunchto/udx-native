@@ -521,7 +521,6 @@ test('close socket on stream close', async function (t) {
 
   b
     .on('end', function () {
-      console.log('b on end triggered')
       b.end()
     })
     .on('close', async function () {
