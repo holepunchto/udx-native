@@ -55,14 +55,12 @@ test('stream flush', async function (t) {
   a.write(' ')
   a.write('world')
 
-  await a.flush()
-
   const all = []
-  while (true) {
-    const data = b.read()
-    if (!data) break
+  b.on('data', data => {
     all.push(data)
-  }
+  })
+
+  await a.flush()
 
   const recv = b4a.concat(all)
   t.alike(recv, b4a.from('hello world'))
@@ -520,7 +518,6 @@ test('close socket on stream close', async function (t) {
       await aSocket.close()
       t.pass('a closed')
     })
-    .end()
 
   b
     .on('end', function () {
@@ -530,6 +527,11 @@ test('close socket on stream close', async function (t) {
       await bSocket.close()
       t.pass('b closed')
     })
+
+  a.resume()
+  b.resume()
+
+  a.end()
 })
 
 test('write string', async function (t) {
