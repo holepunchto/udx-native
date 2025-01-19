@@ -1,8 +1,14 @@
-#include <node_api.h>
+// #include <node_api.h>
+// #include <inttypes.h>
+#include <udx.h>
+#include <bare.h>
+#include <js.h>
 #include <stdlib.h>
 #include <string.h>
-#include <udx.h>
-#include <uv.h>
+
+#ifndef NAPI_AUTO_LENGTH // TODO: remove
+#define NAPI_AUTO_LENGTH ((size_t) - 1)
+#endif
 
 #define UDX_NAPI_INTERACTIVE     0
 #define UDX_NAPI_NON_INTERACTIVE 1
@@ -14,7 +20,8 @@ typedef struct {
   char *read_buf;
   size_t read_buf_free;
 
-  napi_async_cleanup_hook_handle teardown;
+  // napi_async_cleanup_hook_handle teardown;
+  js_deferred_teardown_t *teardown;
   bool exiting;
   bool has_teardown;
 } udx_napi_t;
@@ -23,12 +30,12 @@ typedef struct {
   udx_socket_t socket;
   udx_napi_t *udx;
 
-  napi_env env;
-  napi_ref ctx;
-  napi_ref on_send;
-  napi_ref on_message;
-  napi_ref on_close;
-  napi_ref realloc_message;
+  js_env_t *env;
+  js_ref_t *ctx;
+  js_ref_t *on_send;
+  js_ref_t *on_message;
+  js_ref_t *on_close;
+  js_ref_t *realloc_message;
 } udx_napi_socket_t;
 
 typedef struct {
@@ -43,19 +50,19 @@ typedef struct {
 
   ssize_t frame_len;
 
-  napi_env env;
-  napi_ref ctx;
-  napi_ref on_data;
-  napi_ref on_end;
-  napi_ref on_drain;
-  napi_ref on_ack;
-  napi_ref on_send;
-  napi_ref on_message;
-  napi_ref on_close;
-  napi_ref on_firewall;
-  napi_ref on_remote_changed;
-  napi_ref realloc_data;
-  napi_ref realloc_message;
+  js_env_t *env;
+  js_ref_t *ctx;
+  js_ref_t *on_data;
+  js_ref_t *on_end;
+  js_ref_t *on_drain;
+  js_ref_t *on_ack;
+  js_ref_t *on_send;
+  js_ref_t *on_message;
+  js_ref_t *on_close;
+  js_ref_t *on_firewall;
+  js_ref_t *on_remote_changed;
+  js_ref_t *realloc_data;
+  js_ref_t *realloc_message;
 } udx_napi_stream_t;
 
 typedef struct {
@@ -64,19 +71,19 @@ typedef struct {
 
   char *host;
 
-  napi_env env;
-  napi_ref ctx;
-  napi_ref on_lookup;
+  js_env_t *env;
+  js_ref_t *ctx;
+  js_ref_t *on_lookup;
 } udx_napi_lookup_t;
 
 typedef struct {
   udx_interface_event_t handle;
   udx_napi_t *udx;
 
-  napi_env env;
-  napi_ref ctx;
-  napi_ref on_event;
-  napi_ref on_close;
+  js_env_t *env;
+  js_ref_t *ctx;
+  js_ref_t *on_event;
+  js_ref_t *on_close;
 } udx_napi_interface_event_t;
 
 inline static void
@@ -92,33 +99,55 @@ parse_address (struct sockaddr *name, char *ip, size_t size, int *port, int *fam
   }
 }
 
+/**
+ * Forward exceptions to uncaught handler
+ * if exception occured on js-callback /w checkpoint
+ */
+static inline void
+forward_uncaught (js_env_t *env, int err) {
+  if (err == 0) return;
+
+  assert(err == js_pending_exception || err == js_uncaught_exception);
+
+  js_value_t *fatal_exception;
+  err = js_get_and_clear_last_exception(env, &fatal_exception);
+  assert(err == 0);
+
+  err = js_fatal_exception(env, fatal_exception);
+  assert(err == 0);
+}
+
 static void
 on_udx_send (udx_socket_send_t *req, int status) {
+  int err;
   udx_napi_socket_t *n = (udx_napi_socket_t *) req->socket;
   if (n->udx->exiting) return;
 
-  napi_env env = n->env;
+  js_env_t *env = n->env;
 
-  napi_handle_scope scope;
-  napi_open_handle_scope(env, &scope);
+  js_handle_scope_t *scope;
+  err = js_open_handle_scope(env, &scope);
+  assert(err == 0);
 
-  napi_value ctx;
-  napi_get_reference_value(env, n->ctx, &ctx);
+  js_value_t *ctx;
+  err = js_get_reference_value(env, n->ctx, &ctx);
+  assert(err == 0);
 
-  napi_value callback;
-  napi_get_reference_value(env, n->on_send, &callback);
+  js_value_t *callback;
+  err = js_get_reference_value(env, n->on_send, &callback);
+  assert(err == 0);
 
-  napi_value argv[2];
-  napi_create_int32(env, (uintptr_t) req->data, &(argv[0]));
-  napi_create_int32(env, status, &(argv[1]));
+  js_value_t *argv[2];
+  err = js_create_int32(env, (uintptr_t) req->data, &(argv[0]));
+  assert(err == 0);
+  err = js_create_int32(env, status, &(argv[1]));
+  assert(err == 0);
 
-  if (napi_make_callback(env, NULL, ctx, callback, 2, argv, NULL) == napi_pending_exception) {
-    napi_value fatal_exception;
-    napi_get_and_clear_last_exception(env, &fatal_exception);
-    napi_fatal_exception(env, fatal_exception);
-  }
+  err = js_call_function_with_checkpoint(env, ctx, callback, 2, argv, NULL);
+  forward_uncaught(env, err);
 
-  napi_close_handle_scope(env, scope);
+  err = js_close_handle_scope(env, scope);
+  assert(err == 0);
 }
 
 static void
@@ -126,6 +155,7 @@ on_udx_message (udx_socket_t *self, ssize_t read_len, const uv_buf_t *buf, const
   udx_napi_socket_t *n = (udx_napi_socket_t *) self;
   if (n->udx->exiting) return;
 
+  int err;
   int port = 0;
   char ip[INET6_ADDRSTRLEN];
   int family = 0;
@@ -135,94 +165,112 @@ on_udx_message (udx_socket_t *self, ssize_t read_len, const uv_buf_t *buf, const
 
   memcpy(n->udx->read_buf, buf->base, buf->len);
 
-  napi_env env = n->env;
+  js_env_t *env = n->env;
 
-  napi_handle_scope scope;
-  napi_open_handle_scope(env, &scope);
+  js_handle_scope_t *scope;
+  err = js_open_handle_scope(env, &scope);
+  assert(err == 0);
 
-  napi_value ctx;
-  napi_get_reference_value(env, n->ctx, &ctx);
+  js_value_t *ctx;
+  err = js_get_reference_value(env, n->ctx, &ctx);
+  assert(err == 0);
 
-  napi_value callback;
-  napi_get_reference_value(env, n->on_message, &callback);
+  js_value_t *callback;
+  err = js_get_reference_value(env, n->on_message, &callback);
+  assert(err == 0);
 
-  napi_value argv[4];
-  napi_create_uint32(env, read_len, &(argv[0]));
-  napi_create_uint32(env, port, &(argv[1]));
-  napi_create_string_utf8(env, ip, NAPI_AUTO_LENGTH, &(argv[2]));
-  napi_create_uint32(env, family, &(argv[3]));
+  js_value_t *argv[4];
+  err = js_create_uint32(env, read_len, &(argv[0]));
+  assert(err == 0);
+  err = js_create_uint32(env, port, &(argv[1]));
+  assert(err == 0);
+  err = js_create_string_utf8(env, (utf8_t *) ip, NAPI_AUTO_LENGTH, &(argv[2]));
+  assert(err == 0);
+  err = js_create_uint32(env, family, &(argv[3]));
+  assert(err == 0);
 
-  napi_value res;
+  js_value_t *res;
 
-  if (napi_make_callback(env, NULL, ctx, callback, 4, argv, &res) == napi_pending_exception) {
-    napi_value fatal_exception;
-    napi_get_and_clear_last_exception(env, &fatal_exception);
-    napi_fatal_exception(env, fatal_exception);
+  err = js_call_function_with_checkpoint(env, ctx, callback, 4, argv, &res);
+  forward_uncaught(env, err);
+
+  if (err == 0) {
+    err = js_get_arraybuffer_info(env, res, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free));
+    assert(err == 0);
+  } else {
 
     // avoid reentry
     if (!(n->udx->exiting)) {
-      napi_env env = n->env;
+      js_env_t *env = n->env;
 
-      napi_handle_scope scope;
-      napi_open_handle_scope(env, &scope);
+      js_handle_scope_t *scope;
+      err = js_open_handle_scope(env, &scope);
+      assert(err == 0);
 
-      napi_value ctx;
-      napi_get_reference_value(env, n->ctx, &ctx);
+      js_value_t *ctx;
+      err = js_get_reference_value(env, n->ctx, &ctx);
+      assert(err == 0);
 
-      napi_value callback;
-      napi_get_reference_value(env, n->realloc_message, &callback);
+      js_value_t *callback;
+      err = js_get_reference_value(env, n->realloc_message, &callback);
+      assert(err == 0);
 
-      if (napi_make_callback(env, NULL, ctx, callback, 0, NULL, &res) == napi_pending_exception) {
-        napi_value fatal_exception;
-        napi_get_and_clear_last_exception(env, &fatal_exception);
-        napi_fatal_exception(env, fatal_exception);
+      err = js_call_function_with_checkpoint(env, ctx, callback, 0, NULL, &res);
+      forward_uncaught(env, err);
+
+      if (err == 0) {
+        err = js_get_arraybuffer_info(env, res, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free));
+        assert(err == 0);
       }
 
-      napi_get_buffer_info(env, res, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free));
-
-      napi_close_handle_scope(env, scope);
+      err = js_close_handle_scope(env, scope);
+      assert(err == 0);
     }
-  } else {
-    napi_get_buffer_info(env, res, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free));
   }
 
-  napi_close_handle_scope(env, scope);
+  err = js_close_handle_scope(env, scope);
+  assert(err == 0);
 }
 
 static void
 on_udx_close (udx_socket_t *self) {
   udx_napi_socket_t *n = (udx_napi_socket_t *) self;
-
-  napi_env env = n->env;
+  int err;
+  js_env_t *env = n->env;
 
   if (!(n->udx->exiting)) {
-    napi_handle_scope scope;
-    napi_open_handle_scope(env, &scope);
+    js_handle_scope_t *scope;
+    err = js_open_handle_scope(env, &scope);
+    assert(err == 0);
 
-    napi_value ctx;
-    napi_get_reference_value(env, n->ctx, &ctx);
+    js_value_t *ctx;
+    err = js_get_reference_value(env, n->ctx, &ctx);
+    assert(err == 0);
 
-    napi_value callback;
-    napi_get_reference_value(env, n->on_close, &callback);
+    js_value_t *callback;
+    err = js_get_reference_value(env, n->on_close, &callback);
+    assert(err == 0);
 
-    if (napi_make_callback(env, NULL, ctx, callback, 0, NULL, NULL) == napi_pending_exception) {
-      napi_value fatal_exception;
-      napi_get_and_clear_last_exception(env, &fatal_exception);
-      napi_fatal_exception(env, fatal_exception);
-    }
+    err = js_call_function_with_checkpoint(env, ctx, callback, 0, NULL, NULL);
+    forward_uncaught(env, err);
 
-    napi_close_handle_scope(env, scope);
+    js_close_handle_scope(env, scope);
   }
 
-  napi_delete_reference(env, n->on_send);
-  napi_delete_reference(env, n->on_message);
-  napi_delete_reference(env, n->on_close);
-  napi_delete_reference(env, n->realloc_message);
-  napi_delete_reference(env, n->ctx);
+  err = js_delete_reference(env, n->on_send);
+  assert(err == 0);
+  err = js_delete_reference(env, n->on_message);
+  assert(err == 0);
+  err = js_delete_reference(env, n->on_close);
+  assert(err == 0);
+  err = js_delete_reference(env, n->realloc_message);
+  assert(err == 0);
+  err = js_delete_reference(env, n->ctx);
+  assert(err == 0);
 }
 
 static void
-on_udx_teardown (napi_async_cleanup_hook_handle handle, void *data) {
+on_udx_teardown (js_deferred_teardown_t *handle, void *data) {
   udx_napi_t *self = (udx_napi_t *) data;
   udx_t *udx = (udx_t *) data;
 
@@ -231,40 +279,45 @@ on_udx_teardown (napi_async_cleanup_hook_handle handle, void *data) {
 }
 
 static void
-ensure_teardown (napi_env env, udx_napi_t *udx) {
+ensure_teardown (js_env_t *env, udx_napi_t *udx) {
   if (udx->has_teardown) return;
   udx->has_teardown = true;
-  napi_add_async_cleanup_hook(env, on_udx_teardown, (void *) udx, &(udx->teardown));
+
+  int err = js_add_deferred_teardown_callback(env, on_udx_teardown, (void *) udx, &(udx->teardown));
+  if (err != 0) abort();
 }
 
 static void
 on_udx_stream_end (udx_stream_t *stream) {
+  int err;
   udx_napi_stream_t *n = (udx_napi_stream_t *) stream;
   if (n->udx->exiting) return;
 
   size_t read = n->read_buf_head - n->read_buf;
 
-  napi_env env = n->env;
+  js_env_t *env = n->env;
 
-  napi_handle_scope scope;
-  napi_open_handle_scope(env, &scope);
+  js_handle_scope_t *scope;
+  err = js_open_handle_scope(env, &scope);
+  assert(err == 0);
 
-  napi_value ctx;
-  napi_get_reference_value(env, n->ctx, &ctx);
+  js_value_t *ctx;
+  err = js_get_reference_value(env, n->ctx, &ctx);
+  assert(err == 0);
 
-  napi_value callback;
-  napi_get_reference_value(env, n->on_end, &callback);
+  js_value_t *callback;
+  err = js_get_reference_value(env, n->on_end, &callback);
+  assert(err == 0);
 
-  napi_value argv[1];
-  napi_create_uint32(env, read, &(argv[0]));
+  js_value_t *argv[1];
+  err = js_create_uint32(env, read, &(argv[0]));
+  assert(err == 0);
 
-  if (napi_make_callback(env, NULL, ctx, callback, 1, argv, NULL) == napi_pending_exception) {
-    napi_value fatal_exception;
-    napi_get_and_clear_last_exception(env, &fatal_exception);
-    napi_fatal_exception(env, fatal_exception);
-  }
+  err = js_call_function_with_checkpoint(env, ctx, callback, 1, argv, NULL);
+  forward_uncaught(env, err);
 
-  napi_close_handle_scope(env, scope);
+  err = js_close_handle_scope(env, scope);
+  assert(err == 0);
 }
 
 static void
@@ -309,55 +362,62 @@ on_udx_stream_read (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
     }
   }
 
-  napi_env env = n->env;
+  js_env_t *env = n->env;
 
-  napi_handle_scope scope;
-  napi_open_handle_scope(env, &scope);
+  js_handle_scope_t *scope;
+  int err = js_open_handle_scope(env, &scope);
+  assert(err == 0);
 
-  napi_value ctx;
-  napi_get_reference_value(env, n->ctx, &ctx);
+  js_value_t *ctx;
+  err = js_get_reference_value(env, n->ctx, &ctx);
+  assert(err == 0);
 
-  napi_value callback;
-  napi_get_reference_value(env, n->on_data, &callback);
+  js_value_t *callback;
+  err = js_get_reference_value(env, n->on_data, &callback);
+  assert(err == 0);
 
-  napi_value argv[1];
-  napi_create_uint32(env, read, &(argv[0]));
+  js_value_t *argv[1];
+  err = js_create_uint32(env, read, &(argv[0]));
+  assert(err == 0);
 
-  napi_value res;
+  js_value_t *res;
 
-  if (napi_make_callback(env, NULL, ctx, callback, 1, argv, &res) == napi_pending_exception) {
-    napi_value fatal_exception;
-    napi_get_and_clear_last_exception(env, &fatal_exception);
-    napi_fatal_exception(env, fatal_exception);
+  err = js_call_function_with_checkpoint(env, ctx, callback, 1, argv, &res);
+  if (err == 0) {
+    err = js_get_arraybuffer_info(env, res, (void **) &(n->read_buf), &(n->read_buf_free));
+    assert(err == 0);
+    n->read_buf_head = n->read_buf;
+  } else {
+    forward_uncaught(env, err);
 
     // avoid re-entry
     if (!(n->udx->exiting)) {
-      napi_handle_scope scope;
-      napi_open_handle_scope(env, &scope);
+      js_handle_scope_t *scope;
+      err = js_open_handle_scope(env, &scope);
+      assert(err == 0);
 
-      napi_value ctx;
-      napi_get_reference_value(env, n->ctx, &ctx);
+      js_value_t *ctx;
+      err = js_get_reference_value(env, n->ctx, &ctx);
+      assert(err == 0);
 
-      napi_value callback;
-      napi_get_reference_value(env, n->realloc_data, &callback);
+      js_value_t *callback;
+      err = js_get_reference_value(env, n->realloc_data, &callback);
+      assert(err == 0);
 
-      if (napi_make_callback(env, NULL, ctx, callback, 0, NULL, &res) == napi_pending_exception) {
-        napi_value fatal_exception;
-        napi_get_and_clear_last_exception(env, &fatal_exception);
-        napi_fatal_exception(env, fatal_exception);
-      }
+      err = js_call_function_with_checkpoint(env, ctx, callback, 0, NULL, &res);
+      forward_uncaught(env, err);
 
-      napi_get_buffer_info(env, res, (void **) &(n->read_buf), &(n->read_buf_free));
+      err = js_get_arraybuffer_info(env, res, (void **) &(n->read_buf), &(n->read_buf_free));
+      assert(err == 0);
       n->read_buf_head = n->read_buf;
 
-      napi_close_handle_scope(env, scope);
+      err = js_close_handle_scope(env, scope);
+      assert(err == 0);
     }
-  } else {
-    napi_get_buffer_info(env, res, (void **) &(n->read_buf), &(n->read_buf_free));
-    n->read_buf_head = n->read_buf;
   }
 
-  napi_close_handle_scope(env, scope);
+  err = js_close_handle_scope(env, scope);
+  assert(err == 0);
 }
 
 static void
@@ -365,85 +425,94 @@ on_udx_stream_drain (udx_stream_t *stream) {
   udx_napi_stream_t *n = (udx_napi_stream_t *) stream;
   if (n->udx->exiting) return;
 
-  napi_env env = n->env;
+  js_env_t *env = n->env;
 
-  napi_handle_scope scope;
-  napi_open_handle_scope(env, &scope);
+  js_handle_scope_t *scope;
+  int err = js_open_handle_scope(env, &scope);
+  assert(err == 0);
 
-  napi_value ctx;
-  napi_get_reference_value(env, n->ctx, &ctx);
+  js_value_t *ctx;
+  err = js_get_reference_value(env, n->ctx, &ctx);
+  assert(err == 0);
 
-  napi_value callback;
-  napi_get_reference_value(env, n->on_drain, &callback);
+  js_value_t *callback;
+  err = js_get_reference_value(env, n->on_drain, &callback);
+  assert(err == 0);
 
-  if (napi_make_callback(env, NULL, ctx, callback, 0, NULL, NULL) == napi_pending_exception) {
-    napi_value fatal_exception;
-    napi_get_and_clear_last_exception(env, &fatal_exception);
-    napi_fatal_exception(env, fatal_exception);
-  }
+  err = js_call_function_with_checkpoint(env, ctx, callback, 0, NULL, NULL);
+  forward_uncaught(env, err);
 
-  napi_close_handle_scope(env, scope);
+  err = js_close_handle_scope(env, scope);
+  assert(err == 0);
 }
 
 static void
 on_udx_stream_ack (udx_stream_write_t *req, int status, int unordered) {
+  int err = 0;
   udx_napi_stream_t *n = (udx_napi_stream_t *) req->stream;
   if (n->udx->exiting) return;
 
-  napi_env env = n->env;
+  js_env_t *env = n->env;
 
-  napi_handle_scope scope;
-  napi_open_handle_scope(env, &scope);
+  js_handle_scope_t *scope;
+  err = js_open_handle_scope(env, &scope);
+  assert(err == 0);
 
-  napi_value ctx;
-  napi_get_reference_value(env, n->ctx, &ctx);
+  js_value_t *ctx;
+  err = js_get_reference_value(env, n->ctx, &ctx);
+  assert(err == 0);
 
-  napi_value callback;
-  napi_get_reference_value(env, n->on_ack, &callback);
+  js_value_t *callback;
+  err = js_get_reference_value(env, n->on_ack, &callback);
+  assert(err == 0);
 
-  napi_value argv[1];
-  napi_create_uint32(env, (uintptr_t) req->data, &(argv[0]));
+  js_value_t *argv[1];
+  err = js_create_uint32(env, (uintptr_t) req->data, &(argv[0]));
+  assert(err == 0);
 
-  if (napi_make_callback(env, NULL, ctx, callback, 1, argv, NULL) == napi_pending_exception) {
-    napi_value fatal_exception;
-    napi_get_and_clear_last_exception(env, &fatal_exception);
-    napi_fatal_exception(env, fatal_exception);
-  }
+  err = js_call_function_with_checkpoint(env, ctx, callback, 1, argv, NULL);
+  forward_uncaught(env, err);
 
-  napi_close_handle_scope(env, scope);
+  err = js_close_handle_scope(env, scope);
+  assert(err == 0);
 }
 
 static void
 on_udx_stream_send (udx_stream_send_t *req, int status) {
+  int err;
   udx_napi_stream_t *n = (udx_napi_stream_t *) req->stream;
   if (n->udx->exiting) return;
 
-  napi_env env = n->env;
+  js_env_t *env = n->env;
 
-  napi_handle_scope scope;
-  napi_open_handle_scope(env, &scope);
+  js_handle_scope_t *scope;
+  err = js_open_handle_scope(env, &scope);
+  assert(err == 0);
 
-  napi_value ctx;
-  napi_get_reference_value(env, n->ctx, &ctx);
+  js_value_t *ctx;
+  err = js_get_reference_value(env, n->ctx, &ctx);
+  assert(err == 0);
 
-  napi_value callback;
-  napi_get_reference_value(env, n->on_send, &callback);
+  js_value_t *callback;
+  err = js_get_reference_value(env, n->on_send, &callback);
+  assert(err == 0);
 
-  napi_value argv[2];
-  napi_create_int32(env, (uintptr_t) req->data, &(argv[0]));
-  napi_create_int32(env, status, &(argv[1]));
+  js_value_t *argv[2];
+  err = js_create_int32(env, (uintptr_t) req->data, &(argv[0]));
+  assert(err == 0);
+  err = js_create_int32(env, status, &(argv[1]));
+  assert(err == 0);
 
-  if (napi_make_callback(env, NULL, ctx, callback, 2, argv, NULL) == napi_pending_exception) {
-    napi_value fatal_exception;
-    napi_get_and_clear_last_exception(env, &fatal_exception);
-    napi_fatal_exception(env, fatal_exception);
-  }
+  err = js_call_function_with_checkpoint(env, ctx, callback, 2, argv, NULL);
+  forward_uncaught(env, err);
 
-  napi_close_handle_scope(env, scope);
+  err = js_close_handle_scope(env, scope);
+  assert(err == 0);
 }
 
 static void
 on_udx_stream_recv (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf) {
+  int err;
   udx_napi_stream_t *n = (udx_napi_stream_t *) stream;
   if (n->udx->exiting) return;
 
@@ -451,112 +520,134 @@ on_udx_stream_recv (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
 
   memcpy(n->udx->read_buf, buf->base, buf->len);
 
-  napi_env env = n->env;
+  js_env_t *env = n->env;
 
-  napi_handle_scope scope;
-  napi_open_handle_scope(env, &scope);
+  js_handle_scope_t *scope;
+  err = js_open_handle_scope(env, &scope);
+  assert(err == 0);
 
-  napi_value ctx;
-  napi_get_reference_value(env, n->ctx, &ctx);
+  js_value_t *ctx;
+  err = js_get_reference_value(env, n->ctx, &ctx);
+  assert(err == 0);
 
-  napi_value callback;
-  napi_get_reference_value(env, n->on_message, &callback);
+  js_value_t *callback;
+  err = js_get_reference_value(env, n->on_message, &callback);
+  assert(err == 0);
 
-  napi_value argv[1];
-  napi_create_uint32(env, read_len, &(argv[0]));
+  js_value_t *argv[1];
+  err = js_create_uint32(env, read_len, &(argv[0]));
+  assert(err == 0);
 
-  napi_value res;
-
-  if (napi_make_callback(env, NULL, ctx, callback, 1, argv, &res) == napi_pending_exception) {
-    napi_value fatal_exception;
-    napi_get_and_clear_last_exception(env, &fatal_exception);
-    napi_fatal_exception(env, fatal_exception);
-
+  js_value_t *res;
+  err = js_call_function_with_checkpoint(env, ctx, callback, 1, argv, &res);
+  if (err == 0) {
+    err = js_get_arraybuffer_info(env, res, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free));
+    assert(err == 0);
+  } else {
+    forward_uncaught(env, err);
     // avoid re-entry
     if (!(n->udx->exiting)) {
-      napi_handle_scope scope;
-      napi_open_handle_scope(env, &scope);
+      js_handle_scope_t *scope;
+      err = js_open_handle_scope(env, &scope);
+      assert(err == 0);
 
-      napi_value ctx;
-      napi_get_reference_value(env, n->ctx, &ctx);
+      js_value_t *ctx;
+      err = js_get_reference_value(env, n->ctx, &ctx);
+      assert(err == 0);
 
-      napi_value callback;
-      napi_get_reference_value(env, n->realloc_message, &callback);
+      js_value_t *callback;
+      err = js_get_reference_value(env, n->realloc_message, &callback);
+      assert(err == 0);
 
-      if (napi_make_callback(env, NULL, ctx, callback, 0, NULL, &res) == napi_pending_exception) {
-        napi_value fatal_exception;
-        napi_get_and_clear_last_exception(env, &fatal_exception);
-        napi_fatal_exception(env, fatal_exception);
-      }
+      err = js_call_function_with_checkpoint(env, ctx, callback, 0, NULL, &res);
+      forward_uncaught(env, err);
 
-      napi_get_buffer_info(env, res, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free));
+      err = js_get_arraybuffer_info(env, res, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free));
+      assert(err == 0);
 
-      napi_close_handle_scope(env, scope);
+      err = js_close_handle_scope(env, scope);
+      assert(err == 0);
     }
-  } else {
-    napi_get_buffer_info(env, res, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free));
   }
 
-  napi_close_handle_scope(env, scope);
+  err = js_close_handle_scope(env, scope);
+  assert(err == 0);
 }
 
 static void
 on_udx_stream_finalize (udx_stream_t *stream) {
   udx_napi_stream_t *n = (udx_napi_stream_t *) stream;
 
-  napi_delete_reference(n->env, n->on_data);
-  napi_delete_reference(n->env, n->on_end);
-  napi_delete_reference(n->env, n->on_drain);
-  napi_delete_reference(n->env, n->on_ack);
-  napi_delete_reference(n->env, n->on_send);
-  napi_delete_reference(n->env, n->on_message);
-  napi_delete_reference(n->env, n->on_close);
-  napi_delete_reference(n->env, n->on_firewall);
-  napi_delete_reference(n->env, n->on_remote_changed);
-  napi_delete_reference(n->env, n->realloc_data);
-  napi_delete_reference(n->env, n->realloc_message);
-  napi_delete_reference(n->env, n->ctx);
+  int err = js_delete_reference(n->env, n->on_data);
+  assert(err == 0);
+  err = js_delete_reference(n->env, n->on_end);
+  assert(err == 0);
+  err = js_delete_reference(n->env, n->on_drain);
+  assert(err == 0);
+  err = js_delete_reference(n->env, n->on_ack);
+  assert(err == 0);
+  err = js_delete_reference(n->env, n->on_send);
+  assert(err == 0);
+  err = js_delete_reference(n->env, n->on_message);
+  assert(err == 0);
+  err = js_delete_reference(n->env, n->on_close);
+  assert(err == 0);
+  err = js_delete_reference(n->env, n->on_firewall);
+  assert(err == 0);
+  err = js_delete_reference(n->env, n->on_remote_changed);
+  assert(err == 0);
+  err = js_delete_reference(n->env, n->realloc_data);
+  assert(err == 0);
+  err = js_delete_reference(n->env, n->realloc_message);
+  assert(err == 0);
+  err = js_delete_reference(n->env, n->ctx);
+  assert(err == 0);
 }
 
 static void
 on_udx_stream_close (udx_stream_t *stream, int status) {
+  int err;
   udx_napi_stream_t *n = (udx_napi_stream_t *) stream;
   if (n->udx->exiting) return;
 
-  napi_env env = n->env;
+  js_env_t *env = n->env;
 
-  napi_handle_scope scope;
-  napi_open_handle_scope(env, &scope);
+  js_handle_scope_t *scope;
+  err = js_open_handle_scope(env, &scope);
+  assert(err == 0);
 
-  napi_value ctx;
-  napi_get_reference_value(env, n->ctx, &ctx);
+  js_value_t *ctx;
+  err = js_get_reference_value(env, n->ctx, &ctx);
+  assert(err == 0);
 
-  napi_value callback;
-  napi_get_reference_value(env, n->on_close, &callback);
+  js_value_t *callback;
+  err = js_get_reference_value(env, n->on_close, &callback);
+  assert(err == 0);
 
-  napi_value argv[1];
+  js_value_t *argv[1];
 
   if (status >= 0) {
-    napi_get_null(env, &(argv[0]));
+    js_get_null(env, &(argv[0]));
   } else {
-    napi_value code;
-    napi_value msg;
-    napi_create_string_utf8(env, uv_err_name(status), NAPI_AUTO_LENGTH, &code);
-    napi_create_string_utf8(env, uv_strerror(status), NAPI_AUTO_LENGTH, &msg);
-    napi_create_error(env, code, msg, &(argv[0]));
+    js_value_t *code;
+    js_value_t *msg;
+    err = js_create_string_utf8(env, (utf8_t *) uv_err_name(status), NAPI_AUTO_LENGTH, &code);
+    assert(err == 0);
+    err = js_create_string_utf8(env, (utf8_t *) uv_strerror(status), NAPI_AUTO_LENGTH, &msg);
+    assert(err == 0);
+    err = js_create_error(env, code, msg, &(argv[0]));
+    assert(err == 0);
   }
 
-  if (napi_make_callback(env, NULL, ctx, callback, 1, argv, NULL) == napi_pending_exception) {
-    napi_value fatal_exception;
-    napi_get_and_clear_last_exception(env, &fatal_exception);
-    napi_fatal_exception(env, fatal_exception);
-  }
+  err = js_call_function_with_checkpoint(env, ctx, callback, 1, argv, NULL);
+  forward_uncaught(env, err);
 
-  napi_close_handle_scope(env, scope);
+  err = js_close_handle_scope(env, scope);
 }
 
 static int
 on_udx_stream_firewall (udx_stream_t *stream, udx_socket_t *socket, const struct sockaddr *from) {
+  int err;
   udx_napi_stream_t *n = (udx_napi_stream_t *) stream;
   udx_napi_socket_t *s = (udx_napi_socket_t *) socket;
 
@@ -568,81 +659,95 @@ on_udx_stream_firewall (udx_stream_t *stream, udx_socket_t *socket, const struct
   int family = 0;
   parse_address((struct sockaddr *) from, ip, INET6_ADDRSTRLEN, &port, &family);
 
-  napi_env env = n->env;
+  js_env_t *env = n->env;
 
-  napi_handle_scope scope;
-  napi_open_handle_scope(env, &scope);
+  js_handle_scope_t *scope;
+  err = js_open_handle_scope(env, &scope);
+  assert(err == 0);
 
-  napi_value ctx;
-  napi_get_reference_value(env, n->ctx, &ctx);
+  js_value_t *ctx;
+  err = js_get_reference_value(env, n->ctx, &ctx);
+  assert(err == 0);
 
-  napi_value callback;
-  napi_get_reference_value(env, n->on_firewall, &callback);
+  js_value_t *callback;
+  err = js_get_reference_value(env, n->on_firewall, &callback);
+  assert(err == 0);
 
-  napi_value res;
-  napi_value argv[4];
+  js_value_t *res;
+  js_value_t *argv[4];
 
-  napi_get_reference_value(env, s->ctx, &(argv[0]));
-  napi_create_uint32(env, port, &(argv[1]));
-  napi_create_string_utf8(env, ip, NAPI_AUTO_LENGTH, &(argv[2]));
-  napi_create_uint32(env, family, &(argv[3]));
+  err = js_get_reference_value(env, s->ctx, &(argv[0]));
+  assert(err == 0);
+  err = js_create_uint32(env, port, &(argv[1]));
+  assert(err == 0);
+  err = js_create_string_utf8(env, (utf8_t *) ip, NAPI_AUTO_LENGTH, &(argv[2]));
+  assert(err == 0);
+  err = js_create_uint32(env, family, &(argv[3]));
+  assert(err == 0);
 
-  if (napi_make_callback(env, NULL, ctx, callback, 4, argv, &res) == napi_pending_exception) {
-    napi_value fatal_exception;
-    napi_get_and_clear_last_exception(env, &fatal_exception);
-    napi_fatal_exception(env, fatal_exception);
+  err = js_call_function_with_checkpoint(env, ctx, callback, 4, argv, &res);
+  if (err == 0) {
+    err = js_get_value_uint32(env, res, &fw);
+    assert(err == 0);
   } else {
-    napi_get_value_uint32(env, res, &fw);
+    forward_uncaught(env, err);
   }
 
-  napi_close_handle_scope(env, scope);
+  err = js_close_handle_scope(env, scope);
+  assert(err == 0);
 
   return fw;
 }
 
 static void
 on_udx_stream_remote_changed (udx_stream_t *stream) {
+  int err;
   udx_napi_stream_t *n = (udx_napi_stream_t *) stream;
   if (n->udx->exiting) return;
 
-  napi_env env = n->env;
+  js_env_t *env = n->env;
 
-  napi_handle_scope scope;
-  napi_open_handle_scope(env, &scope);
+  js_handle_scope_t *scope;
+  err = js_open_handle_scope(env, &scope);
+  assert(err == 0);
 
-  napi_value ctx;
-  napi_get_reference_value(env, n->ctx, &ctx);
+  js_value_t *ctx;
+  err = js_get_reference_value(env, n->ctx, &ctx);
+  assert(err == 0);
 
-  napi_value callback;
-  napi_get_reference_value(env, n->on_remote_changed, &callback);
+  js_value_t *callback;
+  err = js_get_reference_value(env, n->on_remote_changed, &callback);
+  assert(err == 0);
 
-  if (napi_make_callback(env, NULL, ctx, callback, 0, NULL, NULL) == napi_pending_exception) {
-    napi_value fatal_exception;
-    napi_get_and_clear_last_exception(env, &fatal_exception);
-    napi_fatal_exception(env, fatal_exception);
-  }
+  err = js_call_function_with_checkpoint(env, ctx, callback, 0, NULL, NULL);
+  forward_uncaught(env, err);
 
-  napi_close_handle_scope(env, scope);
+  err = js_close_handle_scope(env, scope);
+  assert(err == 0);
 }
 
 static void
 on_udx_lookup (udx_lookup_t *lookup, int status, const struct sockaddr *addr, int addr_len) {
+  int err;
   udx_napi_lookup_t *n = (udx_napi_lookup_t *) lookup;
   if (n->udx->exiting) return;
 
-  napi_env env = n->env;
+  js_env_t *env = n->env;
 
   char ip[INET6_ADDRSTRLEN] = "";
   int family = 0;
 
-  napi_handle_scope scope;
-  napi_open_handle_scope(env, &scope);
+  js_handle_scope_t *scope;
+  err = js_open_handle_scope(env, &scope);
+  assert(err == 0);
 
-  napi_value ctx;
-  napi_get_reference_value(env, n->ctx, &ctx);
+  js_value_t *ctx;
+  err = js_get_reference_value(env, n->ctx, &ctx);
+  assert(err == 0);
 
-  napi_value callback;
-  napi_get_reference_value(env, n->on_lookup, &callback);
+  js_value_t *callback;
+  err = js_get_reference_value(env, n->on_lookup, &callback);
+  assert(err == 0);
 
   if (status >= 0) {
     if (addr->sa_family == AF_INET) {
@@ -653,37 +758,40 @@ on_udx_lookup (udx_lookup_t *lookup, int status, const struct sockaddr *addr, in
       family = 6;
     }
 
-    napi_value argv[3];
-    napi_get_null(env, &(argv[0]));
-    napi_create_string_utf8(env, ip, NAPI_AUTO_LENGTH, &(argv[1]));
-    napi_create_uint32(env, family, &(argv[2]));
+    js_value_t *argv[3];
+    err = js_get_null(env, &(argv[0]));
+    assert(err == 0);
+    err = js_create_string_utf8(env, (utf8_t *) ip, NAPI_AUTO_LENGTH, &(argv[1]));
+    assert(err == 0);
+    err = js_create_uint32(env, family, &(argv[2]));
+    assert(err == 0);
 
-    if (napi_make_callback(env, NULL, ctx, callback, 3, argv, NULL) == napi_pending_exception) {
-      napi_value fatal_exception;
-      napi_get_and_clear_last_exception(env, &fatal_exception);
-      napi_fatal_exception(env, fatal_exception);
-    }
+    err = js_call_function_with_checkpoint(env, ctx, callback, 3, argv, NULL);
+    forward_uncaught(env, err);
   } else {
-    napi_value argv[1];
-    napi_value code;
-    napi_value msg;
-    napi_create_string_utf8(env, uv_err_name(status), NAPI_AUTO_LENGTH, &code);
-    napi_create_string_utf8(env, uv_strerror(status), NAPI_AUTO_LENGTH, &msg);
-    napi_create_error(env, code, msg, &(argv[0]));
+    js_value_t *argv[1];
+    js_value_t *code;
+    js_value_t *msg;
+    err = js_create_string_utf8(env, (utf8_t *) uv_err_name(status), NAPI_AUTO_LENGTH, &code);
+    assert(err == 0);
+    err = js_create_string_utf8(env, (utf8_t *) uv_strerror(status), NAPI_AUTO_LENGTH, &msg);
+    assert(err == 0);
+    err = js_create_error(env, code, msg, &(argv[0]));
+    assert(err == 0);
 
-    if (napi_make_callback(env, NULL, ctx, callback, 1, argv, NULL) == napi_pending_exception) {
-      napi_value fatal_exception;
-      napi_get_and_clear_last_exception(env, &fatal_exception);
-      napi_fatal_exception(env, fatal_exception);
-    }
+    err = js_call_function_with_checkpoint(env, ctx, callback, 1, argv, NULL);
+    forward_uncaught(env, err);
   }
 
   free(n->host);
 
-  napi_close_handle_scope(env, scope);
+  err = js_close_handle_scope(env, scope);
+  assert(err == 0);
 
-  napi_delete_reference(n->env, n->on_lookup);
-  napi_delete_reference(n->env, n->ctx);
+  err = js_delete_reference(n->env, n->on_lookup);
+  assert(err == 0);
+  err = js_delete_reference(n->env, n->ctx);
+  assert(err == 0);
 }
 
 static void
@@ -691,24 +799,25 @@ on_udx_interface_event (udx_interface_event_t *handle, int status) {
   udx_napi_interface_event_t *e = (udx_napi_interface_event_t *) handle;
   if (e->udx->exiting) return;
 
-  napi_env env = e->env;
+  js_env_t *env = e->env;
 
-  napi_handle_scope scope;
-  napi_open_handle_scope(env, &scope);
+  js_handle_scope_t *scope;
+  int err = js_open_handle_scope(env, &scope);
+  assert(err == 0);
 
-  napi_value ctx;
-  napi_get_reference_value(env, e->ctx, &ctx);
+  js_value_t *ctx;
+  err = js_get_reference_value(env, e->ctx, &ctx);
+  assert(err == 0);
 
-  napi_value callback;
-  napi_get_reference_value(env, e->on_event, &callback);
+  js_value_t *callback;
+  err = js_get_reference_value(env, e->on_event, &callback);
+  assert(err == 0);
 
-  if (napi_make_callback(env, NULL, ctx, callback, 0, NULL, NULL) == napi_pending_exception) {
-    napi_value fatal_exception;
-    napi_get_and_clear_last_exception(env, &fatal_exception);
-    napi_fatal_exception(env, fatal_exception);
-  }
+  err = js_call_function_with_checkpoint(env, ctx, callback, 0, NULL, NULL);
+  forward_uncaught(env, err);
 
-  napi_close_handle_scope(env, scope);
+  err = js_close_handle_scope(env, scope);
+  assert(err == 0);
 }
 
 static void
@@ -716,57 +825,69 @@ on_udx_interface_event_close (udx_interface_event_t *handle) {
   udx_napi_interface_event_t *e = (udx_napi_interface_event_t *) handle;
   if (e->udx->exiting) return;
 
-  napi_env env = e->env;
+  js_env_t *env = e->env;
 
-  napi_handle_scope scope;
-  napi_open_handle_scope(env, &scope);
+  js_handle_scope_t *scope;
+  int err = js_open_handle_scope(env, &scope);
+  assert(err == 0);
 
-  napi_value ctx;
-  napi_get_reference_value(env, e->ctx, &ctx);
+  js_value_t *ctx;
+  err = js_get_reference_value(env, e->ctx, &ctx);
+  assert(err == 0);
 
-  napi_value callback;
-  napi_get_reference_value(env, e->on_close, &callback);
+  js_value_t *callback;
+  err = js_get_reference_value(env, e->on_close, &callback);
+  assert(err == 0);
 
-  if (napi_make_callback(env, NULL, ctx, callback, 0, NULL, NULL) == napi_pending_exception) {
-    napi_value fatal_exception;
-    napi_get_and_clear_last_exception(env, &fatal_exception);
-    napi_fatal_exception(env, fatal_exception);
-  }
+  err = js_call_function_with_checkpoint(env, ctx, callback, 0, NULL, NULL);
+  forward_uncaught(env, err);
 
-  napi_close_handle_scope(env, scope);
+  err = js_close_handle_scope(env, scope);
+  assert(err == 0);
 
-  napi_delete_reference(env, e->on_event);
-  napi_delete_reference(env, e->on_close);
-  napi_delete_reference(env, e->ctx);
+  err = js_delete_reference(env, e->on_event);
+  assert(err == 0);
+  err = js_delete_reference(env, e->on_close);
+  assert(err == 0);
+  err = js_delete_reference(env, e->ctx);
+  assert(err == 0);
 }
 
 static void
 on_udx_idle (udx_t *u) {
   udx_napi_t *self = (udx_napi_t *) u;
   if (!self->has_teardown) return;
-
   self->has_teardown = false;
-  napi_remove_async_cleanup_hook(self->teardown);
+
+  int err = js_finish_deferred_teardown_callback(self->teardown);
+  if (err != 0) abort();
 }
 
-napi_value
-udx_napi_init (napi_env env, napi_callback_info info) {
-  napi_value argv[2];
+js_value_t *
+udx_napi_init (js_env_t *env, js_callback_info_t *info) {
+  int err;
+  js_value_t *argv[2];
   size_t argc = 2;
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
 
   udx_napi_t *self;
   size_t self_len;
-  napi_get_buffer_info(env, argv[0], (void **) &self, &self_len);
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &self, &self_len);
+  assert(err == 0);
 
   char *read_buf;
   size_t read_buf_len;
-  napi_get_buffer_info(env, argv[1], (void **) &read_buf, &read_buf_len);
+  err = js_get_arraybuffer_info(env, argv[1], (void **) &read_buf, &read_buf_len);
+  assert(err == 0);
 
   uv_loop_t *loop;
-  napi_get_uv_event_loop(env, &loop);
+  err = js_get_env_loop(env, &loop);
+  assert(err == 0);
 
-  udx_init(loop, &(self->udx), on_udx_idle);
+  err = udx_init(loop, &(self->udx), on_udx_idle);
+  assert(err == 0);
 
   self->read_buf = read_buf;
   self->read_buf_free = read_buf_len;
@@ -776,33 +897,43 @@ udx_napi_init (napi_env env, napi_callback_info info) {
   return NULL;
 }
 
-napi_value
-udx_napi_socket_init (napi_env env, napi_callback_info info) {
-  napi_value argv[7];
+js_value_t *
+udx_napi_socket_init (js_env_t *env, js_callback_info_t *info) {
+  int err;
+  js_value_t *argv[7];
   size_t argc = 7;
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
 
   udx_napi_t *udx;
   size_t udx_len;
-  napi_get_buffer_info(env, argv[0], (void **) &udx, &udx_len);
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &udx, &udx_len);
+  assert(err == 0);
 
   udx_napi_socket_t *self;
   size_t self_len;
-  napi_get_buffer_info(env, argv[1], (void **) &self, &self_len);
+  err = js_get_arraybuffer_info(env, argv[1], (void **) &self, &self_len);
+  assert(err == 0);
 
   udx_socket_t *socket = (udx_socket_t *) self;
 
   self->udx = udx;
   self->env = env;
-  napi_create_reference(env, argv[2], 1, &(self->ctx));
-  napi_create_reference(env, argv[3], 1, &(self->on_send));
-  napi_create_reference(env, argv[4], 1, &(self->on_message));
-  napi_create_reference(env, argv[5], 1, &(self->on_close));
-  napi_create_reference(env, argv[6], 1, &(self->realloc_message));
+  err = js_create_reference(env, argv[2], 1, &(self->ctx));
+  assert(err == 0);
+  err = js_create_reference(env, argv[3], 1, &(self->on_send));
+  assert(err == 0);
+  err = js_create_reference(env, argv[4], 1, &(self->on_message));
+  assert(err == 0);
+  err = js_create_reference(env, argv[5], 1, &(self->on_close));
+  assert(err == 0);
+  err = js_create_reference(env, argv[6], 1, &(self->realloc_message));
+  assert(err == 0);
 
-  int err = udx_socket_init((udx_t *) udx, socket, on_udx_close);
+  err = udx_socket_init((udx_t *) udx, socket, on_udx_close);
   if (err < 0) {
-    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
     return NULL;
   }
 
@@ -811,30 +942,35 @@ udx_napi_socket_init (napi_env env, napi_callback_info info) {
   return NULL;
 }
 
-napi_value
-udx_napi_socket_bind (napi_env env, napi_callback_info info) {
-  napi_value argv[5];
+js_value_t *
+udx_napi_socket_bind (js_env_t *env, js_callback_info_t *info) {
+  int err;
+  js_value_t *argv[5];
   size_t argc = 5;
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
 
   udx_socket_t *self;
   size_t self_len;
-  napi_get_buffer_info(env, argv[0], (void **) &self, &self_len);
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &self, &self_len);
+  assert(err == 0);
 
   uint32_t port;
-  napi_get_value_uint32(env, argv[1], &port);
+  err = js_get_value_uint32(env, argv[1], &port);
+  assert(err == 0);
 
   char ip[INET6_ADDRSTRLEN];
   size_t ip_len;
-  napi_get_value_string_utf8(env, argv[2], (char *) &ip, INET6_ADDRSTRLEN, &ip_len);
+  err = js_get_value_string_utf8(env, argv[2], (utf8_t *) &ip, INET6_ADDRSTRLEN, &ip_len);
+  assert(err == 0);
 
   uint32_t family;
-  napi_get_value_uint32(env, argv[3], &family);
+  err = js_get_value_uint32(env, argv[3], &family);
+  assert(err == 0);
 
   uint32_t flags;
-  napi_get_value_uint32(env, argv[4], &flags);
-
-  int err;
+  err = js_get_value_uint32(env, argv[4], &flags);
+  assert(err == 0);
 
   struct sockaddr_storage addr;
   int addr_len;
@@ -848,13 +984,15 @@ udx_napi_socket_bind (napi_env env, napi_callback_info info) {
   }
 
   if (err < 0) {
-    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
     return NULL;
   }
 
   err = udx_socket_bind(self, (struct sockaddr *) &addr, flags);
   if (err < 0) {
-    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
     return NULL;
   }
 
@@ -865,7 +1003,8 @@ udx_napi_socket_bind (napi_env env, napi_callback_info info) {
   // wont error in practice
   err = udx_socket_getsockname(self, (struct sockaddr *) &name, &addr_len);
   if (err < 0) {
-    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
     return NULL;
   }
 
@@ -880,203 +1019,246 @@ udx_napi_socket_bind (napi_env env, napi_callback_info info) {
   // wont error in practice
   err = udx_socket_recv_start(self, on_udx_message);
   if (err < 0) {
-    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
     return NULL;
   }
 
-  napi_value return_uint32;
-  napi_create_uint32(env, local_port, &return_uint32);
+  js_value_t *return_uint32;
+  err = js_create_uint32(env, local_port, &return_uint32);
+  assert(err == 0);
 
   return return_uint32;
 }
 
-napi_value
-udx_napi_socket_set_ttl (napi_env env, napi_callback_info info) {
-  napi_value argv[2];
+js_value_t *
+udx_napi_socket_set_ttl (js_env_t *env, js_callback_info_t *info) {
+  int err;
+  js_value_t *argv[2];
   size_t argc = 2;
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
 
   udx_socket_t *self;
   size_t self_len;
-  napi_get_buffer_info(env, argv[0], (void **) &self, &self_len);
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &self, &self_len);
+  assert(err == 0);
 
   uint32_t ttl;
-  napi_get_value_uint32(env, argv[1], &ttl);
+  err = js_get_value_uint32(env, argv[1], &ttl);
+  assert(err == 0);
 
-  int err = udx_socket_set_ttl(self, ttl);
+  err = udx_socket_set_ttl(self, ttl);
   if (err < 0) {
-    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
     return NULL;
   }
 
   return NULL;
 }
 
-napi_value
-udx_napi_socket_set_membership (napi_env env, napi_callback_info info) {
-  napi_value argv[4];
+js_value_t *
+udx_napi_socket_set_membership (js_env_t *env, js_callback_info_t *info) {
+  int err;
+  js_value_t *argv[4];
   size_t argc = 4;
 
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
 
   udx_socket_t *socket;
   size_t socket_len;
-  napi_get_buffer_info(env, argv[0], (void **) &socket, &socket_len);
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &socket, &socket_len);
+  assert(err == 0);
 
   char mcast_addr[INET6_ADDRSTRLEN];
   size_t mcast_addr_len;
-  napi_get_value_string_utf8(env, argv[1], mcast_addr, INET6_ADDRSTRLEN, &mcast_addr_len);
+  err = js_get_value_string_utf8(env, argv[1], (utf8_t *) mcast_addr, INET6_ADDRSTRLEN, &mcast_addr_len);
+  assert(err == 0);
 
   char iface_addr[INET6_ADDRSTRLEN];
   size_t iface_addr_len;
-  napi_get_value_string_utf8(env, argv[2], iface_addr, INET6_ADDRSTRLEN, &iface_addr_len);
+  err = js_get_value_string_utf8(env, argv[2], (utf8_t *) iface_addr, INET6_ADDRSTRLEN, &iface_addr_len);
+  assert(err == 0);
 
   char *iface_param = iface_addr_len > 0 ? iface_addr : NULL;
 
   bool join; // true for join, false for leave
-  napi_get_value_bool(env, argv[3], &join);
+  err = js_get_value_bool(env, argv[3], &join);
+  assert(err == 0);
 
-  int err = udx_socket_set_membership(socket, mcast_addr, iface_param, join ? UV_JOIN_GROUP : UV_LEAVE_GROUP);
+  err = udx_socket_set_membership(socket, mcast_addr, iface_param, join ? UV_JOIN_GROUP : UV_LEAVE_GROUP);
   if (err < 0) {
-    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
     return NULL;
   }
 
   return NULL;
 }
 
-napi_value
-udx_napi_socket_get_recv_buffer_size (napi_env env, napi_callback_info info) {
-  napi_value argv[1];
+js_value_t *
+udx_napi_socket_get_recv_buffer_size (js_env_t *env, js_callback_info_t *info) {
+  int err;
+  js_value_t *argv[1];
   size_t argc = 1;
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
 
   udx_socket_t *self;
   size_t self_len;
-  napi_get_buffer_info(env, argv[0], (void **) &self, &self_len);
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &self, &self_len);
+  assert(err == 0);
 
   int size = 0;
 
-  int err = udx_socket_get_recv_buffer_size(self, &size);
+  err = udx_socket_get_recv_buffer_size(self, &size);
   if (err < 0) {
-    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
     return NULL;
   }
 
-  napi_value return_uint32;
-  napi_create_uint32(env, size, &return_uint32);
+  js_value_t *return_uint32;
+  err = js_create_uint32(env, size, &return_uint32);
+  assert(err == 0);
 
   return return_uint32;
 }
 
-napi_value
-udx_napi_socket_set_recv_buffer_size (napi_env env, napi_callback_info info) {
-  napi_value argv[2];
+js_value_t *
+udx_napi_socket_set_recv_buffer_size (js_env_t *env, js_callback_info_t *info) {
+  int err;
+  js_value_t *argv[2];
   size_t argc = 2;
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
 
   udx_socket_t *self;
   size_t self_len;
-  napi_get_buffer_info(env, argv[0], (void **) &self, &self_len);
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &self, &self_len);
+  assert(err == 0);
 
   int32_t size;
-  napi_get_value_int32(env, argv[1], &size);
+  err = js_get_value_int32(env, argv[1], &size);
+  assert(err == 0);
 
-  int err = udx_socket_set_recv_buffer_size(self, size);
+  err = udx_socket_set_recv_buffer_size(self, size);
   if (err < 0) {
-    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
     return NULL;
   }
 
   return NULL;
 }
 
-napi_value
-udx_napi_socket_get_send_buffer_size (napi_env env, napi_callback_info info) {
-  napi_value argv[1];
+js_value_t *
+udx_napi_socket_get_send_buffer_size (js_env_t *env, js_callback_info_t *info) {
+  int err;
+  js_value_t *argv[1];
   size_t argc = 1;
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
 
   udx_socket_t *self;
   size_t self_len;
-  napi_get_buffer_info(env, argv[0], (void **) &self, &self_len);
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &self, &self_len);
+  assert(err == 0);
 
   int size = 0;
 
-  int err = udx_socket_get_send_buffer_size(self, &size);
+  err = udx_socket_get_send_buffer_size(self, &size);
   if (err < 0) {
-    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
     return NULL;
   }
 
-  napi_value return_uint32;
-  napi_create_uint32(env, size, &return_uint32);
+  js_value_t *return_uint32;
+  err = js_create_uint32(env, size, &return_uint32);
+  assert(err == 0);
 
   return return_uint32;
 }
 
-napi_value
-udx_napi_socket_set_send_buffer_size (napi_env env, napi_callback_info info) {
-  napi_value argv[2];
+js_value_t *
+udx_napi_socket_set_send_buffer_size (js_env_t *env, js_callback_info_t *info) {
+  int err;
+  js_value_t *argv[2];
   size_t argc = 2;
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
 
   udx_socket_t *self;
   size_t self_len;
-  napi_get_buffer_info(env, argv[0], (void **) &self, &self_len);
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &self, &self_len);
+  assert(err == 0);
 
   int32_t size;
-  napi_get_value_int32(env, argv[1], &size);
+  err = js_get_value_int32(env, argv[1], &size);
+  assert(err == 0);
 
-  int err = udx_socket_set_send_buffer_size(self, size);
+  err = udx_socket_set_send_buffer_size(self, size);
   if (err < 0) {
-    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
     return NULL;
   }
 
-  napi_value return_uint32;
-  napi_create_uint32(env, size, &return_uint32);
+  js_value_t *return_uint32;
+  err = js_create_uint32(env, size, &return_uint32);
+  assert(err == 0);
 
   return return_uint32;
 }
 
-napi_value
-udx_napi_socket_send_ttl (napi_env env, napi_callback_info info) {
-  napi_value argv[8];
+js_value_t *
+udx_napi_socket_send_ttl (js_env_t *env, js_callback_info_t *info) {
+  int err;
+  js_value_t *argv[8];
   size_t argc = 8;
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
 
   udx_socket_t *self;
   size_t self_len;
-  napi_get_buffer_info(env, argv[0], (void **) &self, &self_len);
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &self, &self_len);
+  assert(err == 0);
 
   udx_socket_send_t *req;
   size_t req_len;
-  napi_get_buffer_info(env, argv[1], (void **) &req, &req_len);
+  err = js_get_arraybuffer_info(env, argv[1], (void **) &req, &req_len);
+  assert(err == 0);
 
   uint32_t rid;
-  napi_get_value_uint32(env, argv[2], &rid);
+  err = js_get_value_uint32(env, argv[2], &rid);
+  assert(err == 0);
 
   char *buf;
   size_t buf_len;
-  napi_get_buffer_info(env, argv[3], (void **) &buf, &buf_len);
+  err = js_get_arraybuffer_info(env, argv[3], (void **) &buf, &buf_len);
+  assert(err == 0);
 
   uint32_t port;
-  napi_get_value_uint32(env, argv[4], &port);
+  err = js_get_value_uint32(env, argv[4], &port);
+  assert(err == 0);
 
   char ip[INET6_ADDRSTRLEN];
   size_t ip_len;
-  napi_get_value_string_utf8(env, argv[5], (char *) &ip, INET6_ADDRSTRLEN, &ip_len);
+  err = js_get_value_string_utf8(env, argv[5], (utf8_t *) &ip, INET6_ADDRSTRLEN, &ip_len);
+  assert(err == 0);
 
   uint32_t family;
-  napi_get_value_uint32(env, argv[6], &family);
+  err = js_get_value_uint32(env, argv[6], &family);
+  assert(err == 0);
 
   uint32_t ttl;
-  napi_get_value_uint32(env, argv[7], &ttl);
+  err = js_get_value_uint32(env, argv[7], &ttl);
+  assert(err == 0);
 
   req->data = (void *) ((uintptr_t) rid);
-
-  int err;
 
   struct sockaddr_storage addr;
 
@@ -1087,60 +1269,74 @@ udx_napi_socket_send_ttl (napi_env env, napi_callback_info info) {
   }
 
   if (err < 0) {
-    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
     return NULL;
   }
 
   uv_buf_t b = uv_buf_init(buf, buf_len);
 
-  udx_socket_send_ttl(req, self, &b, 1, (const struct sockaddr *) &addr, ttl, on_udx_send);
+  err = udx_socket_send_ttl(req, self, &b, 1, (const struct sockaddr *) &addr, ttl, on_udx_send);
+  assert(err == 0); // previously unchecked
 
   if (err < 0) {
-    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
+
     return NULL;
   }
 
   return NULL;
 }
 
-napi_value
-udx_napi_socket_close (napi_env env, napi_callback_info info) {
-  napi_value argv[1];
+js_value_t *
+udx_napi_socket_close (js_env_t *env, js_callback_info_t *info) {
+  int err;
+  js_value_t *argv[1];
   size_t argc = 1;
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
 
   udx_socket_t *self;
   size_t self_len;
-  napi_get_buffer_info(env, argv[0], (void **) &self, &self_len);
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &self, &self_len);
+  assert(err == 0);
 
-  int err = udx_socket_close(self);
+  err = udx_socket_close(self);
   if (err < 0) {
-    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
     return NULL;
   }
 
   return NULL;
 }
 
-napi_value
-udx_napi_stream_init (napi_env env, napi_callback_info info) {
-  napi_value argv[16];
+js_value_t *
+udx_napi_stream_init (js_env_t *env, js_callback_info_t *info) {
+  int err;
+  js_value_t *argv[16];
   size_t argc = 16;
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
 
   udx_napi_t *udx;
   size_t udx_len;
-  napi_get_buffer_info(env, argv[0], (void **) &udx, &udx_len);
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &udx, &udx_len);
+  assert(err == 0);
 
   udx_napi_stream_t *self;
   size_t self_len;
-  napi_get_buffer_info(env, argv[1], (void **) &self, &self_len);
+  err = js_get_arraybuffer_info(env, argv[1], (void **) &self, &self_len);
+  assert(err == 0);
 
   uint32_t id;
-  napi_get_value_uint32(env, argv[2], &id);
+  err = js_get_value_uint32(env, argv[2], &id);
+  assert(err == 0);
 
   uint32_t framed;
-  napi_get_value_uint32(env, argv[3], &framed);
+  err = js_get_value_uint32(env, argv[3], &framed);
+  assert(err == 0);
 
   udx_stream_t *stream = (udx_stream_t *) self;
 
@@ -1154,22 +1350,35 @@ udx_napi_stream_init (napi_env env, napi_callback_info info) {
 
   self->udx = udx;
   self->env = env;
-  napi_create_reference(env, argv[4], 1, &(self->ctx));
-  napi_create_reference(env, argv[5], 1, &(self->on_data));
-  napi_create_reference(env, argv[6], 1, &(self->on_end));
-  napi_create_reference(env, argv[7], 1, &(self->on_drain));
-  napi_create_reference(env, argv[8], 1, &(self->on_ack));
-  napi_create_reference(env, argv[9], 1, &(self->on_send));
-  napi_create_reference(env, argv[10], 1, &(self->on_message));
-  napi_create_reference(env, argv[11], 1, &(self->on_close));
-  napi_create_reference(env, argv[12], 1, &(self->on_firewall));
-  napi_create_reference(env, argv[13], 1, &(self->on_remote_changed));
-  napi_create_reference(env, argv[14], 1, &(self->realloc_data));
-  napi_create_reference(env, argv[15], 1, &(self->realloc_message));
+  err = js_create_reference(env, argv[4], 1, &(self->ctx));
+  assert(err == 0);
+  err = js_create_reference(env, argv[5], 1, &(self->on_data));
+  assert(err == 0);
+  err = js_create_reference(env, argv[6], 1, &(self->on_end));
+  assert(err == 0);
+  err = js_create_reference(env, argv[7], 1, &(self->on_drain));
+  assert(err == 0);
+  err = js_create_reference(env, argv[8], 1, &(self->on_ack));
+  assert(err == 0);
+  err = js_create_reference(env, argv[9], 1, &(self->on_send));
+  assert(err == 0);
+  err = js_create_reference(env, argv[10], 1, &(self->on_message));
+  assert(err == 0);
+  err = js_create_reference(env, argv[11], 1, &(self->on_close));
+  assert(err == 0);
+  err = js_create_reference(env, argv[12], 1, &(self->on_firewall));
+  assert(err == 0);
+  err = js_create_reference(env, argv[13], 1, &(self->on_remote_changed));
+  assert(err == 0);
+  err = js_create_reference(env, argv[14], 1, &(self->realloc_data));
+  assert(err == 0);
+  err = js_create_reference(env, argv[15], 1, &(self->realloc_message));
+  assert(err == 0);
 
-  int err = udx_stream_init((udx_t *) udx, stream, id, on_udx_stream_close, on_udx_stream_finalize);
+  err = udx_stream_init((udx_t *) udx, stream, id, on_udx_stream_close, on_udx_stream_finalize);
   if (err < 0) {
-    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
     return NULL;
   }
 
@@ -1181,120 +1390,146 @@ udx_napi_stream_init (napi_env env, napi_callback_info info) {
   return NULL;
 }
 
-napi_value
-udx_napi_stream_set_seq (napi_env env, napi_callback_info info) {
-  napi_value argv[2];
+js_value_t *
+udx_napi_stream_set_seq (js_env_t *env, js_callback_info_t *info) {
+  int err;
+  js_value_t *argv[2];
   size_t argc = 2;
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
 
   udx_stream_t *stream;
   size_t stream_len;
-  napi_get_buffer_info(env, argv[0], (void **) &stream, &stream_len);
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &stream, &stream_len);
+  assert(err == 0);
 
   uint32_t seq;
-  napi_get_value_uint32(env, argv[1], &seq);
+  err = js_get_value_uint32(env, argv[1], &seq);
+  assert(err == 0);
 
-  int err = udx_stream_set_seq(stream, seq);
+  err = udx_stream_set_seq(stream, seq);
   if (err < 0) {
-    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
     return NULL;
   }
 
   return NULL;
 }
 
-napi_value
-udx_napi_stream_set_ack (napi_env env, napi_callback_info info) {
-  napi_value argv[2];
+js_value_t *
+udx_napi_stream_set_ack (js_env_t *env, js_callback_info_t *info) {
+  int err;
+  js_value_t *argv[2];
   size_t argc = 2;
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
 
   udx_stream_t *stream;
   size_t stream_len;
-  napi_get_buffer_info(env, argv[0], (void **) &stream, &stream_len);
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &stream, &stream_len);
+  assert(err == 0);
 
   uint32_t ack;
-  napi_get_value_uint32(env, argv[1], &ack);
+  err = js_get_value_uint32(env, argv[1], &ack);
+  assert(err == 0);
 
-  int err = udx_stream_set_ack(stream, ack);
+  err = udx_stream_set_ack(stream, ack);
   if (err < 0) {
-    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
     return NULL;
   }
 
   return NULL;
 }
 
-napi_value
-udx_napi_stream_set_mode (napi_env env, napi_callback_info info) {
-  napi_value argv[2];
+js_value_t *
+udx_napi_stream_set_mode (js_env_t *env, js_callback_info_t *info) {
+  int err;
+  js_value_t *argv[2];
   size_t argc = 2;
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
 
   udx_napi_stream_t *stream;
   size_t stream_len;
-  napi_get_buffer_info(env, argv[0], (void **) &stream, &stream_len);
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &stream, &stream_len);
+  assert(err == 0);
 
   uint32_t mode;
-  napi_get_value_uint32(env, argv[1], &mode);
+  err = js_get_value_uint32(env, argv[1], &mode);
+  assert(err == 0);
 
   stream->mode = mode;
 
   return NULL;
 }
 
-napi_value
-udx_napi_stream_recv_start (napi_env env, napi_callback_info info) {
-  napi_value argv[2];
+js_value_t *
+udx_napi_stream_recv_start (js_env_t *env, js_callback_info_t *info) {
+  int err;
+  js_value_t *argv[2];
   size_t argc = 2;
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
 
   udx_napi_stream_t *stream;
   size_t stream_len;
-  napi_get_buffer_info(env, argv[0], (void **) &stream, &stream_len);
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &stream, &stream_len);
+  assert(err == 0);
 
   char *read_buf;
   size_t read_buf_len;
-  napi_get_buffer_info(env, argv[1], (void **) &read_buf, &read_buf_len);
+  err = js_get_arraybuffer_info(env, argv[1], (void **) &read_buf, &read_buf_len);
+  assert(err == 0);
 
   stream->read_buf = read_buf;
   stream->read_buf_head = read_buf;
   stream->read_buf_free = read_buf_len;
 
-  udx_stream_read_start((udx_stream_t *) stream, on_udx_stream_read);
-  udx_stream_recv_start((udx_stream_t *) stream, on_udx_stream_recv);
+  err = udx_stream_read_start((udx_stream_t *) stream, on_udx_stream_read);
+  assert(err == 0); // napi_unchecked
+  err = udx_stream_recv_start((udx_stream_t *) stream, on_udx_stream_recv);
+  assert(err == 0); // napi_unchecked
 
   return NULL;
 }
 
-napi_value
-udx_napi_stream_connect (napi_env env, napi_callback_info info) {
-  napi_value argv[6];
+js_value_t *
+udx_napi_stream_connect (js_env_t *env, js_callback_info_t *info) {
+  int err;
+  js_value_t *argv[6];
   size_t argc = 6;
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
 
   udx_stream_t *stream;
   size_t stream_len;
-  napi_get_buffer_info(env, argv[0], (void **) &stream, &stream_len);
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &stream, &stream_len);
+  assert(err == 0);
 
   udx_socket_t *socket;
   size_t socket_len;
-  napi_get_buffer_info(env, argv[1], (void **) &socket, &socket_len);
+  err = js_get_arraybuffer_info(env, argv[1], (void **) &socket, &socket_len);
+  assert(err == 0);
 
   uint32_t remote_id;
-  napi_get_value_uint32(env, argv[2], &remote_id);
+  err = js_get_value_uint32(env, argv[2], &remote_id);
+  assert(err == 0);
 
   uint32_t port;
-  napi_get_value_uint32(env, argv[3], &port);
+  err = js_get_value_uint32(env, argv[3], &port);
+  assert(err == 0);
 
   char ip[INET6_ADDRSTRLEN];
   size_t ip_len;
-  napi_get_value_string_utf8(env, argv[4], (char *) &ip, INET6_ADDRSTRLEN, &ip_len);
+  err = js_get_value_string_utf8(env, argv[4], (utf8_t *) &ip, INET6_ADDRSTRLEN, &ip_len);
+  assert(err == 0);
 
   uint32_t family;
-  napi_get_value_uint32(env, argv[5], &family);
-
-  int err;
+  err = js_get_value_uint32(env, argv[5], &family);
+  assert(err == 0);
 
   struct sockaddr_storage addr;
 
@@ -1305,48 +1540,56 @@ udx_napi_stream_connect (napi_env env, napi_callback_info info) {
   }
 
   if (err < 0) {
-    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
     return NULL;
   }
 
   err = udx_stream_connect(stream, socket, remote_id, (const struct sockaddr *) &addr);
 
   if (err < 0) {
-    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
     return NULL;
   }
 
   return NULL;
 }
 
-napi_value
-udx_napi_stream_change_remote (napi_env env, napi_callback_info info) {
-  napi_value argv[6];
+js_value_t *
+udx_napi_stream_change_remote (js_env_t *env, js_callback_info_t *info) {
+  int err;
+  js_value_t *argv[6];
   size_t argc = 6;
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
 
   udx_stream_t *stream;
   size_t stream_len;
-  napi_get_buffer_info(env, argv[0], (void **) &stream, &stream_len);
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &stream, &stream_len);
+  assert(err == 0);
 
   udx_socket_t *socket;
   size_t socket_len;
-  napi_get_buffer_info(env, argv[1], (void **) &socket, &socket_len);
+  err = js_get_arraybuffer_info(env, argv[1], (void **) &socket, &socket_len);
+  assert(err == 0);
 
   uint32_t remote_id;
-  napi_get_value_uint32(env, argv[2], &remote_id);
+  err = js_get_value_uint32(env, argv[2], &remote_id);
+  assert(err == 0);
 
   uint32_t port;
-  napi_get_value_uint32(env, argv[3], &port);
+  err = js_get_value_uint32(env, argv[3], &port);
+  assert(err == 0);
 
   char ip[INET6_ADDRSTRLEN];
   size_t ip_len;
-  napi_get_value_string_utf8(env, argv[4], (char *) &ip, INET6_ADDRSTRLEN, &ip_len);
+  err = js_get_value_string_utf8(env, argv[4], (utf8_t *) &ip, INET6_ADDRSTRLEN, &ip_len);
+  assert(err == 0);
 
   uint32_t family;
-  napi_get_value_uint32(env, argv[5], &family);
-
-  int err;
+  err = js_get_value_uint32(env, argv[5], &family);
+  assert(err == 0);
 
   struct sockaddr_storage addr;
 
@@ -1357,283 +1600,344 @@ udx_napi_stream_change_remote (napi_env env, napi_callback_info info) {
   }
 
   if (err < 0) {
-    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
     return NULL;
   }
 
   err = udx_stream_change_remote(stream, socket, remote_id, (const struct sockaddr *) &addr, on_udx_stream_remote_changed);
 
   if (err < 0) {
-    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
     return NULL;
   }
 
   return NULL;
 }
 
-napi_value
-udx_napi_stream_relay_to (napi_env env, napi_callback_info info) {
-  napi_value argv[2];
+js_value_t *
+udx_napi_stream_relay_to (js_env_t *env, js_callback_info_t *info) {
+  int err;
+  js_value_t *argv[2];
   size_t argc = 2;
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
 
   udx_stream_t *stream;
   size_t stream_len;
-  napi_get_buffer_info(env, argv[0], (void **) &stream, &stream_len);
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &stream, &stream_len);
+  assert(err == 0);
 
   udx_stream_t *destination;
   size_t destination_len;
-  napi_get_buffer_info(env, argv[1], (void **) &destination, &destination_len);
+  err = js_get_arraybuffer_info(env, argv[1], (void **) &destination, &destination_len);
+  assert(err == 0);
 
-  int err = udx_stream_relay_to(stream, destination);
+  err = udx_stream_relay_to(stream, destination);
   if (err < 0) {
-    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
     return NULL;
   }
 
   return NULL;
 }
 
-napi_value
-udx_napi_stream_send (napi_env env, napi_callback_info info) {
-  napi_value argv[4];
+js_value_t *
+udx_napi_stream_send (js_env_t *env, js_callback_info_t *info) {
+  int err;
+  js_value_t *argv[4];
   size_t argc = 4;
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
 
   udx_stream_t *stream;
   size_t stream_len;
-  napi_get_buffer_info(env, argv[0], (void **) &stream, &stream_len);
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &stream, &stream_len);
+  assert(err == 0);
 
   udx_stream_send_t *req;
   size_t req_len;
-  napi_get_buffer_info(env, argv[1], (void **) &req, &req_len);
+  err = js_get_arraybuffer_info(env, argv[1], (void **) &req, &req_len);
+  assert(err == 0);
 
   uint32_t rid;
-  napi_get_value_uint32(env, argv[2], &rid);
+  err = js_get_value_uint32(env, argv[2], &rid);
+  assert(err == 0);
 
   char *buf;
   size_t buf_len;
-  napi_get_buffer_info(env, argv[3], (void **) &buf, &buf_len);
+  err = js_get_arraybuffer_info(env, argv[3], (void **) &buf, &buf_len);
+  assert(err == 0);
 
   req->data = (void *) ((uintptr_t) rid);
 
   uv_buf_t b = uv_buf_init(buf, buf_len);
 
-  int err = udx_stream_send(req, stream, &b, 1, on_udx_stream_send);
+  err = udx_stream_send(req, stream, &b, 1, on_udx_stream_send);
   if (err < 0) {
-    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
     return NULL;
   }
 
-  napi_value return_uint32;
-  napi_create_uint32(env, err, &return_uint32);
+  js_value_t *return_uint32;
+  err = js_create_uint32(env, err, &return_uint32);
+  assert(err == 0);
 
   return return_uint32;
 }
 
-napi_value
-udx_napi_stream_write (napi_env env, napi_callback_info info) {
-  napi_value argv[4];
+js_value_t *
+udx_napi_stream_write (js_env_t *env, js_callback_info_t *info) {
+  int err;
+  js_value_t *argv[4];
   size_t argc = 4;
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
 
   udx_stream_t *stream;
   size_t stream_len;
-  napi_get_buffer_info(env, argv[0], (void **) &stream, &stream_len);
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &stream, &stream_len);
+  assert(err == 0);
 
   udx_stream_write_t *req;
   size_t req_len;
-  napi_get_buffer_info(env, argv[1], (void **) &req, &req_len);
+  err = js_get_arraybuffer_info(env, argv[1], (void **) &req, &req_len);
+  assert(err == 0);
 
   uint32_t rid;
-  napi_get_value_uint32(env, argv[2], &rid);
+  err = js_get_value_uint32(env, argv[2], &rid);
+  assert(err == 0);
 
   char *buf;
   size_t buf_len;
-  napi_get_buffer_info(env, argv[3], (void **) &buf, &buf_len);
+  err = js_get_arraybuffer_info(env, argv[3], (void **) &buf, &buf_len);
+  assert(err == 0);
 
   req->data = (void *) ((uintptr_t) rid);
 
   uv_buf_t b = uv_buf_init(buf, buf_len);
 
-  int err = udx_stream_write(req, stream, &b, 1, on_udx_stream_ack);
+  err = udx_stream_write(req, stream, &b, 1, on_udx_stream_ack);
   if (err < 0) {
-    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
     return NULL;
   }
 
-  napi_value return_uint32;
-  napi_create_uint32(env, err, &return_uint32);
+  js_value_t *return_uint32;
+  err = js_create_uint32(env, err, &return_uint32);
+  assert(err == 0);
 
   return return_uint32;
 }
 
-napi_value
-udx_napi_stream_writev (napi_env env, napi_callback_info info) {
-  napi_value argv[4];
+js_value_t *
+udx_napi_stream_writev (js_env_t *env, js_callback_info_t *info) {
+  int err;
+  js_value_t *argv[4];
   size_t argc = 4;
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
 
   udx_stream_t *stream;
   size_t stream_len;
-  napi_get_buffer_info(env, argv[0], (void **) &stream, &stream_len);
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &stream, &stream_len);
+  assert(err == 0);
 
   udx_stream_write_t *req;
   size_t req_len;
-  napi_get_buffer_info(env, argv[1], (void **) &req, &req_len);
+  err = js_get_arraybuffer_info(env, argv[1], (void **) &req, &req_len);
+  assert(err == 0);
 
   uint32_t rid;
-  napi_get_value_uint32(env, argv[2], &rid);
+  err = js_get_value_uint32(env, argv[2], &rid);
+  assert(err == 0);
 
-  napi_value buffers = argv[3];
+  js_value_t *buffers = argv[3];
 
   req->data = (void *) ((uintptr_t) rid);
 
   uint32_t len;
-  napi_get_array_length(env, buffers, &len);
+  err = js_get_array_length(env, buffers, &len);
+  assert(err == 0);
+
   uv_buf_t *batch = malloc(sizeof(uv_buf_t) * len);
 
-  napi_value element;
+  js_value_t *element;
   for (uint32_t i = 0; i < len; i++) {
-    napi_get_element(env, buffers, i, &element);
+    err = js_get_element(env, buffers, i, &element);
+    assert(err == 0);
 
     char *buf;
     size_t buf_len;
-    napi_get_buffer_info(env, element, (void **) &buf, &buf_len);
+    err = js_get_arraybuffer_info(env, element, (void **) &buf, &buf_len);
+    assert(err == 0);
 
     batch[i] = uv_buf_init(buf, buf_len);
   }
 
-  int err = udx_stream_write(req, stream, batch, len, on_udx_stream_ack);
+  err = udx_stream_write(req, stream, batch, len, on_udx_stream_ack);
   free(batch);
 
   if (err < 0) {
-    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
     return NULL;
   }
 
-  napi_value return_uint32;
-  napi_create_uint32(env, err, &return_uint32);
+  js_value_t *return_uint32;
+  err = js_create_uint32(env, err, &return_uint32);
+  assert(err == 0);
 
   return return_uint32;
 }
 
-napi_value
-udx_napi_stream_write_sizeof (napi_env env, napi_callback_info info) {
-  napi_value argv[1];
+js_value_t *
+udx_napi_stream_write_sizeof (js_env_t *env, js_callback_info_t *info) {
+  int err;
+  js_value_t *argv[1];
   size_t argc = 1;
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
 
   uint32_t bufs;
-  napi_get_value_uint32(env, argv[0], &bufs);
+  err = js_get_value_uint32(env, argv[0], &bufs);
+  assert(err == 0);
 
-  napi_value return_uint32;
-  napi_create_uint32(env, udx_stream_write_sizeof(bufs), &return_uint32);
+  js_value_t *return_uint32;
+  err = js_create_uint32(env, udx_stream_write_sizeof(bufs), &return_uint32);
+  assert(err == 0);
 
   return return_uint32;
 }
 
-napi_value
-udx_napi_stream_write_end (napi_env env, napi_callback_info info) {
-  napi_value argv[4];
+js_value_t *
+udx_napi_stream_write_end (js_env_t *env, js_callback_info_t *info) {
+  int err;
+  js_value_t *argv[4];
   size_t argc = 4;
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
 
   udx_stream_t *stream;
   size_t stream_len;
-  napi_get_buffer_info(env, argv[0], (void **) &stream, &stream_len);
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &stream, &stream_len);
+  assert(err == 0);
 
   udx_stream_write_t *req;
   size_t req_len;
-  napi_get_buffer_info(env, argv[1], (void **) &req, &req_len);
+  err = js_get_arraybuffer_info(env, argv[1], (void **) &req, &req_len);
+  assert(err == 0);
 
   uint32_t rid;
-  napi_get_value_uint32(env, argv[2], &rid);
+  err = js_get_value_uint32(env, argv[2], &rid);
+  assert(err == 0);
 
   char *buf;
   size_t buf_len;
-  napi_get_buffer_info(env, argv[3], (void **) &buf, &buf_len);
+  err = js_get_arraybuffer_info(env, argv[3], (void **) &buf, &buf_len);
+  assert(err == 0);
 
   req->data = (void *) ((uintptr_t) rid);
 
   uv_buf_t b = uv_buf_init(buf, buf_len);
 
-  int err = udx_stream_write_end(req, stream, &b, 1, on_udx_stream_ack);
+  err = udx_stream_write_end(req, stream, &b, 1, on_udx_stream_ack);
   if (err < 0) {
-    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
     return NULL;
   }
 
-  napi_value return_uint32;
-  napi_create_uint32(env, err, &return_uint32);
+  js_value_t *return_uint32;
+  err = js_create_uint32(env, err, &return_uint32);
+  assert(err == 0);
 
   return return_uint32;
 }
 
-napi_value
-udx_napi_stream_destroy (napi_env env, napi_callback_info info) {
-  napi_value argv[1];
+js_value_t *
+udx_napi_stream_destroy (js_env_t *env, js_callback_info_t *info) {
+  int err;
+  js_value_t *argv[1];
   size_t argc = 1;
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
 
   udx_stream_t *stream;
   size_t stream_len;
-  napi_get_buffer_info(env, argv[0], (void **) &stream, &stream_len);
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &stream, &stream_len);
+  assert(err == 0);
 
-  int err = udx_stream_destroy(stream);
+  err = udx_stream_destroy(stream);
   if (err < 0) {
-    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
     return NULL;
   }
 
-  napi_value return_uint32;
-  napi_create_uint32(env, err, &return_uint32);
+  js_value_t *return_uint32;
+  err = js_create_uint32(env, err, &return_uint32);
+  assert(err == 0);
 
   return return_uint32;
 }
 
-napi_value
-udx_napi_lookup (napi_env env, napi_callback_info info) {
-  napi_value argv[6];
+js_value_t *
+udx_napi_lookup (js_env_t *env, js_callback_info_t *info) {
+  int err;
+  js_value_t *argv[6];
   size_t argc = 6;
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
 
   udx_napi_t *udx;
   size_t udx_len;
-  napi_get_buffer_info(env, argv[0], (void **) &udx, &udx_len);
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &udx, &udx_len);
+  assert(err == 0);
 
   udx_napi_lookup_t *self;
   size_t self_len;
-  napi_get_buffer_info(env, argv[1], (void **) &self, &self_len);
+  err = js_get_arraybuffer_info(env, argv[1], (void **) &self, &self_len);
+  assert(err == 0);
 
   self->udx = udx;
 
   size_t host_size = 0;
-  napi_get_value_string_utf8(env, argv[2], NULL, 0, &host_size);
+  err = js_get_value_string_utf8(env, argv[2], NULL, 0, &host_size);
+  assert(err == 0);
 
   char *host = (char *) malloc((host_size + 1) * sizeof(char));
   size_t host_len;
-  napi_get_value_string_utf8(env, argv[2], host, host_size + 1, &host_len);
+  err = js_get_value_string_utf8(env, argv[2], (utf8_t *) host, host_size + 1, &host_len);
+  assert(err == 0);
   host[host_size] = '\0';
 
   uint32_t family;
-  napi_get_value_uint32(env, argv[3], &family);
+  err = js_get_value_uint32(env, argv[3], &family);
+  assert(err == 0);
 
   udx_lookup_t *lookup = (udx_lookup_t *) self;
 
   self->host = host;
   self->env = env;
-  napi_create_reference(env, argv[4], 1, &(self->ctx));
-  napi_create_reference(env, argv[5], 1, &(self->on_lookup));
+  err = js_create_reference(env, argv[4], 1, &(self->ctx));
+  assert(err == 0);
+  err = js_create_reference(env, argv[5], 1, &(self->on_lookup));
+  assert(err == 0);
 
   int flags = 0;
 
   if (family == 4) flags |= UDX_LOOKUP_FAMILY_IPV4;
   if (family == 6) flags |= UDX_LOOKUP_FAMILY_IPV6;
 
-  int err = udx_lookup((udx_t *) udx, lookup, host, flags, on_udx_lookup);
+  err = udx_lookup((udx_t *) udx, lookup, host, flags, on_udx_lookup);
   if (err < 0) {
-    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
     return NULL;
   }
 
@@ -1642,38 +1946,47 @@ udx_napi_lookup (napi_env env, napi_callback_info info) {
   return NULL;
 }
 
-napi_value
-udx_napi_interface_event_init (napi_env env, napi_callback_info info) {
-  napi_value argv[5];
+js_value_t *
+udx_napi_interface_event_init (js_env_t *env, js_callback_info_t *info) {
+  int err;
+  js_value_t *argv[5];
   size_t argc = 5;
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
 
   udx_napi_t *udx;
   size_t udx_len;
-  napi_get_buffer_info(env, argv[0], (void **) &udx, &udx_len);
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &udx, &udx_len);
+  assert(err == 0);
 
   udx_napi_interface_event_t *self;
   size_t self_len;
-  napi_get_buffer_info(env, argv[1], (void **) &self, &self_len);
+  err = js_get_arraybuffer_info(env, argv[1], (void **) &self, &self_len);
+  assert(err == 0);
 
   self->udx = udx;
 
   udx_interface_event_t *event = (udx_interface_event_t *) self;
 
   self->env = env;
-  napi_create_reference(env, argv[2], 1, &(self->ctx));
-  napi_create_reference(env, argv[3], 1, &(self->on_event));
-  napi_create_reference(env, argv[4], 1, &(self->on_close));
+  err = js_create_reference(env, argv[2], 1, &(self->ctx));
+  assert(err == 0);
+  err = js_create_reference(env, argv[3], 1, &(self->on_event));
+  assert(err == 0);
+  err = js_create_reference(env, argv[4], 1, &(self->on_close));
+  assert(err == 0);
 
-  int err = udx_interface_event_init((udx_t *) udx, event, on_udx_interface_event_close);
+  err = udx_interface_event_init((udx_t *) udx, event, on_udx_interface_event_close);
   if (err < 0) {
-    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
     return NULL;
   }
 
   err = udx_interface_event_start(event, on_udx_interface_event, 5000);
   if (err < 0) {
-    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
     return NULL;
   }
 
@@ -1682,78 +1995,94 @@ udx_napi_interface_event_init (napi_env env, napi_callback_info info) {
   return NULL;
 }
 
-napi_value
-udx_napi_interface_event_start (napi_env env, napi_callback_info info) {
-  napi_value argv[1];
+js_value_t *
+udx_napi_interface_event_start (js_env_t *env, js_callback_info_t *info) {
+  int err;
+  js_value_t *argv[1];
   size_t argc = 1;
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
 
   udx_interface_event_t *event;
   size_t event_len;
-  napi_get_buffer_info(env, argv[0], (void **) &event, &event_len);
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &event, &event_len);
+  assert(err == 0);
 
-  int err = udx_interface_event_start(event, on_udx_interface_event, 5000);
+  err = udx_interface_event_start(event, on_udx_interface_event, 5000);
   if (err < 0) {
-    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
     return NULL;
   }
 
   return NULL;
 }
 
-napi_value
-udx_napi_interface_event_stop (napi_env env, napi_callback_info info) {
-  napi_value argv[1];
+js_value_t *
+udx_napi_interface_event_stop (js_env_t *env, js_callback_info_t *info) {
+  int err;
+  js_value_t *argv[1];
   size_t argc = 1;
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
 
   udx_interface_event_t *event;
   size_t event_len;
-  napi_get_buffer_info(env, argv[0], (void **) &event, &event_len);
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &event, &event_len);
+  assert(err == 0);
 
-  int err = udx_interface_event_stop(event);
+  err = udx_interface_event_stop(event);
   if (err < 0) {
-    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
     return NULL;
   }
 
   return NULL;
 }
 
-napi_value
-udx_napi_interface_event_close (napi_env env, napi_callback_info info) {
-  napi_value argv[1];
+js_value_t *
+udx_napi_interface_event_close (js_env_t *env, js_callback_info_t *info) {
+  int err;
+  js_value_t *argv[1];
   size_t argc = 1;
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
 
   udx_interface_event_t *event;
   size_t event_len;
-  napi_get_buffer_info(env, argv[0], (void **) &event, &event_len);
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &event, &event_len);
+  assert(err == 0);
 
-  int err = udx_interface_event_close(event);
+  err = udx_interface_event_close(event);
   if (err < 0) {
-    napi_throw_error(env, uv_err_name(err), uv_strerror(err));
+    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
     return NULL;
   }
 
   return NULL;
 }
 
-napi_value
-udx_napi_interface_event_get_addrs (napi_env env, napi_callback_info info) {
-  napi_value argv[1];
+js_value_t *
+udx_napi_interface_event_get_addrs (js_env_t *env, js_callback_info_t *info) {
+  int err;
+  js_value_t *argv[1];
   size_t argc = 1;
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
+  assert(err == 0);
 
   udx_interface_event_t *event;
   size_t event_len;
-  napi_get_buffer_info(env, argv[0], (void **) &event, &event_len);
+  err = js_get_arraybuffer_info(env, argv[0], (void **) &event, &event_len);
+  assert(err == 0);
 
   char ip[INET6_ADDRSTRLEN];
   int family = 0;
 
-  napi_value napi_result;
-  napi_create_array(env, &napi_result);
+  js_value_t *napi_result;
+  err = js_create_array(env, &napi_result);
+  assert(err == 0);
 
   for (int i = 0, j = 0; i < event->addrs_len; i++) {
     uv_interface_address_t addr = event->addrs[i];
@@ -1768,284 +2097,138 @@ udx_napi_interface_event_get_addrs (napi_env env, napi_callback_info info) {
       continue;
     }
 
-    napi_value napi_item;
-    napi_create_object(env, &napi_item);
-    napi_set_element(env, napi_result, j++, napi_item);
+    js_value_t *napi_item;
+    err = js_create_object(env, &napi_item);
+    assert(err == 0);
+    err = js_set_element(env, napi_result, j++, napi_item);
+    assert(err == 0);
 
-    napi_value napi_name;
-    napi_create_string_utf8(env, addr.name, NAPI_AUTO_LENGTH, &napi_name);
-    napi_set_named_property(env, napi_item, "name", napi_name);
+    js_value_t *napi_name;
+    err = js_create_string_utf8(env, (utf8_t *) addr.name, NAPI_AUTO_LENGTH, &napi_name);
+    assert(err == 0);
+    err = js_set_named_property(env, napi_item, "name", napi_name);
+    assert(err == 0);
 
-    napi_value napi_ip;
-    napi_create_string_utf8(env, ip, NAPI_AUTO_LENGTH, &napi_ip);
-    napi_set_named_property(env, napi_item, "host", napi_ip);
+    js_value_t *napi_ip;
+    err = js_create_string_utf8(env, (utf8_t *) ip, NAPI_AUTO_LENGTH, &napi_ip);
+    assert(err == 0);
+    err = js_set_named_property(env, napi_item, "host", napi_ip);
+    assert(err == 0);
 
-    napi_value napi_family;
-    napi_create_uint32(env, family, &napi_family);
-    napi_set_named_property(env, napi_item, "family", napi_family);
+    js_value_t *napi_family;
+    err = js_create_uint32(env, family, &napi_family);
+    assert(err == 0);
+    err = js_set_named_property(env, napi_item, "family", napi_family);
+    assert(err == 0);
 
-    napi_value napi_internal;
-    napi_get_boolean(env, addr.is_internal, &napi_internal);
-    napi_set_named_property(env, napi_item, "internal", napi_internal);
+    js_value_t *napi_internal;
+    err = js_get_boolean(env, addr.is_internal, &napi_internal);
+    assert(err == 0);
+    err = js_set_named_property(env, napi_item, "internal", napi_internal);
+    assert(err == 0);
   }
 
   return napi_result;
 }
 
-static void
-napi_macros_init (napi_env env, napi_value exports);
+static js_value_t *
+udx_native_exports (js_env_t *env, js_value_t *exports) {
+  int err;
 
-static napi_value
-napi_macros_init_wrap (napi_env env, napi_value exports) {
-  napi_macros_init(env, exports);
+  // uint32
+#define V(name, value) \
+  { \
+    js_value_t *val; \
+    err = js_create_uint32(env, value, &val); \
+    assert(err == 0); \
+    err = js_set_named_property(env, exports, name, val); \
+    assert(err == 0); \
+  }
+
+  V("UV_UDP_IPV6ONLY", UV_UDP_IPV6ONLY);
+  V("UV_UDP_REUSEADDR", UV_UDP_REUSEADDR);
+
+  V("offsetof_udx_stream_t_inflight", offsetof(udx_stream_t, inflight));
+  V("offsetof_udx_stream_t_mtu", offsetof(udx_stream_t, mtu));
+  V("offsetof_udx_stream_t_cwnd", offsetof(udx_stream_t, cwnd));
+  V("offsetof_udx_stream_t_srtt", offsetof(udx_stream_t, srtt));
+  V("offsetof_udx_stream_t_bytes_rx", offsetof(udx_stream_t, bytes_rx));
+  V("offsetof_udx_stream_t_packets_rx", offsetof(udx_stream_t, packets_rx));
+  V("offsetof_udx_stream_t_bytes_tx", offsetof(udx_stream_t, bytes_tx));
+  V("offsetof_udx_stream_t_packets_tx", offsetof(udx_stream_t, packets_tx));
+  V("offsetof_udx_stream_t_rto_count", offsetof(udx_stream_t, rto_count));
+  V("offsetof_udx_stream_t_retransmit_count", offsetof(udx_stream_t, retransmit_count));
+  V("offsetof_udx_stream_t_fast_recovery_count", offsetof(udx_stream_t, fast_recovery_count));
+  V("offsetof_udx_socket_t_bytes_rx", offsetof(udx_socket_t, bytes_rx));
+  V("offsetof_udx_socket_t_packets_rx", offsetof(udx_socket_t, packets_rx));
+  V("offsetof_udx_socket_t_bytes_tx", offsetof(udx_socket_t, bytes_tx));
+  V("offsetof_udx_socket_t_packets_tx", offsetof(udx_socket_t, packets_tx));
+  V("offsetof_udx_socket_t_packets_dropped_by_kernel", offsetof(udx_socket_t, packets_dropped_by_kernel));
+
+  V("offsetof_udx_t_bytes_rx", offsetof(udx_t, bytes_rx));
+  V("offsetof_udx_t_packets_rx", offsetof(udx_t, packets_rx));
+  V("offsetof_udx_t_bytes_tx", offsetof(udx_t, bytes_tx));
+  V("offsetof_udx_t_packets_tx", offsetof(udx_t, packets_tx));
+  V("offsetof_udx_t_packets_dropped_by_kernel", offsetof(udx_t, packets_dropped_by_kernel));
+
+  V("sizeof_udx_napi_t", sizeof(udx_napi_t));
+  V("sizeof_udx_napi_socket_t", sizeof(udx_napi_socket_t));
+  V("sizeof_udx_napi_stream_t", sizeof(udx_napi_stream_t));
+  V("sizeof_udx_napi_lookup_t",  sizeof(udx_napi_lookup_t));
+  V("sizeof_udx_napi_interface_event_t", sizeof(udx_napi_interface_event_t));
+  V("sizeof_udx_socket_send_t", sizeof(udx_socket_send_t));
+  V("sizeof_udx_stream_send_t", sizeof(udx_stream_send_t));
+#undef V
+
+  // functions
+#define V(name, untyped, signature, typed) \
+  { \
+    js_value_t *val; \
+    if (signature) { \
+      err = js_create_typed_function(env, name, -1, untyped, signature, typed, NULL, &val); \
+      assert(err == 0); \
+    } else { \
+      err = js_create_function(env, name, -1, untyped, NULL, &val); \
+      assert(err == 0); \
+    } \
+    err = js_set_named_property(env, exports, name, val); \
+    assert(err == 0); \
+  }
+
+  V("udx_napi_init", udx_napi_init, NULL, NULL);
+  V("udx_napi_socket_init", udx_napi_socket_init, NULL, NULL);
+  V("udx_napi_socket_bind", udx_napi_socket_bind, NULL, NULL);
+  V("udx_napi_socket_set_ttl", udx_napi_socket_set_ttl, NULL, NULL);
+  V("udx_napi_socket_get_recv_buffer_size", udx_napi_socket_get_recv_buffer_size, NULL, NULL);
+  V("udx_napi_socket_set_recv_buffer_size", udx_napi_socket_set_recv_buffer_size, NULL, NULL);
+  V("udx_napi_socket_get_send_buffer_size", udx_napi_socket_get_send_buffer_size, NULL, NULL);
+  V("udx_napi_socket_set_send_buffer_size", udx_napi_socket_set_send_buffer_size, NULL, NULL);
+  V("udx_napi_socket_set_membership", udx_napi_socket_set_membership, NULL, NULL);
+  V("udx_napi_socket_send_ttl", udx_napi_socket_send_ttl, NULL, NULL);
+  V("udx_napi_socket_close", udx_napi_socket_close, NULL, NULL);
+  V("udx_napi_stream_init", udx_napi_stream_init, NULL, NULL);
+  V("udx_napi_stream_set_seq", udx_napi_stream_set_seq, NULL, NULL);
+  V("udx_napi_stream_set_ack", udx_napi_stream_set_ack, NULL, NULL);
+  V("udx_napi_stream_set_mode", udx_napi_stream_set_mode, NULL, NULL);
+  V("udx_napi_stream_connect", udx_napi_stream_connect, NULL, NULL);
+  V("udx_napi_stream_change_remote", udx_napi_stream_change_remote, NULL, NULL);
+  V("udx_napi_stream_relay_to", udx_napi_stream_relay_to, NULL, NULL);
+  V("udx_napi_stream_send", udx_napi_stream_send, NULL, NULL);
+  V("udx_napi_stream_recv_start", udx_napi_stream_recv_start, NULL, NULL);
+  V("udx_napi_stream_write", udx_napi_stream_write, NULL, NULL);
+  V("udx_napi_stream_writev", udx_napi_stream_writev, NULL, NULL);
+  V("udx_napi_stream_write_sizeof", udx_napi_stream_write_sizeof, NULL, NULL);
+  V("udx_napi_stream_write_end", udx_napi_stream_write_end, NULL, NULL);
+  V("udx_napi_stream_destroy", udx_napi_stream_destroy, NULL, NULL);
+  V("udx_napi_lookup", udx_napi_lookup, NULL, NULL);
+  V("udx_napi_interface_event_init", udx_napi_interface_event_init, NULL, NULL);
+  V("udx_napi_interface_event_start", udx_napi_interface_event_start, NULL, NULL);
+  V("udx_napi_interface_event_stop", udx_napi_interface_event_stop, NULL, NULL);
+  V("udx_napi_interface_event_close", udx_napi_interface_event_close, NULL, NULL);
+  V("udx_napi_interface_event_get_addrs", udx_napi_interface_event_get_addrs, NULL, NULL);
+#undef V
+
   return exports;
 }
 
-NAPI_MODULE(NODE_GYP_MODULE_NAME, napi_macros_init_wrap)
-static void
-napi_macros_init (napi_env env, napi_value exports) {
-
-  napi_value UV_UDP_IPV6ONLY_uint32;
-  napi_create_uint32(env, UV_UDP_IPV6ONLY, &UV_UDP_IPV6ONLY_uint32);
-  napi_set_named_property(env, exports, "UV_UDP_IPV6ONLY", UV_UDP_IPV6ONLY_uint32);
-
-  napi_value UV_UDP_REUSEADDR_uint32;
-  napi_create_uint32(env, UV_UDP_REUSEADDR, &UV_UDP_REUSEADDR_uint32);
-  napi_set_named_property(env, exports, "UV_UDP_REUSEADDR", UV_UDP_REUSEADDR_uint32);
-
-  napi_value inflight_offsetof;
-  napi_create_uint32(env, offsetof(udx_stream_t, inflight), &inflight_offsetof);
-  napi_set_named_property(env, exports, "offsetof_udx_stream_t_inflight", inflight_offsetof);
-
-  napi_value mtu_offsetof;
-  napi_create_uint32(env, offsetof(udx_stream_t, mtu), &mtu_offsetof);
-  napi_set_named_property(env, exports, "offsetof_udx_stream_t_mtu", mtu_offsetof);
-
-  napi_value cwnd_offsetof;
-  napi_create_uint32(env, offsetof(udx_stream_t, cwnd), &cwnd_offsetof);
-  napi_set_named_property(env, exports, "offsetof_udx_stream_t_cwnd", cwnd_offsetof);
-
-  napi_value srtt_offsetof;
-  napi_create_uint32(env, offsetof(udx_stream_t, srtt), &srtt_offsetof);
-  napi_set_named_property(env, exports, "offsetof_udx_stream_t_srtt", srtt_offsetof);
-
-  napi_value bytes_rx_offsetof;
-  napi_create_uint32(env, offsetof(udx_stream_t, bytes_rx), &bytes_rx_offsetof);
-  napi_set_named_property(env, exports, "offsetof_udx_stream_t_bytes_rx", bytes_rx_offsetof);
-
-  napi_value packets_rx_offsetof;
-  napi_create_uint32(env, offsetof(udx_stream_t, packets_rx), &packets_rx_offsetof);
-  napi_set_named_property(env, exports, "offsetof_udx_stream_t_packets_rx", packets_rx_offsetof);
-
-  napi_value bytes_tx_offsetof;
-  napi_create_uint32(env, offsetof(udx_stream_t, bytes_tx), &bytes_tx_offsetof);
-  napi_set_named_property(env, exports, "offsetof_udx_stream_t_bytes_tx", bytes_tx_offsetof);
-
-  napi_value packets_tx_offsetof;
-  napi_create_uint32(env, offsetof(udx_stream_t, packets_tx), &packets_tx_offsetof);
-  napi_set_named_property(env, exports, "offsetof_udx_stream_t_packets_tx", packets_tx_offsetof);
-
-  napi_value rto_count_offsetof;
-  napi_create_uint32(env, offsetof(udx_stream_t, rto_count), &rto_count_offsetof);
-  napi_set_named_property(env, exports, "offsetof_udx_stream_t_rto_count", rto_count_offsetof);
-
-  napi_value retransmit_count_offsetof;
-  napi_create_uint32(env, offsetof(udx_stream_t, retransmit_count), &retransmit_count_offsetof);
-  napi_set_named_property(env, exports, "offsetof_udx_stream_t_retransmit_count", retransmit_count_offsetof);
-
-  napi_value fast_recovery_count_offsetof;
-  napi_create_uint32(env, offsetof(udx_stream_t, fast_recovery_count), &fast_recovery_count_offsetof);
-  napi_set_named_property(env, exports, "offsetof_udx_stream_t_fast_recovery_count", fast_recovery_count_offsetof);
-
-  napi_value socket_bytes_rx_offsetof;
-  napi_create_uint32(env, offsetof(udx_socket_t, bytes_rx), &socket_bytes_rx_offsetof);
-  napi_set_named_property(env, exports, "offsetof_udx_socket_t_bytes_rx", socket_bytes_rx_offsetof);
-
-  napi_value socket_packets_rx_offsetof;
-  napi_create_uint32(env, offsetof(udx_socket_t, packets_rx), &socket_packets_rx_offsetof);
-  napi_set_named_property(env, exports, "offsetof_udx_socket_t_packets_rx", socket_packets_rx_offsetof);
-
-  napi_value socket_bytes_tx_offsetof;
-  napi_create_uint32(env, offsetof(udx_socket_t, bytes_tx), &socket_bytes_tx_offsetof);
-  napi_set_named_property(env, exports, "offsetof_udx_socket_t_bytes_tx", socket_bytes_tx_offsetof);
-
-  napi_value socket_packets_tx_offsetof;
-  napi_create_uint32(env, offsetof(udx_socket_t, packets_tx), &socket_packets_tx_offsetof);
-  napi_set_named_property(env, exports, "offsetof_udx_socket_t_packets_tx", socket_packets_tx_offsetof);
-
-  napi_value packets_dropped_by_kernel_offsetof;
-  napi_create_uint32(env, offsetof(udx_socket_t, packets_dropped_by_kernel), &packets_dropped_by_kernel_offsetof);
-  napi_set_named_property(env, exports, "offsetof_udx_socket_t_packets_dropped_by_kernel", packets_dropped_by_kernel_offsetof);
-
-  napi_value udx_bytes_rx_offsetof;
-  napi_create_uint32(env, offsetof(udx_t, bytes_rx), &udx_bytes_rx_offsetof);
-  napi_set_named_property(env, exports, "offsetof_udx_t_bytes_rx", udx_bytes_rx_offsetof);
-
-  napi_value udx_packets_rx_offsetof;
-  napi_create_uint32(env, offsetof(udx_t, packets_rx), &udx_packets_rx_offsetof);
-  napi_set_named_property(env, exports, "offsetof_udx_t_packets_rx", udx_packets_rx_offsetof);
-
-  napi_value udx_bytes_tx_offsetof;
-  napi_create_uint32(env, offsetof(udx_t, bytes_tx), &udx_bytes_tx_offsetof);
-  napi_set_named_property(env, exports, "offsetof_udx_t_bytes_tx", udx_bytes_tx_offsetof);
-
-  napi_value udx_packets_tx_offsetof;
-  napi_create_uint32(env, offsetof(udx_t, packets_tx), &udx_packets_tx_offsetof);
-  napi_set_named_property(env, exports, "offsetof_udx_t_packets_tx", udx_packets_tx_offsetof);
-
-  napi_value udx_packets_dropped_by_kernel_offsetof;
-  napi_create_uint32(env, offsetof(udx_t, packets_dropped_by_kernel), &udx_packets_dropped_by_kernel_offsetof);
-  napi_set_named_property(env, exports, "offsetof_udx_t_packets_dropped_by_kernel", udx_packets_dropped_by_kernel_offsetof);
-
-  napi_value udx_napi_t_sizeof;
-  napi_create_uint32(env, sizeof(udx_napi_t), &udx_napi_t_sizeof);
-  napi_set_named_property(env, exports, "sizeof_udx_napi_t", udx_napi_t_sizeof);
-
-  napi_value udx_napi_socket_t_sizeof;
-  napi_create_uint32(env, sizeof(udx_napi_socket_t), &udx_napi_socket_t_sizeof);
-  napi_set_named_property(env, exports, "sizeof_udx_napi_socket_t", udx_napi_socket_t_sizeof);
-
-  napi_value udx_napi_stream_t_sizeof;
-  napi_create_uint32(env, sizeof(udx_napi_stream_t), &udx_napi_stream_t_sizeof);
-  napi_set_named_property(env, exports, "sizeof_udx_napi_stream_t", udx_napi_stream_t_sizeof);
-
-  napi_value udx_napi_lookup_t_sizeof;
-  napi_create_uint32(env, sizeof(udx_napi_lookup_t), &udx_napi_lookup_t_sizeof);
-  napi_set_named_property(env, exports, "sizeof_udx_napi_lookup_t", udx_napi_lookup_t_sizeof);
-
-  napi_value udx_napi_interface_event_t_sizeof;
-  napi_create_uint32(env, sizeof(udx_napi_interface_event_t), &udx_napi_interface_event_t_sizeof);
-  napi_set_named_property(env, exports, "sizeof_udx_napi_interface_event_t", udx_napi_interface_event_t_sizeof);
-
-  napi_value udx_socket_send_t_sizeof;
-  napi_create_uint32(env, sizeof(udx_socket_send_t), &udx_socket_send_t_sizeof);
-  napi_set_named_property(env, exports, "sizeof_udx_socket_send_t", udx_socket_send_t_sizeof);
-
-  napi_value udx_stream_send_t_sizeof;
-  napi_create_uint32(env, sizeof(udx_stream_send_t), &udx_stream_send_t_sizeof);
-  napi_set_named_property(env, exports, "sizeof_udx_stream_send_t", udx_stream_send_t_sizeof);
-
-  napi_value udx_napi_init_fn;
-  napi_create_function(env, NULL, 0, udx_napi_init, NULL, &udx_napi_init_fn);
-  napi_set_named_property(env, exports, "udx_napi_init", udx_napi_init_fn);
-
-  napi_value udx_napi_socket_init_fn;
-  napi_create_function(env, NULL, 0, udx_napi_socket_init, NULL, &udx_napi_socket_init_fn);
-  napi_set_named_property(env, exports, "udx_napi_socket_init", udx_napi_socket_init_fn);
-
-  napi_value udx_napi_socket_bind_fn;
-  napi_create_function(env, NULL, 0, udx_napi_socket_bind, NULL, &udx_napi_socket_bind_fn);
-  napi_set_named_property(env, exports, "udx_napi_socket_bind", udx_napi_socket_bind_fn);
-
-  napi_value udx_napi_socket_set_ttl_fn;
-  napi_create_function(env, NULL, 0, udx_napi_socket_set_ttl, NULL, &udx_napi_socket_set_ttl_fn);
-  napi_set_named_property(env, exports, "udx_napi_socket_set_ttl", udx_napi_socket_set_ttl_fn);
-
-  napi_value udx_napi_socket_get_recv_buffer_size_fn;
-  napi_create_function(env, NULL, 0, udx_napi_socket_get_recv_buffer_size, NULL, &udx_napi_socket_get_recv_buffer_size_fn);
-  napi_set_named_property(env, exports, "udx_napi_socket_get_recv_buffer_size", udx_napi_socket_get_recv_buffer_size_fn);
-
-  napi_value udx_napi_socket_set_recv_buffer_size_fn;
-  napi_create_function(env, NULL, 0, udx_napi_socket_set_recv_buffer_size, NULL, &udx_napi_socket_set_recv_buffer_size_fn);
-  napi_set_named_property(env, exports, "udx_napi_socket_set_recv_buffer_size", udx_napi_socket_set_recv_buffer_size_fn);
-
-  napi_value udx_napi_socket_get_send_buffer_size_fn;
-  napi_create_function(env, NULL, 0, udx_napi_socket_get_send_buffer_size, NULL, &udx_napi_socket_get_send_buffer_size_fn);
-  napi_set_named_property(env, exports, "udx_napi_socket_get_send_buffer_size", udx_napi_socket_get_send_buffer_size_fn);
-
-  napi_value udx_napi_socket_set_send_buffer_size_fn;
-  napi_create_function(env, NULL, 0, udx_napi_socket_set_send_buffer_size, NULL, &udx_napi_socket_set_send_buffer_size_fn);
-  napi_set_named_property(env, exports, "udx_napi_socket_set_send_buffer_size", udx_napi_socket_set_send_buffer_size_fn);
-
-  napi_value udx_napi_socket_set_membership_fn;
-  napi_create_function(env, NULL, 0, udx_napi_socket_set_membership, NULL, &udx_napi_socket_set_membership_fn);
-  napi_set_named_property(env, exports, "udx_napi_socket_set_membership", udx_napi_socket_set_membership_fn);
-
-  napi_value udx_napi_socket_send_ttl_fn;
-  napi_create_function(env, NULL, 0, udx_napi_socket_send_ttl, NULL, &udx_napi_socket_send_ttl_fn);
-  napi_set_named_property(env, exports, "udx_napi_socket_send_ttl", udx_napi_socket_send_ttl_fn);
-
-  napi_value udx_napi_socket_close_fn;
-  napi_create_function(env, NULL, 0, udx_napi_socket_close, NULL, &udx_napi_socket_close_fn);
-  napi_set_named_property(env, exports, "udx_napi_socket_close", udx_napi_socket_close_fn);
-
-  napi_value udx_napi_stream_init_fn;
-  napi_create_function(env, NULL, 0, udx_napi_stream_init, NULL, &udx_napi_stream_init_fn);
-  napi_set_named_property(env, exports, "udx_napi_stream_init", udx_napi_stream_init_fn);
-
-  napi_value udx_napi_stream_set_seq_fn;
-  napi_create_function(env, NULL, 0, udx_napi_stream_set_seq, NULL, &udx_napi_stream_set_seq_fn);
-  napi_set_named_property(env, exports, "udx_napi_stream_set_seq", udx_napi_stream_set_seq_fn);
-
-  napi_value udx_napi_stream_set_ack_fn;
-  napi_create_function(env, NULL, 0, udx_napi_stream_set_ack, NULL, &udx_napi_stream_set_ack_fn);
-  napi_set_named_property(env, exports, "udx_napi_stream_set_ack", udx_napi_stream_set_ack_fn);
-
-  napi_value udx_napi_stream_set_mode_fn;
-  napi_create_function(env, NULL, 0, udx_napi_stream_set_mode, NULL, &udx_napi_stream_set_mode_fn);
-  napi_set_named_property(env, exports, "udx_napi_stream_set_mode", udx_napi_stream_set_mode_fn);
-
-  napi_value udx_napi_stream_connect_fn;
-  napi_create_function(env, NULL, 0, udx_napi_stream_connect, NULL, &udx_napi_stream_connect_fn);
-  napi_set_named_property(env, exports, "udx_napi_stream_connect", udx_napi_stream_connect_fn);
-
-  napi_value udx_napi_stream_change_remote_fn;
-  napi_create_function(env, NULL, 0, udx_napi_stream_change_remote, NULL, &udx_napi_stream_change_remote_fn);
-  napi_set_named_property(env, exports, "udx_napi_stream_change_remote", udx_napi_stream_change_remote_fn);
-
-  napi_value udx_napi_stream_relay_to_fn;
-  napi_create_function(env, NULL, 0, udx_napi_stream_relay_to, NULL, &udx_napi_stream_relay_to_fn);
-  napi_set_named_property(env, exports, "udx_napi_stream_relay_to", udx_napi_stream_relay_to_fn);
-
-  napi_value udx_napi_stream_send_fn;
-  napi_create_function(env, NULL, 0, udx_napi_stream_send, NULL, &udx_napi_stream_send_fn);
-  napi_set_named_property(env, exports, "udx_napi_stream_send", udx_napi_stream_send_fn);
-
-  napi_value udx_napi_stream_recv_start_fn;
-  napi_create_function(env, NULL, 0, udx_napi_stream_recv_start, NULL, &udx_napi_stream_recv_start_fn);
-  napi_set_named_property(env, exports, "udx_napi_stream_recv_start", udx_napi_stream_recv_start_fn);
-
-  napi_value udx_napi_stream_write_fn;
-  napi_create_function(env, NULL, 0, udx_napi_stream_write, NULL, &udx_napi_stream_write_fn);
-  napi_set_named_property(env, exports, "udx_napi_stream_write", udx_napi_stream_write_fn);
-
-  napi_value udx_napi_stream_writev_fn;
-  napi_create_function(env, NULL, 0, udx_napi_stream_writev, NULL, &udx_napi_stream_writev_fn);
-  napi_set_named_property(env, exports, "udx_napi_stream_writev", udx_napi_stream_writev_fn);
-
-  napi_value udx_napi_stream_write_sizeof_fn;
-  napi_create_function(env, NULL, 0, udx_napi_stream_write_sizeof, NULL, &udx_napi_stream_write_sizeof_fn);
-  napi_set_named_property(env, exports, "udx_napi_stream_write_sizeof", udx_napi_stream_write_sizeof_fn);
-
-  napi_value udx_napi_stream_write_end_fn;
-  napi_create_function(env, NULL, 0, udx_napi_stream_write_end, NULL, &udx_napi_stream_write_end_fn);
-  napi_set_named_property(env, exports, "udx_napi_stream_write_end", udx_napi_stream_write_end_fn);
-
-  napi_value udx_napi_stream_destroy_fn;
-  napi_create_function(env, NULL, 0, udx_napi_stream_destroy, NULL, &udx_napi_stream_destroy_fn);
-  napi_set_named_property(env, exports, "udx_napi_stream_destroy", udx_napi_stream_destroy_fn);
-
-  napi_value udx_napi_lookup_fn;
-  napi_create_function(env, NULL, 0, udx_napi_lookup, NULL, &udx_napi_lookup_fn);
-  napi_set_named_property(env, exports, "udx_napi_lookup", udx_napi_lookup_fn);
-
-  napi_value udx_napi_interface_event_init_fn;
-  napi_create_function(env, NULL, 0, udx_napi_interface_event_init, NULL, &udx_napi_interface_event_init_fn);
-  napi_set_named_property(env, exports, "udx_napi_interface_event_init", udx_napi_interface_event_init_fn);
-
-  napi_value udx_napi_interface_event_start_fn;
-  napi_create_function(env, NULL, 0, udx_napi_interface_event_start, NULL, &udx_napi_interface_event_start_fn);
-  napi_set_named_property(env, exports, "udx_napi_interface_event_start", udx_napi_interface_event_start_fn);
-
-  napi_value udx_napi_interface_event_stop_fn;
-  napi_create_function(env, NULL, 0, udx_napi_interface_event_stop, NULL, &udx_napi_interface_event_stop_fn);
-  napi_set_named_property(env, exports, "udx_napi_interface_event_stop", udx_napi_interface_event_stop_fn);
-
-  napi_value udx_napi_interface_event_close_fn;
-  napi_create_function(env, NULL, 0, udx_napi_interface_event_close, NULL, &udx_napi_interface_event_close_fn);
-  napi_set_named_property(env, exports, "udx_napi_interface_event_close", udx_napi_interface_event_close_fn);
-
-  napi_value udx_napi_interface_event_get_addrs_fn;
-  napi_create_function(env, NULL, 0, udx_napi_interface_event_get_addrs, NULL, &udx_napi_interface_event_get_addrs_fn);
-  napi_set_named_property(env, exports, "udx_napi_interface_event_get_addrs", udx_napi_interface_event_get_addrs_fn);
-}
+BARE_MODULE(udx_native, udx_native_exports)
