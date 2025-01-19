@@ -48,6 +48,7 @@
     "bare-compat-napi": "^1.2.2",
     "bare-events": "^2.2.0",
     "node-gyp-build": "^4.4.0",
+    "require-addon": "^1.0.10",
     "streamx": "^2.14.0"
   },
   "devDependencies": {

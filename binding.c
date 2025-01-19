@@ -871,9 +871,13 @@ udx_napi_init (js_env_t *env, js_callback_info_t *info) {
 
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
+  assert(argc == 2);
 
   udx_napi_t *self;
   size_t self_len;
+
+  // TODO: all buffers allocated on JS side are typed-arrays; adjust all arraybufer_infos()
+  // err = js_get_typedarray_info(env, argv[0], NULL, (void **) &self, &self_len, NULL, NULL);
   err = js_get_arraybuffer_info(env, argv[0], (void **) &self, &self_len);
   assert(err == 0);
 
@@ -904,6 +908,7 @@ udx_napi_socket_init (js_env_t *env, js_callback_info_t *info) {
   size_t argc = 7;
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
+  assert(argc == 7);
 
   udx_napi_t *udx;
   size_t udx_len;
