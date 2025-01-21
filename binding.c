@@ -116,6 +116,23 @@ forward_uncaught (js_env_t *env, int err) {
   assert(err == 0);
 }
 
+static int
+get_buffer_info (js_env_t *env, js_value_t *buffer, void **data, size_t *len) {
+  int err;
+  bool is_typedarray;
+  err = js_is_typedarray(env, buffer, &is_typedarray);
+  if (err) return err;
+  if (is_typedarray) return js_get_typedarray_info(env, buffer, NULL, data, len, NULL, NULL);
+
+  bool is_arraybuffer;
+  err = js_is_arraybuffer(env, buffer, &is_arraybuffer);
+  if (err) return err;
+  if (is_arraybuffer) return js_get_arraybuffer_info(env, buffer, data, len);
+
+  return -1;
+}
+
+
 static void
 on_udx_send (udx_socket_send_t *req, int status) {
   int err;
@@ -147,17 +164,6 @@ on_udx_send (udx_socket_send_t *req, int status) {
 
   err = js_close_handle_scope(env, scope);
   assert(err == 0);
-}
-
-static int
-t_get_arraybuffer_info (js_env_t *env, js_value_t *buffer, void **data, size_t *len) {
-  bool is_buffer;
-  int err = js_is_arraybuffer(env, buffer, &is_buffer);
-  if (err != 0) return err;
-  // printf("mixed_get_info: %p, is_arraybuffer = %i\n", buffer, is_buffer);
-  return is_buffer
-    ? js_get_arraybuffer_info(env, buffer, data, len)
-    : js_get_typedarray_info(env, buffer, NULL, data, len, NULL, NULL);
 }
 
 static void
@@ -205,7 +211,7 @@ on_udx_message (udx_socket_t *self, ssize_t read_len, const uv_buf_t *buf, const
   forward_uncaught(env, err);
 
   if (err == 0) {
-    err = t_get_arraybuffer_info(env, res, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free));
+    err = get_buffer_info(env, res, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free));
     assert(err == 0);
   } else {
 
@@ -229,7 +235,7 @@ on_udx_message (udx_socket_t *self, ssize_t read_len, const uv_buf_t *buf, const
       forward_uncaught(env, err);
 
       if (err == 0) {
-        err = t_get_arraybuffer_info(env, res, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free));
+        err = get_buffer_info(env, res, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free));
         assert(err == 0);
       }
 
@@ -394,7 +400,7 @@ on_udx_stream_read (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
 
   err = js_call_function_with_checkpoint(env, ctx, callback, 1, argv, &res);
   if (err == 0) {
-    err = t_get_arraybuffer_info(env, res, (void **) &(n->read_buf), &(n->read_buf_free));
+    err = get_buffer_info(env, res, (void **) &(n->read_buf), &(n->read_buf_free));
     assert(err == 0);
     n->read_buf_head = n->read_buf;
   } else {
@@ -417,7 +423,7 @@ on_udx_stream_read (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
       err = js_call_function_with_checkpoint(env, ctx, callback, 0, NULL, &res);
       forward_uncaught(env, err);
 
-      err = t_get_arraybuffer_info(env, res, (void **) &(n->read_buf), &(n->read_buf_free));
+      err = get_buffer_info(env, res, (void **) &(n->read_buf), &(n->read_buf_free));
       assert(err == 0);
       n->read_buf_head = n->read_buf;
 
@@ -551,7 +557,7 @@ on_udx_stream_recv (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
   js_value_t *res;
   err = js_call_function_with_checkpoint(env, ctx, callback, 1, argv, &res);
   if (err == 0) {
-    err = t_get_arraybuffer_info(env, res, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free));
+    err = get_buffer_info(env, res, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free));
     assert(err == 0);
   } else {
     forward_uncaught(env, err);
@@ -572,7 +578,7 @@ on_udx_stream_recv (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
       err = js_call_function_with_checkpoint(env, ctx, callback, 0, NULL, &res);
       forward_uncaught(env, err);
 
-      err = t_get_arraybuffer_info(env, res, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free));
+      err = get_buffer_info(env, res, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free));
       assert(err == 0);
 
       err = js_close_handle_scope(env, scope);
@@ -888,12 +894,12 @@ udx_napi_init (js_env_t *env, js_callback_info_t *info) {
 
   // TODO: all buffers allocated on JS side are typed-arrays; adjust all arraybufer_infos()
   // err = js_get_typedarray_info(env, argv[0], NULL, (void **) &self, &self_len, NULL, NULL);
-  err = t_get_arraybuffer_info(env, argv[0], (void **) &self, &self_len);
+  err = get_buffer_info(env, argv[0], (void **) &self, &self_len);
   assert(err == 0);
 
   char *read_buf;
   size_t read_buf_len;
-  err = t_get_arraybuffer_info(env, argv[1], (void **) &read_buf, &read_buf_len);
+  err = get_buffer_info(env, argv[1], (void **) &read_buf, &read_buf_len);
   assert(err == 0);
 
   uv_loop_t *loop;
@@ -922,12 +928,12 @@ udx_napi_socket_init (js_env_t *env, js_callback_info_t *info) {
 
   udx_napi_t *udx;
   size_t udx_len;
-  err = t_get_arraybuffer_info(env, argv[0], (void **) &udx, &udx_len);
+  err = get_buffer_info(env, argv[0], (void **) &udx, &udx_len);
   assert(err == 0);
 
   udx_napi_socket_t *self;
   size_t self_len;
-  err = t_get_arraybuffer_info(env, argv[1], (void **) &self, &self_len);
+  err = get_buffer_info(env, argv[1], (void **) &self, &self_len);
   assert(err == 0);
 
   udx_socket_t *socket = (udx_socket_t *) self;
@@ -967,7 +973,7 @@ udx_napi_socket_bind (js_env_t *env, js_callback_info_t *info) {
 
   udx_socket_t *self;
   size_t self_len;
-  err = t_get_arraybuffer_info(env, argv[0], (void **) &self, &self_len);
+  err = get_buffer_info(env, argv[0], (void **) &self, &self_len);
   assert(err == 0);
 
   uint32_t port;
@@ -1056,7 +1062,7 @@ udx_napi_socket_set_ttl (js_env_t *env, js_callback_info_t *info) {
 
   udx_socket_t *self;
   size_t self_len;
-  err = t_get_arraybuffer_info(env, argv[0], (void **) &self, &self_len);
+  err = get_buffer_info(env, argv[0], (void **) &self, &self_len);
   assert(err == 0);
 
   uint32_t ttl;
@@ -1084,7 +1090,7 @@ udx_napi_socket_set_membership (js_env_t *env, js_callback_info_t *info) {
 
   udx_socket_t *socket;
   size_t socket_len;
-  err = t_get_arraybuffer_info(env, argv[0], (void **) &socket, &socket_len);
+  err = get_buffer_info(env, argv[0], (void **) &socket, &socket_len);
   assert(err == 0);
 
   char mcast_addr[INET6_ADDRSTRLEN];
@@ -1123,7 +1129,7 @@ udx_napi_socket_get_recv_buffer_size (js_env_t *env, js_callback_info_t *info) {
 
   udx_socket_t *self;
   size_t self_len;
-  err = t_get_arraybuffer_info(env, argv[0], (void **) &self, &self_len);
+  err = get_buffer_info(env, argv[0], (void **) &self, &self_len);
   assert(err == 0);
 
   int size = 0;
@@ -1152,7 +1158,7 @@ udx_napi_socket_set_recv_buffer_size (js_env_t *env, js_callback_info_t *info) {
 
   udx_socket_t *self;
   size_t self_len;
-  err = t_get_arraybuffer_info(env, argv[0], (void **) &self, &self_len);
+  err = get_buffer_info(env, argv[0], (void **) &self, &self_len);
   assert(err == 0);
 
   int32_t size;
@@ -1179,7 +1185,7 @@ udx_napi_socket_get_send_buffer_size (js_env_t *env, js_callback_info_t *info) {
 
   udx_socket_t *self;
   size_t self_len;
-  err = t_get_arraybuffer_info(env, argv[0], (void **) &self, &self_len);
+  err = get_buffer_info(env, argv[0], (void **) &self, &self_len);
   assert(err == 0);
 
   int size = 0;
@@ -1208,7 +1214,7 @@ udx_napi_socket_set_send_buffer_size (js_env_t *env, js_callback_info_t *info) {
 
   udx_socket_t *self;
   size_t self_len;
-  err = t_get_arraybuffer_info(env, argv[0], (void **) &self, &self_len);
+  err = get_buffer_info(env, argv[0], (void **) &self, &self_len);
   assert(err == 0);
 
   int32_t size;
@@ -1239,12 +1245,12 @@ udx_napi_socket_send_ttl (js_env_t *env, js_callback_info_t *info) {
 
   udx_socket_t *self;
   size_t self_len;
-  err = t_get_arraybuffer_info(env, argv[0], (void **) &self, &self_len);
+  err = get_buffer_info(env, argv[0], (void **) &self, &self_len);
   assert(err == 0);
 
   udx_socket_send_t *req;
   size_t req_len;
-  err = t_get_arraybuffer_info(env, argv[1], (void **) &req, &req_len);
+  err = get_buffer_info(env, argv[1], (void **) &req, &req_len);
   assert(err == 0);
 
   uint32_t rid;
@@ -1253,7 +1259,7 @@ udx_napi_socket_send_ttl (js_env_t *env, js_callback_info_t *info) {
 
   char *buf;
   size_t buf_len;
-  err = t_get_arraybuffer_info(env, argv[3], (void **) &buf, &buf_len);
+  err = get_buffer_info(env, argv[3], (void **) &buf, &buf_len);
   assert(err == 0);
 
   uint32_t port;
@@ -1314,7 +1320,7 @@ udx_napi_socket_close (js_env_t *env, js_callback_info_t *info) {
 
   udx_socket_t *self;
   size_t self_len;
-  err = t_get_arraybuffer_info(env, argv[0], (void **) &self, &self_len);
+  err = get_buffer_info(env, argv[0], (void **) &self, &self_len);
   assert(err == 0);
 
   err = udx_socket_close(self);
@@ -1337,12 +1343,12 @@ udx_napi_stream_init (js_env_t *env, js_callback_info_t *info) {
 
   udx_napi_t *udx;
   size_t udx_len;
-  err = t_get_arraybuffer_info(env, argv[0], (void **) &udx, &udx_len);
+  err = get_buffer_info(env, argv[0], (void **) &udx, &udx_len);
   assert(err == 0);
 
   udx_napi_stream_t *self;
   size_t self_len;
-  err = t_get_arraybuffer_info(env, argv[1], (void **) &self, &self_len);
+  err = get_buffer_info(env, argv[1], (void **) &self, &self_len);
   assert(err == 0);
 
   uint32_t id;
@@ -1415,7 +1421,7 @@ udx_napi_stream_set_seq (js_env_t *env, js_callback_info_t *info) {
 
   udx_stream_t *stream;
   size_t stream_len;
-  err = t_get_arraybuffer_info(env, argv[0], (void **) &stream, &stream_len);
+  err = get_buffer_info(env, argv[0], (void **) &stream, &stream_len);
   assert(err == 0);
 
   uint32_t seq;
@@ -1442,7 +1448,7 @@ udx_napi_stream_set_ack (js_env_t *env, js_callback_info_t *info) {
 
   udx_stream_t *stream;
   size_t stream_len;
-  err = t_get_arraybuffer_info(env, argv[0], (void **) &stream, &stream_len);
+  err = get_buffer_info(env, argv[0], (void **) &stream, &stream_len);
   assert(err == 0);
 
   uint32_t ack;
@@ -1469,7 +1475,7 @@ udx_napi_stream_set_mode (js_env_t *env, js_callback_info_t *info) {
 
   udx_napi_stream_t *stream;
   size_t stream_len;
-  err = t_get_arraybuffer_info(env, argv[0], (void **) &stream, &stream_len);
+  err = get_buffer_info(env, argv[0], (void **) &stream, &stream_len);
   assert(err == 0);
 
   uint32_t mode;
@@ -1491,12 +1497,12 @@ udx_napi_stream_recv_start (js_env_t *env, js_callback_info_t *info) {
 
   udx_napi_stream_t *stream;
   size_t stream_len;
-  err = t_get_arraybuffer_info(env, argv[0], (void **) &stream, &stream_len);
+  err = get_buffer_info(env, argv[0], (void **) &stream, &stream_len);
   assert(err == 0);
 
   char *read_buf;
   size_t read_buf_len;
-  err = t_get_arraybuffer_info(env, argv[1], (void **) &read_buf, &read_buf_len);
+  err = get_buffer_info(env, argv[1], (void **) &read_buf, &read_buf_len);
   assert(err == 0);
 
   stream->read_buf = read_buf;
@@ -1521,12 +1527,12 @@ udx_napi_stream_connect (js_env_t *env, js_callback_info_t *info) {
 
   udx_stream_t *stream;
   size_t stream_len;
-  err = t_get_arraybuffer_info(env, argv[0], (void **) &stream, &stream_len);
+  err = get_buffer_info(env, argv[0], (void **) &stream, &stream_len);
   assert(err == 0);
 
   udx_socket_t *socket;
   size_t socket_len;
-  err = t_get_arraybuffer_info(env, argv[1], (void **) &socket, &socket_len);
+  err = get_buffer_info(env, argv[1], (void **) &socket, &socket_len);
   assert(err == 0);
 
   uint32_t remote_id;
@@ -1581,12 +1587,12 @@ udx_napi_stream_change_remote (js_env_t *env, js_callback_info_t *info) {
 
   udx_stream_t *stream;
   size_t stream_len;
-  err = t_get_arraybuffer_info(env, argv[0], (void **) &stream, &stream_len);
+  err = get_buffer_info(env, argv[0], (void **) &stream, &stream_len);
   assert(err == 0);
 
   udx_socket_t *socket;
   size_t socket_len;
-  err = t_get_arraybuffer_info(env, argv[1], (void **) &socket, &socket_len);
+  err = get_buffer_info(env, argv[1], (void **) &socket, &socket_len);
   assert(err == 0);
 
   uint32_t remote_id;
@@ -1641,12 +1647,12 @@ udx_napi_stream_relay_to (js_env_t *env, js_callback_info_t *info) {
 
   udx_stream_t *stream;
   size_t stream_len;
-  err = t_get_arraybuffer_info(env, argv[0], (void **) &stream, &stream_len);
+  err = get_buffer_info(env, argv[0], (void **) &stream, &stream_len);
   assert(err == 0);
 
   udx_stream_t *destination;
   size_t destination_len;
-  err = t_get_arraybuffer_info(env, argv[1], (void **) &destination, &destination_len);
+  err = get_buffer_info(env, argv[1], (void **) &destination, &destination_len);
   assert(err == 0);
 
   err = udx_stream_relay_to(stream, destination);
@@ -1669,12 +1675,12 @@ udx_napi_stream_send (js_env_t *env, js_callback_info_t *info) {
 
   udx_stream_t *stream;
   size_t stream_len;
-  err = t_get_arraybuffer_info(env, argv[0], (void **) &stream, &stream_len);
+  err = get_buffer_info(env, argv[0], (void **) &stream, &stream_len);
   assert(err == 0);
 
   udx_stream_send_t *req;
   size_t req_len;
-  err = t_get_arraybuffer_info(env, argv[1], (void **) &req, &req_len);
+  err = get_buffer_info(env, argv[1], (void **) &req, &req_len);
   assert(err == 0);
 
   uint32_t rid;
@@ -1683,7 +1689,7 @@ udx_napi_stream_send (js_env_t *env, js_callback_info_t *info) {
 
   char *buf;
   size_t buf_len;
-  err = t_get_arraybuffer_info(env, argv[3], (void **) &buf, &buf_len);
+  err = get_buffer_info(env, argv[3], (void **) &buf, &buf_len);
   assert(err == 0);
 
   req->data = (void *) ((uintptr_t) rid);
@@ -1714,12 +1720,12 @@ udx_napi_stream_write (js_env_t *env, js_callback_info_t *info) {
 
   udx_stream_t *stream;
   size_t stream_len;
-  err = t_get_arraybuffer_info(env, argv[0], (void **) &stream, &stream_len);
+  err = get_buffer_info(env, argv[0], (void **) &stream, &stream_len);
   assert(err == 0);
 
   udx_stream_write_t *req;
   size_t req_len;
-  err = t_get_arraybuffer_info(env, argv[1], (void **) &req, &req_len);
+  err = get_buffer_info(env, argv[1], (void **) &req, &req_len);
   assert(err == 0);
 
   uint32_t rid;
@@ -1728,7 +1734,7 @@ udx_napi_stream_write (js_env_t *env, js_callback_info_t *info) {
 
   char *buf;
   size_t buf_len;
-  err = t_get_arraybuffer_info(env, argv[3], (void **) &buf, &buf_len);
+  err = get_buffer_info(env, argv[3], (void **) &buf, &buf_len);
   assert(err == 0);
 
   req->data = (void *) ((uintptr_t) rid);
@@ -1759,12 +1765,12 @@ udx_napi_stream_writev (js_env_t *env, js_callback_info_t *info) {
 
   udx_stream_t *stream;
   size_t stream_len;
-  err = t_get_arraybuffer_info(env, argv[0], (void **) &stream, &stream_len);
+  err = get_buffer_info(env, argv[0], (void **) &stream, &stream_len);
   assert(err == 0);
 
   udx_stream_write_t *req;
   size_t req_len;
-  err = t_get_arraybuffer_info(env, argv[1], (void **) &req, &req_len);
+  err = get_buffer_info(env, argv[1], (void **) &req, &req_len);
   assert(err == 0);
 
   uint32_t rid;
@@ -1788,7 +1794,7 @@ udx_napi_stream_writev (js_env_t *env, js_callback_info_t *info) {
 
     char *buf;
     size_t buf_len;
-    err = t_get_arraybuffer_info(env, element, (void **) &buf, &buf_len);
+    err = get_buffer_info(env, element, (void **) &buf, &buf_len);
     assert(err == 0);
 
     batch[i] = uv_buf_init(buf, buf_len);
@@ -1839,12 +1845,12 @@ udx_napi_stream_write_end (js_env_t *env, js_callback_info_t *info) {
 
   udx_stream_t *stream;
   size_t stream_len;
-  err = t_get_arraybuffer_info(env, argv[0], (void **) &stream, &stream_len);
+  err = get_buffer_info(env, argv[0], (void **) &stream, &stream_len);
   assert(err == 0);
 
   udx_stream_write_t *req;
   size_t req_len;
-  err = t_get_arraybuffer_info(env, argv[1], (void **) &req, &req_len);
+  err = get_buffer_info(env, argv[1], (void **) &req, &req_len);
   assert(err == 0);
 
   uint32_t rid;
@@ -1853,7 +1859,7 @@ udx_napi_stream_write_end (js_env_t *env, js_callback_info_t *info) {
 
   char *buf;
   size_t buf_len;
-  err = t_get_arraybuffer_info(env, argv[3], (void **) &buf, &buf_len);
+  err = get_buffer_info(env, argv[3], (void **) &buf, &buf_len);
   assert(err == 0);
 
   req->data = (void *) ((uintptr_t) rid);
@@ -1884,7 +1890,7 @@ udx_napi_stream_destroy (js_env_t *env, js_callback_info_t *info) {
 
   udx_stream_t *stream;
   size_t stream_len;
-  err = t_get_arraybuffer_info(env, argv[0], (void **) &stream, &stream_len);
+  err = get_buffer_info(env, argv[0], (void **) &stream, &stream_len);
   assert(err == 0);
 
   err = udx_stream_destroy(stream);
@@ -1911,12 +1917,12 @@ udx_napi_lookup (js_env_t *env, js_callback_info_t *info) {
 
   udx_napi_t *udx;
   size_t udx_len;
-  err = t_get_arraybuffer_info(env, argv[0], (void **) &udx, &udx_len);
+  err = get_buffer_info(env, argv[0], (void **) &udx, &udx_len);
   assert(err == 0);
 
   udx_napi_lookup_t *self;
   size_t self_len;
-  err = t_get_arraybuffer_info(env, argv[1], (void **) &self, &self_len);
+  err = get_buffer_info(env, argv[1], (void **) &self, &self_len);
   assert(err == 0);
 
   self->udx = udx;
@@ -1971,12 +1977,12 @@ udx_napi_interface_event_init (js_env_t *env, js_callback_info_t *info) {
 
   udx_napi_t *udx;
   size_t udx_len;
-  err = t_get_arraybuffer_info(env, argv[0], (void **) &udx, &udx_len);
+  err = get_buffer_info(env, argv[0], (void **) &udx, &udx_len);
   assert(err == 0);
 
   udx_napi_interface_event_t *self;
   size_t self_len;
-  err = t_get_arraybuffer_info(env, argv[1], (void **) &self, &self_len);
+  err = get_buffer_info(env, argv[1], (void **) &self, &self_len);
   assert(err == 0);
 
   self->udx = udx;
@@ -2020,7 +2026,7 @@ udx_napi_interface_event_start (js_env_t *env, js_callback_info_t *info) {
 
   udx_interface_event_t *event;
   size_t event_len;
-  err = t_get_arraybuffer_info(env, argv[0], (void **) &event, &event_len);
+  err = get_buffer_info(env, argv[0], (void **) &event, &event_len);
   assert(err == 0);
 
   err = udx_interface_event_start(event, on_udx_interface_event, 5000);
@@ -2043,7 +2049,7 @@ udx_napi_interface_event_stop (js_env_t *env, js_callback_info_t *info) {
 
   udx_interface_event_t *event;
   size_t event_len;
-  err = t_get_arraybuffer_info(env, argv[0], (void **) &event, &event_len);
+  err = get_buffer_info(env, argv[0], (void **) &event, &event_len);
   assert(err == 0);
 
   err = udx_interface_event_stop(event);
@@ -2066,7 +2072,7 @@ udx_napi_interface_event_close (js_env_t *env, js_callback_info_t *info) {
 
   udx_interface_event_t *event;
   size_t event_len;
-  err = t_get_arraybuffer_info(env, argv[0], (void **) &event, &event_len);
+  err = get_buffer_info(env, argv[0], (void **) &event, &event_len);
   assert(err == 0);
 
   err = udx_interface_event_close(event);
@@ -2089,7 +2095,7 @@ udx_napi_interface_event_get_addrs (js_env_t *env, js_callback_info_t *info) {
 
   udx_interface_event_t *event;
   size_t event_len;
-  err = t_get_arraybuffer_info(env, argv[0], (void **) &event, &event_len);
+  err = get_buffer_info(env, argv[0], (void **) &event, &event_len);
   assert(err == 0);
 
   char ip[INET6_ADDRSTRLEN];
