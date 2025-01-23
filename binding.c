@@ -281,7 +281,7 @@ on_udx_close (udx_socket_t *self) {
     err = js_get_reference_value(env, n->on_close, &callback);
     assert(err == 0);
 
-    err = js_call_function(env, ctx, callback, 0, NULL, NULL);
+    err = js_call_function_with_checkpoint(env, ctx, callback, 0, NULL, NULL);
     redirect_to_uncaught(env, err);
 
     js_close_handle_scope(env, scope);
@@ -1341,7 +1341,6 @@ udx_napi_socket_close (js_env_t *env, js_callback_info_t *info) {
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
-    return NULL;
   }
 
   return NULL;
