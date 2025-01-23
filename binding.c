@@ -6,8 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifndef NAPI_AUTO_LENGTH // TODO: remove
-#define NAPI_AUTO_LENGTH ((size_t) - 1)
+#ifndef JS_AUTO_LENGTH // TODO: is it missing or intentionally removed? (NAPI_AUTO_LENGTH)
+#define JS_AUTO_LENGTH ((size_t) - 1)
 #endif
 
 #define UDX_NAPI_INTERACTIVE     0
@@ -20,7 +20,6 @@ typedef struct {
   char *read_buf;
   size_t read_buf_free;
 
-  // napi_async_cleanup_hook_handle teardown;
   js_deferred_teardown_t *teardown;
   bool exiting;
   bool has_teardown;
@@ -100,24 +99,34 @@ parse_address (struct sockaddr *name, char *ip, size_t size, int *port, int *fam
 }
 
 /**
- * Forward exceptions to uncaught handler
- * if exception occured on js-callback /w checkpoint
+ * When a native function is executing on uv event;
+ * (cannot be surrounded by try-catch block)
+ *
+ * redirect pending exceptions to global uncaught handler
+ * to avoid process abort (given an uncaught handler is installed).
  */
 static inline void
-forward_uncaught (js_env_t *env, int err) {
+redirect_to_uncaught (js_env_t *env, int err) {
   if (err == 0) return;
   assert(err == js_pending_exception || err == js_uncaught_exception);
 
-  js_value_t *fatal_exception;
-  err = js_get_and_clear_last_exception(env, &fatal_exception);
+  bool is_pending;
+  err = js_is_exception_pending(env, &is_pending);
   assert(err == 0);
 
-  err = js_fatal_exception(env, fatal_exception);
-  assert(err == 0);
+  if (is_pending) {
+    js_value_t *fatal_exception;
+    err = js_get_and_clear_last_exception(env, &fatal_exception);
+    assert(err == 0);
+
+    err = js_fatal_exception(env, fatal_exception);
+    assert(err == 0);
+  }
 }
 
-static int
+static inline int
 get_buffer_info (js_env_t *env, js_value_t *buffer, void **data, size_t *len) {
+#ifdef CHECKED_GET_BUFFER_INFO
   int err;
   bool is_typedarray;
   err = js_is_typedarray(env, buffer, &is_typedarray);
@@ -130,6 +139,10 @@ get_buffer_info (js_env_t *env, js_value_t *buffer, void **data, size_t *len) {
   if (is_arraybuffer) return js_get_arraybuffer_info(env, buffer, data, len);
 
   return -1;
+#else
+  // all buffers allocated through b4a are typed-arrays
+  return js_get_typedarray_info(env, buffer, NULL, data, len, NULL, NULL);
+#endif
 }
 
 
@@ -159,8 +172,8 @@ on_udx_send (udx_socket_send_t *req, int status) {
   err = js_create_int32(env, status, &(argv[1]));
   assert(err == 0);
 
-  err = js_call_function_with_checkpoint(env, ctx, callback, 2, argv, NULL);
-  forward_uncaught(env, err);
+  err = js_call_function(env, ctx, callback, 2, argv, NULL);
+  assert(err == 0);
 
   err = js_close_handle_scope(env, scope);
   assert(err == 0);
@@ -200,20 +213,20 @@ on_udx_message (udx_socket_t *self, ssize_t read_len, const uv_buf_t *buf, const
   assert(err == 0);
   err = js_create_uint32(env, port, &(argv[1]));
   assert(err == 0);
-  err = js_create_string_utf8(env, (utf8_t *) ip, NAPI_AUTO_LENGTH, &(argv[2]));
+  err = js_create_string_utf8(env, (utf8_t *) ip, JS_AUTO_LENGTH, &(argv[2]));
   assert(err == 0);
   err = js_create_uint32(env, family, &(argv[3]));
   assert(err == 0);
 
   js_value_t *res;
 
-  err = js_call_function_with_checkpoint(env, ctx, callback, 4, argv, &res);
-  forward_uncaught(env, err);
+  err = js_call_function(env, ctx, callback, 4, argv, &res);
 
   if (err == 0) {
     err = get_buffer_info(env, res, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free));
     assert(err == 0);
   } else {
+    redirect_to_uncaught(env, err);
 
     // avoid reentry
     if (!(n->udx->exiting)) {
@@ -231,12 +244,13 @@ on_udx_message (udx_socket_t *self, ssize_t read_len, const uv_buf_t *buf, const
       err = js_get_reference_value(env, n->realloc_message, &callback);
       assert(err == 0);
 
-      err = js_call_function_with_checkpoint(env, ctx, callback, 0, NULL, &res);
-      forward_uncaught(env, err);
+      err = js_call_function(env, ctx, callback, 0, NULL, &res);
 
       if (err == 0) {
         err = get_buffer_info(env, res, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free));
         assert(err == 0);
+      } else {
+        redirect_to_uncaught(env, err);
       }
 
       err = js_close_handle_scope(env, scope);
@@ -267,8 +281,8 @@ on_udx_close (udx_socket_t *self) {
     err = js_get_reference_value(env, n->on_close, &callback);
     assert(err == 0);
 
-    err = js_call_function_with_checkpoint(env, ctx, callback, 0, NULL, NULL);
-    forward_uncaught(env, err);
+    err = js_call_function(env, ctx, callback, 0, NULL, NULL);
+    redirect_to_uncaught(env, err);
 
     js_close_handle_scope(env, scope);
   }
@@ -329,8 +343,8 @@ on_udx_stream_end (udx_stream_t *stream) {
   err = js_create_uint32(env, read, &(argv[0]));
   assert(err == 0);
 
-  err = js_call_function_with_checkpoint(env, ctx, callback, 1, argv, NULL);
-  forward_uncaught(env, err);
+  err = js_call_function(env, ctx, callback, 1, argv, NULL);
+  redirect_to_uncaught(env, err);
 
   err = js_close_handle_scope(env, scope);
   assert(err == 0);
@@ -398,13 +412,13 @@ on_udx_stream_read (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
 
   js_value_t *res;
 
-  err = js_call_function_with_checkpoint(env, ctx, callback, 1, argv, &res);
+  err = js_call_function(env, ctx, callback, 1, argv, &res);
   if (err == 0) {
     err = get_buffer_info(env, res, (void **) &(n->read_buf), &(n->read_buf_free));
     assert(err == 0);
     n->read_buf_head = n->read_buf;
   } else {
-    forward_uncaught(env, err);
+    redirect_to_uncaught(env, err);
 
     // avoid re-entry
     if (!(n->udx->exiting)) {
@@ -420,8 +434,8 @@ on_udx_stream_read (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
       err = js_get_reference_value(env, n->realloc_data, &callback);
       assert(err == 0);
 
-      err = js_call_function_with_checkpoint(env, ctx, callback, 0, NULL, &res);
-      forward_uncaught(env, err);
+      err = js_call_function(env, ctx, callback, 0, NULL, &res);
+      redirect_to_uncaught(env, err);
 
       err = get_buffer_info(env, res, (void **) &(n->read_buf), &(n->read_buf_free));
       assert(err == 0);
@@ -455,8 +469,8 @@ on_udx_stream_drain (udx_stream_t *stream) {
   err = js_get_reference_value(env, n->on_drain, &callback);
   assert(err == 0);
 
-  err = js_call_function_with_checkpoint(env, ctx, callback, 0, NULL, NULL);
-  forward_uncaught(env, err);
+  err = js_call_function(env, ctx, callback, 0, NULL, NULL);
+  redirect_to_uncaught(env, err);
 
   err = js_close_handle_scope(env, scope);
   assert(err == 0);
@@ -486,8 +500,8 @@ on_udx_stream_ack (udx_stream_write_t *req, int status, int unordered) {
   err = js_create_uint32(env, (uintptr_t) req->data, &(argv[0]));
   assert(err == 0);
 
-  err = js_call_function_with_checkpoint(env, ctx, callback, 1, argv, NULL);
-  forward_uncaught(env, err);
+  err = js_call_function(env, ctx, callback, 1, argv, NULL);
+  redirect_to_uncaught(env, err);
 
   err = js_close_handle_scope(env, scope);
   assert(err == 0);
@@ -519,8 +533,8 @@ on_udx_stream_send (udx_stream_send_t *req, int status) {
   err = js_create_int32(env, status, &(argv[1]));
   assert(err == 0);
 
-  err = js_call_function_with_checkpoint(env, ctx, callback, 2, argv, NULL);
-  forward_uncaught(env, err);
+  err = js_call_function(env, ctx, callback, 2, argv, NULL);
+  redirect_to_uncaught(env, err);
 
   err = js_close_handle_scope(env, scope);
   assert(err == 0);
@@ -555,12 +569,13 @@ on_udx_stream_recv (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
   assert(err == 0);
 
   js_value_t *res;
-  err = js_call_function_with_checkpoint(env, ctx, callback, 1, argv, &res);
+  err = js_call_function(env, ctx, callback, 1, argv, &res);
+
   if (err == 0) {
     err = get_buffer_info(env, res, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free));
     assert(err == 0);
   } else {
-    forward_uncaught(env, err);
+    redirect_to_uncaught(env, err);
     // avoid re-entry
     if (!(n->udx->exiting)) {
       js_handle_scope_t *scope;
@@ -575,8 +590,8 @@ on_udx_stream_recv (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
       err = js_get_reference_value(env, n->realloc_message, &callback);
       assert(err == 0);
 
-      err = js_call_function_with_checkpoint(env, ctx, callback, 0, NULL, &res);
-      forward_uncaught(env, err);
+      err = js_call_function(env, ctx, callback, 0, NULL, &res);
+      redirect_to_uncaught(env, err);
 
       err = get_buffer_info(env, res, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free));
       assert(err == 0);
@@ -647,18 +662,19 @@ on_udx_stream_close (udx_stream_t *stream, int status) {
   } else {
     js_value_t *code;
     js_value_t *msg;
-    err = js_create_string_utf8(env, (utf8_t *) uv_err_name(status), NAPI_AUTO_LENGTH, &code);
+    err = js_create_string_utf8(env, (utf8_t *) uv_err_name(status), JS_AUTO_LENGTH, &code);
     assert(err == 0);
-    err = js_create_string_utf8(env, (utf8_t *) uv_strerror(status), NAPI_AUTO_LENGTH, &msg);
+    err = js_create_string_utf8(env, (utf8_t *) uv_strerror(status), JS_AUTO_LENGTH, &msg);
     assert(err == 0);
     err = js_create_error(env, code, msg, &(argv[0]));
     assert(err == 0);
   }
 
-  err = js_call_function_with_checkpoint(env, ctx, callback, 1, argv, NULL);
-  forward_uncaught(env, err);
+  err = js_call_function(env, ctx, callback, 1, argv, NULL);
+  redirect_to_uncaught(env, err);
 
   err = js_close_handle_scope(env, scope);
+  assert(err == 0);
 }
 
 static int
@@ -696,17 +712,17 @@ on_udx_stream_firewall (udx_stream_t *stream, udx_socket_t *socket, const struct
   assert(err == 0);
   err = js_create_uint32(env, port, &(argv[1]));
   assert(err == 0);
-  err = js_create_string_utf8(env, (utf8_t *) ip, NAPI_AUTO_LENGTH, &(argv[2]));
+  err = js_create_string_utf8(env, (utf8_t *) ip, JS_AUTO_LENGTH, &(argv[2]));
   assert(err == 0);
   err = js_create_uint32(env, family, &(argv[3]));
   assert(err == 0);
 
-  err = js_call_function_with_checkpoint(env, ctx, callback, 4, argv, &res);
+  err = js_call_function(env, ctx, callback, 4, argv, &res);
   if (err == 0) {
     err = js_get_value_uint32(env, res, &fw);
     assert(err == 0);
   } else {
-    forward_uncaught(env, err);
+    redirect_to_uncaught(env, err);
   }
 
   err = js_close_handle_scope(env, scope);
@@ -735,8 +751,8 @@ on_udx_stream_remote_changed (udx_stream_t *stream) {
   err = js_get_reference_value(env, n->on_remote_changed, &callback);
   assert(err == 0);
 
-  err = js_call_function_with_checkpoint(env, ctx, callback, 0, NULL, NULL);
-  forward_uncaught(env, err);
+  err = js_call_function(env, ctx, callback, 0, NULL, NULL);
+  redirect_to_uncaught(env, err);
 
   err = js_close_handle_scope(env, scope);
   assert(err == 0);
@@ -777,26 +793,26 @@ on_udx_lookup (udx_lookup_t *lookup, int status, const struct sockaddr *addr, in
     js_value_t *argv[3];
     err = js_get_null(env, &(argv[0]));
     assert(err == 0);
-    err = js_create_string_utf8(env, (utf8_t *) ip, NAPI_AUTO_LENGTH, &(argv[1]));
+    err = js_create_string_utf8(env, (utf8_t *) ip, JS_AUTO_LENGTH, &(argv[1]));
     assert(err == 0);
     err = js_create_uint32(env, family, &(argv[2]));
     assert(err == 0);
 
-    err = js_call_function_with_checkpoint(env, ctx, callback, 3, argv, NULL);
-    forward_uncaught(env, err);
+    err = js_call_function(env, ctx, callback, 3, argv, NULL);
+    redirect_to_uncaught(env, err);
   } else {
     js_value_t *argv[1];
     js_value_t *code;
     js_value_t *msg;
-    err = js_create_string_utf8(env, (utf8_t *) uv_err_name(status), NAPI_AUTO_LENGTH, &code);
+    err = js_create_string_utf8(env, (utf8_t *) uv_err_name(status), JS_AUTO_LENGTH, &code);
     assert(err == 0);
-    err = js_create_string_utf8(env, (utf8_t *) uv_strerror(status), NAPI_AUTO_LENGTH, &msg);
+    err = js_create_string_utf8(env, (utf8_t *) uv_strerror(status), JS_AUTO_LENGTH, &msg);
     assert(err == 0);
     err = js_create_error(env, code, msg, &(argv[0]));
     assert(err == 0);
 
-    err = js_call_function_with_checkpoint(env, ctx, callback, 1, argv, NULL);
-    forward_uncaught(env, err);
+    err = js_call_function(env, ctx, callback, 1, argv, NULL);
+    redirect_to_uncaught(env, err);
   }
 
   free(n->host);
@@ -829,8 +845,8 @@ on_udx_interface_event (udx_interface_event_t *handle, int status) {
   err = js_get_reference_value(env, e->on_event, &callback);
   assert(err == 0);
 
-  err = js_call_function_with_checkpoint(env, ctx, callback, 0, NULL, NULL);
-  forward_uncaught(env, err);
+  err = js_call_function(env, ctx, callback, 0, NULL, NULL);
+  redirect_to_uncaught(env, err);
 
   err = js_close_handle_scope(env, scope);
   assert(err == 0);
@@ -855,8 +871,8 @@ on_udx_interface_event_close (udx_interface_event_t *handle) {
   err = js_get_reference_value(env, e->on_close, &callback);
   assert(err == 0);
 
-  err = js_call_function_with_checkpoint(env, ctx, callback, 0, NULL, NULL);
-  forward_uncaught(env, err);
+  err = js_call_function(env, ctx, callback, 0, NULL, NULL);
+  redirect_to_uncaught(env, err);
 
   err = js_close_handle_scope(env, scope);
   assert(err == 0);
@@ -892,8 +908,6 @@ udx_napi_init (js_env_t *env, js_callback_info_t *info) {
   udx_napi_t *self;
   size_t self_len;
 
-  // TODO: all buffers allocated on JS side are typed-arrays; adjust all arraybufer_infos()
-  // err = js_get_typedarray_info(env, argv[0], NULL, (void **) &self, &self_len, NULL, NULL);
   err = get_buffer_info(env, argv[0], (void **) &self, &self_len);
   assert(err == 0);
 
@@ -2125,13 +2139,13 @@ udx_napi_interface_event_get_addrs (js_env_t *env, js_callback_info_t *info) {
     assert(err == 0);
 
     js_value_t *napi_name;
-    err = js_create_string_utf8(env, (utf8_t *) addr.name, NAPI_AUTO_LENGTH, &napi_name);
+    err = js_create_string_utf8(env, (utf8_t *) addr.name, JS_AUTO_LENGTH, &napi_name);
     assert(err == 0);
     err = js_set_named_property(env, napi_item, "name", napi_name);
     assert(err == 0);
 
     js_value_t *napi_ip;
-    err = js_create_string_utf8(env, (utf8_t *) ip, NAPI_AUTO_LENGTH, &napi_ip);
+    err = js_create_string_utf8(env, (utf8_t *) ip, JS_AUTO_LENGTH, &napi_ip);
     assert(err == 0);
     err = js_set_named_property(env, napi_item, "host", napi_ip);
     assert(err == 0);
