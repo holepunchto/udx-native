@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define dbg __builtin_debugtrap();
 #define UDX_NAPI_INTERACTIVE     0
 #define UDX_NAPI_NON_INTERACTIVE 1
 #define UDX_NAPI_FRAMED          2
