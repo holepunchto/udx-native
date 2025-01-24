@@ -1,14 +1,8 @@
-// #include <node_api.h>
-// #include <inttypes.h>
 #include <udx.h>
 #include <bare.h>
 #include <js.h>
 #include <stdlib.h>
 #include <string.h>
-
-#ifndef JS_AUTO_LENGTH // TODO: is it missing or intentionally removed? (NAPI_AUTO_LENGTH)
-#define JS_AUTO_LENGTH ((size_t) - 1)
-#endif
 
 #define UDX_NAPI_INTERACTIVE     0
 #define UDX_NAPI_NON_INTERACTIVE 1
@@ -126,23 +120,9 @@ redirect_to_uncaught (js_env_t *env, int err) {
 
 static inline int
 get_buffer_info (js_env_t *env, js_value_t *buffer, void **data, size_t *len) {
-#ifdef CHECKED_GET_BUFFER_INFO
-  int err;
-  bool is_typedarray;
-  err = js_is_typedarray(env, buffer, &is_typedarray);
-  if (err) return err;
-  if (is_typedarray) return js_get_typedarray_info(env, buffer, NULL, data, len, NULL, NULL);
-
-  bool is_arraybuffer;
-  err = js_is_arraybuffer(env, buffer, &is_arraybuffer);
-  if (err) return err;
-  if (is_arraybuffer) return js_get_arraybuffer_info(env, buffer, data, len);
-
-  return -1;
-#else
   // all buffers allocated through b4a are typed-arrays
+  // TODO: inspect if relloac read_buffer is safe to move, in which case move all allocs to native.
   return js_get_typedarray_info(env, buffer, NULL, data, len, NULL, NULL);
-#endif
 }
 
 
@@ -213,7 +193,7 @@ on_udx_message (udx_socket_t *self, ssize_t read_len, const uv_buf_t *buf, const
   assert(err == 0);
   err = js_create_uint32(env, port, &(argv[1]));
   assert(err == 0);
-  err = js_create_string_utf8(env, (utf8_t *) ip, JS_AUTO_LENGTH, &(argv[2]));
+  err = js_create_string_utf8(env, (utf8_t *) ip, -1, &(argv[2]));
   assert(err == 0);
   err = js_create_uint32(env, family, &(argv[3]));
   assert(err == 0);
@@ -662,9 +642,9 @@ on_udx_stream_close (udx_stream_t *stream, int status) {
   } else {
     js_value_t *code;
     js_value_t *msg;
-    err = js_create_string_utf8(env, (utf8_t *) uv_err_name(status), JS_AUTO_LENGTH, &code);
+    err = js_create_string_utf8(env, (utf8_t *) uv_err_name(status), -1, &code);
     assert(err == 0);
-    err = js_create_string_utf8(env, (utf8_t *) uv_strerror(status), JS_AUTO_LENGTH, &msg);
+    err = js_create_string_utf8(env, (utf8_t *) uv_strerror(status), -1, &msg);
     assert(err == 0);
     err = js_create_error(env, code, msg, &(argv[0]));
     assert(err == 0);
@@ -712,7 +692,7 @@ on_udx_stream_firewall (udx_stream_t *stream, udx_socket_t *socket, const struct
   assert(err == 0);
   err = js_create_uint32(env, port, &(argv[1]));
   assert(err == 0);
-  err = js_create_string_utf8(env, (utf8_t *) ip, JS_AUTO_LENGTH, &(argv[2]));
+  err = js_create_string_utf8(env, (utf8_t *) ip, -1, &(argv[2]));
   assert(err == 0);
   err = js_create_uint32(env, family, &(argv[3]));
   assert(err == 0);
@@ -793,7 +773,7 @@ on_udx_lookup (udx_lookup_t *lookup, int status, const struct sockaddr *addr, in
     js_value_t *argv[3];
     err = js_get_null(env, &(argv[0]));
     assert(err == 0);
-    err = js_create_string_utf8(env, (utf8_t *) ip, JS_AUTO_LENGTH, &(argv[1]));
+    err = js_create_string_utf8(env, (utf8_t *) ip, -1, &(argv[1]));
     assert(err == 0);
     err = js_create_uint32(env, family, &(argv[2]));
     assert(err == 0);
@@ -804,9 +784,9 @@ on_udx_lookup (udx_lookup_t *lookup, int status, const struct sockaddr *addr, in
     js_value_t *argv[1];
     js_value_t *code;
     js_value_t *msg;
-    err = js_create_string_utf8(env, (utf8_t *) uv_err_name(status), JS_AUTO_LENGTH, &code);
+    err = js_create_string_utf8(env, (utf8_t *) uv_err_name(status), -1, &code);
     assert(err == 0);
-    err = js_create_string_utf8(env, (utf8_t *) uv_strerror(status), JS_AUTO_LENGTH, &msg);
+    err = js_create_string_utf8(env, (utf8_t *) uv_strerror(status), -1, &msg);
     assert(err == 0);
     err = js_create_error(env, code, msg, &(argv[0]));
     assert(err == 0);
@@ -2138,13 +2118,13 @@ udx_napi_interface_event_get_addrs (js_env_t *env, js_callback_info_t *info) {
     assert(err == 0);
 
     js_value_t *napi_name;
-    err = js_create_string_utf8(env, (utf8_t *) addr.name, JS_AUTO_LENGTH, &napi_name);
+    err = js_create_string_utf8(env, (utf8_t *) addr.name, -1, &napi_name);
     assert(err == 0);
     err = js_set_named_property(env, napi_item, "name", napi_name);
     assert(err == 0);
 
     js_value_t *napi_ip;
-    err = js_create_string_utf8(env, (utf8_t *) ip, JS_AUTO_LENGTH, &napi_ip);
+    err = js_create_string_utf8(env, (utf8_t *) ip, -1, &napi_ip);
     assert(err == 0);
     err = js_set_named_property(env, napi_item, "host", napi_ip);
     assert(err == 0);
