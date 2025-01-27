@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <udx.h>
 #include <bare.h>
 #include <js.h>
@@ -1703,6 +1704,56 @@ udx_napi_stream_send (js_env_t *env, js_callback_info_t *info) {
   return return_uint32;
 }
 
+static inline uint32_t
+udx_napi__stream_write (js_env_t *env, udx_stream_t *stream, udx_stream_write_t *req, uint32_t rid, js_value_t *buffer) {
+  int err;
+  req->data = (void *) ((uintptr_t) rid);
+
+  char *buf;
+  size_t buf_len;
+  err = get_buffer_info(env, buffer, (void **) &buf, &buf_len);
+  assert(err == 0);
+
+  uv_buf_t b = uv_buf_init(buf, buf_len);
+
+  err = udx_stream_write(req, stream, &b, 1, on_udx_stream_ack);
+  if (err < 0) {
+    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
+    return -1;
+  }
+  return err;
+}
+
+uint32_t
+udx_napi_typed_stream_write(
+    js_value_t *receiver,
+    js_value_t *stream_handle,
+    js_value_t *req_handle,
+    uint32_t rid,
+    js_value_t *buffer,
+    js_typed_callback_info_t *info
+) {
+  int err;
+  js_env_t *env = NULL;
+  err = js_get_typed_callback_info(info, &env, NULL);
+  assert(err == 0);
+
+  udx_stream_t *stream;
+  size_t stream_len;
+  err = get_buffer_info(env, stream_handle, (void **) &stream, &stream_len);
+  assert(err == 0);
+
+  udx_stream_write_t *req;
+  size_t req_len;
+  err = get_buffer_info(env, req_handle, (void **) &req, &req_len);
+  assert(err == 0);
+  assert(req_len >= sizeof(udx_stream_write_t));
+
+
+  return udx_napi__stream_write(env, stream, req, rid, buffer);
+}
+
 js_value_t *
 udx_napi_stream_write (js_env_t *env, js_callback_info_t *info) {
   int err;
@@ -1725,27 +1776,76 @@ udx_napi_stream_write (js_env_t *env, js_callback_info_t *info) {
   err = js_get_value_uint32(env, argv[2], &rid);
   assert(err == 0);
 
-  char *buf;
-  size_t buf_len;
-  err = get_buffer_info(env, argv[3], (void **) &buf, &buf_len);
-  assert(err == 0);
-
-  req->data = (void *) ((uintptr_t) rid);
-
-  uv_buf_t b = uv_buf_init(buf, buf_len);
-
-  err = udx_stream_write(req, stream, &b, 1, on_udx_stream_ack);
-  if (err < 0) {
-    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
-    assert(err == 0);
-    return NULL;
-  }
+  err = udx_napi__stream_write(env, stream, req, rid, argv[3]);
 
   js_value_t *return_uint32;
   err = js_create_uint32(env, err, &return_uint32);
   assert(err == 0);
 
   return return_uint32;
+}
+
+static inline uint32_t
+udx_napi__stream_writev (js_env_t *env, udx_stream_t *stream, udx_stream_write_t *req, uint32_t rid, js_value_t *buffers) {
+  int err;
+  req->data = (void *) ((uintptr_t) rid);
+
+  uint32_t len;
+  err = js_get_array_length(env, buffers, &len);
+  assert(err == 0);
+
+  uv_buf_t *batch = malloc(sizeof(uv_buf_t) * len);
+
+  js_value_t *element;
+  for (uint32_t i = 0; i < len; i++) {
+    err = js_get_element(env, buffers, i, &element);
+    assert(err == 0);
+
+    char *buf;
+    size_t buf_len;
+    err = get_buffer_info(env, element, (void **) &buf, &buf_len);
+    assert(err == 0);
+
+    batch[i] = uv_buf_init(buf, buf_len);
+  }
+
+  err = udx_stream_write(req, stream, batch, len, on_udx_stream_ack);
+  free(batch);
+
+  if (err < 0) {
+    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
+    return -1;
+  }
+
+  return err;
+}
+
+uint32_t
+udx_napi_typed_stream_writev (
+    js_value_t *receiver,
+    js_value_t *stream_handle,
+    js_value_t *req_handle,
+    uint32_t rid,
+    js_value_t *buffers,
+    js_typed_callback_info_t *info
+) {
+  int err;
+  js_env_t *env = NULL;
+  err = js_get_typed_callback_info(info, &env, NULL);
+  assert(err == 0);
+
+  udx_stream_t *stream;
+  size_t stream_len;
+  err = get_buffer_info(env, stream_handle, (void **) &stream, &stream_len);
+  assert(err == 0);
+
+  udx_stream_write_t *req;
+  size_t req_len;
+  err = get_buffer_info(env, req_handle, (void **) &req, &req_len);
+  assert(err == 0);
+
+  return udx_napi__stream_writev(env, stream, req, rid, buffers);
 }
 
 js_value_t *
@@ -1772,41 +1872,19 @@ udx_napi_stream_writev (js_env_t *env, js_callback_info_t *info) {
 
   js_value_t *buffers = argv[3];
 
-  req->data = (void *) ((uintptr_t) rid);
-
-  uint32_t len;
-  err = js_get_array_length(env, buffers, &len);
-  assert(err == 0);
-
-  uv_buf_t *batch = malloc(sizeof(uv_buf_t) * len);
-
-  js_value_t *element;
-  for (uint32_t i = 0; i < len; i++) {
-    err = js_get_element(env, buffers, i, &element);
-    assert(err == 0);
-
-    char *buf;
-    size_t buf_len;
-    err = get_buffer_info(env, element, (void **) &buf, &buf_len);
-    assert(err == 0);
-
-    batch[i] = uv_buf_init(buf, buf_len);
-  }
-
-  err = udx_stream_write(req, stream, batch, len, on_udx_stream_ack);
-  free(batch);
-
-  if (err < 0) {
-    js_throw_error(env, uv_err_name(err), uv_strerror(err));
-    assert(err == 0);
-    return NULL;
-  }
+  err = udx_napi__stream_writev(env, stream, req, rid, buffers);
 
   js_value_t *return_uint32;
   err = js_create_uint32(env, err, &return_uint32);
   assert(err == 0);
 
   return return_uint32;
+}
+
+int32_t
+udx_napi_typed_stream_write_sizeof (js_value_t *recever, uint32_t bufs, js_typed_callback_info_t *info) {
+  assert(bufs > 0);
+  return udx_stream_write_sizeof(bufs);
 }
 
 js_value_t *
@@ -2229,9 +2307,48 @@ udx_native_exports (js_env_t *env, js_value_t *exports) {
   V("udx_napi_stream_relay_to", udx_napi_stream_relay_to, NULL, NULL);
   V("udx_napi_stream_send", udx_napi_stream_send, NULL, NULL);
   V("udx_napi_stream_recv_start", udx_napi_stream_recv_start, NULL, NULL);
-  V("udx_napi_stream_write", udx_napi_stream_write, NULL, NULL);
-  V("udx_napi_stream_writev", udx_napi_stream_writev, NULL, NULL);
-  V("udx_napi_stream_write_sizeof", udx_napi_stream_write_sizeof, NULL, NULL);
+  V("udx_napi_stream_write", udx_napi_stream_write, 
+    &((js_callback_signature_t) {
+      .version = 0,
+      .result = js_uint32, // status
+      .args_len = 5,
+      .args = (int[]) {
+        js_object, // receiver
+        js_object, // stream handle
+        js_object, // request handle
+        js_uint32, // request id
+        js_object  // typed-array / payload
+      }
+    }),
+    udx_napi_typed_stream_write
+  );
+  V("udx_napi_stream_writev", udx_napi_stream_writev,
+    &((js_callback_signature_t) {
+      .version = 0,
+      .result = js_uint32, // status
+      .args_len = 5,
+      .args = (int[]) {
+        js_object, // receiver
+        js_object, // stream handle
+        js_object, // request handle
+        js_uint32, // request id
+        js_object  // js_array<TypedArray>
+      }
+    }),
+    udx_napi_typed_stream_writev
+  );
+  V("udx_napi_stream_write_sizeof", udx_napi_stream_write_sizeof,
+    &((js_callback_signature_t) {
+        .version = 0,
+        .result = js_int32, // size
+        .args_len = 2,
+        .args = (int[]) {
+          js_object, // receiver
+          js_uint32, // len
+        }
+    }),
+    udx_napi_typed_stream_write_sizeof
+  );
   V("udx_napi_stream_write_end", udx_napi_stream_write_end, NULL, NULL);
   V("udx_napi_stream_destroy", udx_napi_stream_destroy, NULL, NULL);
   V("udx_napi_lookup", udx_napi_lookup, NULL, NULL);
