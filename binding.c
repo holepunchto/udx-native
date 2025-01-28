@@ -93,27 +93,6 @@ parse_address (struct sockaddr *name, char *ip, size_t size, int *port, int *fam
   }
 }
 
-
-// mark pending exception as handled
-static inline void
-clear_pending (js_env_t *env, int err) {
-  if (err == 0) return;
-  assert(err == js_pending_exception || err == js_uncaught_exception);
-
-  bool is_pending;
-  err = js_is_exception_pending(env, &is_pending);
-  assert(err == 0);
-
-  if (is_pending) {
-    js_value_t *fatal_exception;
-    err = js_get_and_clear_last_exception(env, &fatal_exception);
-    assert(err == 0);
-
-    err = js_fatal_exception(env, fatal_exception);
-    assert(err == 0);
-  }
-}
-
 static inline int
 get_buffer_info (js_env_t *env, js_value_t *buffer, void **data, size_t *len) {
   // all buffers allocated through b4a are typed-arrays
@@ -202,8 +181,6 @@ on_udx_message (udx_socket_t *self, ssize_t read_len, const uv_buf_t *buf, const
     err = get_buffer_info(env, res, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free));
     assert(err == 0);
   } else {
-    clear_pending(env, err);
-
     // avoid reentry
     if (!(n->udx->exiting)) {
       js_env_t *env = n->env;
@@ -221,13 +198,10 @@ on_udx_message (udx_socket_t *self, ssize_t read_len, const uv_buf_t *buf, const
       assert(err == 0);
 
       err = js_call_function_with_checkpoint(env, ctx, callback, 0, NULL, &res);
+      assert(err == 0);
 
-      if (err == 0) {
-        err = get_buffer_info(env, res, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free));
-        assert(err == 0);
-      } else {
-        clear_pending(env, err);
-      }
+      err = get_buffer_info(env, res, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free));
+      assert(err == 0);
 
       err = js_close_handle_scope(env, scope);
       assert(err == 0);
@@ -258,9 +232,10 @@ on_udx_close (udx_socket_t *self) {
     assert(err == 0);
 
     err = js_call_function_with_checkpoint(env, ctx, callback, 0, NULL, NULL);
-    clear_pending(env, err);
+    assert(err == 0);
 
-    js_close_handle_scope(env, scope);
+    err = js_close_handle_scope(env, scope);
+    assert(err == 0);
   }
 
   err = js_delete_reference(env, n->on_send);
@@ -320,7 +295,7 @@ on_udx_stream_end (udx_stream_t *stream) {
   assert(err == 0);
 
   err = js_call_function_with_checkpoint(env, ctx, callback, 1, argv, NULL);
-  clear_pending(env, err);
+  assert(err == 0);
 
   err = js_close_handle_scope(env, scope);
   assert(err == 0);
@@ -394,8 +369,6 @@ on_udx_stream_read (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
     assert(err == 0);
     n->read_buf_head = n->read_buf;
   } else {
-    clear_pending(env, err);
-
     // avoid re-entry
     if (!(n->udx->exiting)) {
       js_handle_scope_t *scope;
@@ -411,10 +384,11 @@ on_udx_stream_read (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
       assert(err == 0);
 
       err = js_call_function_with_checkpoint(env, ctx, callback, 0, NULL, &res);
-      clear_pending(env, err);
+      assert(err == 0);
 
       err = get_buffer_info(env, res, (void **) &(n->read_buf), &(n->read_buf_free));
       assert(err == 0);
+
       n->read_buf_head = n->read_buf;
 
       err = js_close_handle_scope(env, scope);
@@ -446,7 +420,7 @@ on_udx_stream_drain (udx_stream_t *stream) {
   assert(err == 0);
 
   err = js_call_function_with_checkpoint(env, ctx, callback, 0, NULL, NULL);
-  clear_pending(env, err);
+  assert(err == 0);
 
   err = js_close_handle_scope(env, scope);
   assert(err == 0);
@@ -477,7 +451,7 @@ on_udx_stream_ack (udx_stream_write_t *req, int status, int unordered) {
   assert(err == 0);
 
   err = js_call_function_with_checkpoint(env, ctx, callback, 1, argv, NULL);
-  clear_pending(env, err);
+  assert(err == 0);
 
   err = js_close_handle_scope(env, scope);
   assert(err == 0);
@@ -510,7 +484,7 @@ on_udx_stream_send (udx_stream_send_t *req, int status) {
   assert(err == 0);
 
   err = js_call_function_with_checkpoint(env, ctx, callback, 2, argv, NULL);
-  clear_pending(env, err);
+  assert(err == 0);
 
   err = js_close_handle_scope(env, scope);
   assert(err == 0);
@@ -551,7 +525,6 @@ on_udx_stream_recv (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
     err = get_buffer_info(env, res, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free));
     assert(err == 0);
   } else {
-    clear_pending(env, err);
     // avoid re-entry
     if (!(n->udx->exiting)) {
       js_handle_scope_t *scope;
@@ -567,7 +540,7 @@ on_udx_stream_recv (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
       assert(err == 0);
 
       err = js_call_function_with_checkpoint(env, ctx, callback, 0, NULL, &res);
-      clear_pending(env, err);
+      assert(err == 0);
 
       err = get_buffer_info(env, res, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free));
       assert(err == 0);
@@ -647,7 +620,7 @@ on_udx_stream_close (udx_stream_t *stream, int status) {
   }
 
   err = js_call_function_with_checkpoint(env, ctx, callback, 1, argv, NULL);
-  clear_pending(env, err);
+  assert(err == 0);
 
   err = js_close_handle_scope(env, scope);
   assert(err == 0);
@@ -697,8 +670,6 @@ on_udx_stream_firewall (udx_stream_t *stream, udx_socket_t *socket, const struct
   if (err == 0) {
     err = js_get_value_uint32(env, res, &fw);
     assert(err == 0);
-  } else {
-    clear_pending(env, err);
   }
 
   err = js_close_handle_scope(env, scope);
@@ -733,7 +704,7 @@ on_udx_stream_remote_changed (udx_stream_t *stream) {
   // this function is either called on IO / udx:process_packet()
   // or immediately on parent call "udx_napi_stream_change_remote" which is on current js-context.
   err = js_call_function_with_checkpoint(env, ctx, callback, 0, NULL, NULL);
-  clear_pending(env, err);
+  assert(err == 0);
 
   err = js_close_handle_scope(env, scope);
   assert(err == 0);
@@ -780,7 +751,7 @@ on_udx_lookup (udx_lookup_t *lookup, int status, const struct sockaddr *addr, in
     assert(err == 0);
 
     err = js_call_function_with_checkpoint(env, ctx, callback, 3, argv, NULL);
-    clear_pending(env, err);
+    assert(err == 0);
   } else {
     js_value_t *argv[1];
     js_value_t *code;
@@ -793,7 +764,7 @@ on_udx_lookup (udx_lookup_t *lookup, int status, const struct sockaddr *addr, in
     assert(err == 0);
 
     err = js_call_function_with_checkpoint(env, ctx, callback, 1, argv, NULL);
-    clear_pending(env, err);
+    assert(err == 0);
   }
 
   free(n->host);
@@ -827,7 +798,7 @@ on_udx_interface_event (udx_interface_event_t *handle, int status) {
   assert(err == 0);
 
   err = js_call_function_with_checkpoint(env, ctx, callback, 0, NULL, NULL);
-  clear_pending(env, err);
+  assert(err == 0);
 
   err = js_close_handle_scope(env, scope);
   assert(err == 0);
@@ -853,7 +824,7 @@ on_udx_interface_event_close (udx_interface_event_t *handle) {
   assert(err == 0);
 
   err = js_call_function_with_checkpoint(env, ctx, callback, 0, NULL, NULL);
-  clear_pending(env, err);
+  assert(err == 0);
 
   err = js_close_handle_scope(env, scope);
   assert(err == 0);
