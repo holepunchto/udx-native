@@ -1582,12 +1582,26 @@ udx_napi_stream_change_remote (js_env_t *env, js_callback_info_t *info) {
     return NULL;
   }
 
-  err = udx_stream_change_remote(stream, socket, remote_id, (const struct sockaddr *) &addr, on_udx_stream_remote_changed);
+  int immediate = err = udx_stream_change_remote(stream, socket, remote_id, (const struct sockaddr *) &addr, on_udx_stream_remote_changed);
 
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
     return NULL;
+  }
+
+  if (immediate == 1) {
+    udx_napi_stream_t *n = (udx_napi_stream_t *) stream;
+    js_value_t *ctx;
+    err = js_get_reference_value(env, n->ctx, &ctx);
+    assert(err == 0);
+
+    js_value_t *callback;
+    err = js_get_reference_value(env, n->on_remote_changed, &callback);
+    assert(err == 0);
+
+    err = js_call_function(env, ctx, callback, 0, NULL, NULL);
+    assert(err == 0);
   }
 
   return NULL;
