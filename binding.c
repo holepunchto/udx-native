@@ -1256,7 +1256,6 @@ udx_napi_socket_send_ttl (js_env_t *env, js_callback_info_t *info) {
   uv_buf_t b = uv_buf_init(buf, buf_len);
 
   err = udx_socket_send_ttl(req, self, &b, 1, (const struct sockaddr *) &addr, ttl, on_udx_send);
-  assert(err == 0); // previously unchecked
 
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
@@ -1467,9 +1466,9 @@ udx_napi_stream_recv_start (js_env_t *env, js_callback_info_t *info) {
   stream->read_buf_free = read_buf_len;
 
   err = udx_stream_read_start((udx_stream_t *) stream, on_udx_stream_read);
-  assert(err == 0); // napi_unchecked
+  assert(err == 0);
   err = udx_stream_recv_start((udx_stream_t *) stream, on_udx_stream_recv);
-  assert(err == 0); // napi_unchecked
+  assert(err == 0);
 
   return NULL;
 }
