@@ -8,6 +8,10 @@ project(udx_native C)
 
 bare_target(target)
 
+if(target MATCHES "win32")
+  add_compile_options(/MT$<$<CONFIG:Debug>:d>)
+endif()
+
 fetch_package("github:holepunchto/libudx#de408f4ae9cde4139938b09b4f443f2d45f22c9b")
 
 add_bare_module(udx_native_bare)
