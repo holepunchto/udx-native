@@ -46,7 +46,7 @@
   "dependencies": {
     "b4a": "^1.5.0",
     "bare-events": "^2.2.0",
-    "node-gyp-build": "^4.4.0",
+    "require-addon": "^1.1.0",
     "streamx": "^2.14.0"
   },
   "devDependencies": {
