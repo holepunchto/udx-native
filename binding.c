@@ -1,10 +1,8 @@
-#include <math.h>
-#include <stdint.h>
-#include <udx.h>
-#include <bare.h>
-#include <js.h>
 #include <stdlib.h>
+#include <js.h>
+#include <bare.h>
 #include <string.h>
+#include <udx.h>
 
 #define UDX_NAPI_INTERACTIVE     0
 #define UDX_NAPI_NON_INTERACTIVE 1
