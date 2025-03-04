@@ -44,12 +44,12 @@
   "homepage": "https://github.com/holepunchto/udx-native#readme",
   "dependencies": {
     "b4a": "^1.5.0",
-    "bare-compat-napi": "^1.2.2",
     "bare-events": "^2.2.0",
     "require-addon": "^1.1.0",
     "streamx": "^2.22.0"
   },
   "devDependencies": {
+    "bare-compat-napi": "^1.2.2",
     "brittle": "^3.1.0",
     "cmake-bare": "^1.1.10",
     "cmake-fetch": "^1.0.1",
