@@ -922,6 +922,7 @@ udx_napi_socket_bind (js_env_t *env, js_callback_info_t *info) {
   size_t argc = 5;
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
+  assert(argc == 5);
 
   udx_socket_t *self;
   size_t self_len;
@@ -1011,6 +1012,7 @@ udx_napi_socket_set_ttl (js_env_t *env, js_callback_info_t *info) {
   size_t argc = 2;
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
+  assert(argc == 2);
 
   udx_socket_t *self;
   size_t self_len;
@@ -1036,6 +1038,7 @@ udx_napi_socket_set_membership (js_env_t *env, js_callback_info_t *info) {
   int err;
   js_value_t *argv[4];
   size_t argc = 4;
+  assert(argc == 4);
 
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
@@ -1078,6 +1081,7 @@ udx_napi_socket_get_recv_buffer_size (js_env_t *env, js_callback_info_t *info) {
   size_t argc = 1;
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
+  assert(argc == 1);
 
   udx_socket_t *self;
   size_t self_len;
@@ -1107,6 +1111,7 @@ udx_napi_socket_set_recv_buffer_size (js_env_t *env, js_callback_info_t *info) {
   size_t argc = 2;
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
+  assert(argc == 2);
 
   udx_socket_t *self;
   size_t self_len;
@@ -1134,6 +1139,7 @@ udx_napi_socket_get_send_buffer_size (js_env_t *env, js_callback_info_t *info) {
   size_t argc = 1;
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
+  assert(argc == 1);
 
   udx_socket_t *self;
   size_t self_len;
@@ -1163,6 +1169,7 @@ udx_napi_socket_set_send_buffer_size (js_env_t *env, js_callback_info_t *info) {
   size_t argc = 2;
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
+  assert(argc == 2);
 
   udx_socket_t *self;
   size_t self_len;
@@ -1194,6 +1201,7 @@ udx_napi_socket_send_ttl (js_env_t *env, js_callback_info_t *info) {
   size_t argc = 8;
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
+  assert(argc == 8);
 
   udx_socket_t *self;
   size_t self_len;
@@ -1268,6 +1276,7 @@ udx_napi_socket_close (js_env_t *env, js_callback_info_t *info) {
   size_t argc = 1;
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
+  assert(argc == 1);
 
   udx_socket_t *self;
   size_t self_len;
@@ -1290,6 +1299,7 @@ udx_napi_stream_init (js_env_t *env, js_callback_info_t *info) {
   size_t argc = 16;
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
+  assert(argc == 16);
 
   udx_napi_t *udx;
   size_t udx_len;
@@ -1368,6 +1378,7 @@ udx_napi_stream_set_seq (js_env_t *env, js_callback_info_t *info) {
   size_t argc = 2;
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
+  assert(argc == 2);
 
   udx_stream_t *stream;
   size_t stream_len;
@@ -1395,6 +1406,7 @@ udx_napi_stream_set_ack (js_env_t *env, js_callback_info_t *info) {
   size_t argc = 2;
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
+  assert(argc == 2);
 
   udx_stream_t *stream;
   size_t stream_len;
@@ -1422,6 +1434,7 @@ udx_napi_stream_set_mode (js_env_t *env, js_callback_info_t *info) {
   size_t argc = 2;
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
+  assert(argc == 2);
 
   udx_napi_stream_t *stream;
   size_t stream_len;
@@ -1444,6 +1457,7 @@ udx_napi_stream_recv_start (js_env_t *env, js_callback_info_t *info) {
   size_t argc = 2;
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
+  assert(argc == 2);
 
   udx_napi_stream_t *stream;
   size_t stream_len;
@@ -1474,6 +1488,7 @@ udx_napi_stream_connect (js_env_t *env, js_callback_info_t *info) {
   size_t argc = 6;
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
+  assert(argc == 6);
 
   udx_stream_t *stream;
   size_t stream_len;
@@ -1534,6 +1549,7 @@ udx_napi_stream_change_remote (js_env_t *env, js_callback_info_t *info) {
   size_t argc = 6;
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
+  assert(argc == 6);
 
   udx_stream_t *stream;
   size_t stream_len;
@@ -1608,6 +1624,7 @@ udx_napi_stream_relay_to (js_env_t *env, js_callback_info_t *info) {
   size_t argc = 2;
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
+  assert(argc == 2);
 
   udx_stream_t *stream;
   size_t stream_len;
@@ -1636,6 +1653,7 @@ udx_napi_stream_send (js_env_t *env, js_callback_info_t *info) {
   size_t argc = 4;
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
+  assert(argc == 4);
 
   udx_stream_t *stream;
   size_t stream_len;
@@ -1737,6 +1755,7 @@ udx_napi_stream_write (js_env_t *env, js_callback_info_t *info) {
   size_t argc = 4;
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
+  assert(argc == 4);
 
   udx_stream_t *stream;
   size_t stream_len;
@@ -1781,6 +1800,7 @@ udx_napi_stream_writev (js_env_t *env, js_callback_info_t *info) {
   size_t argc = 4;
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
+  assert(argc == 4);
 
   udx_stream_t *stream;
   size_t stream_len;
@@ -1842,6 +1862,7 @@ udx_napi_stream_write_sizeof (js_env_t *env, js_callback_info_t *info) {
   size_t argc = 1;
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
+  assert(argc == 1);
 
   uint32_t bufs;
   err = js_get_value_uint32(env, argv[0], &bufs);
@@ -1861,6 +1882,7 @@ udx_napi_stream_write_end (js_env_t *env, js_callback_info_t *info) {
   size_t argc = 4;
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
+  assert(argc == 4);
 
   udx_stream_t *stream;
   size_t stream_len;
@@ -1906,6 +1928,7 @@ udx_napi_stream_destroy (js_env_t *env, js_callback_info_t *info) {
   size_t argc = 1;
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
+  assert(argc == 1);
 
   udx_stream_t *stream;
   size_t stream_len;
@@ -1933,6 +1956,7 @@ udx_napi_lookup (js_env_t *env, js_callback_info_t *info) {
   size_t argc = 6;
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
+  assert(argc == 6);
 
   udx_napi_t *udx;
   size_t udx_len;
@@ -1993,6 +2017,7 @@ udx_napi_interface_event_init (js_env_t *env, js_callback_info_t *info) {
   size_t argc = 5;
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
+  assert(argc == 5);
 
   udx_napi_t *udx;
   size_t udx_len;
@@ -2042,6 +2067,7 @@ udx_napi_interface_event_start (js_env_t *env, js_callback_info_t *info) {
   size_t argc = 1;
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
+  assert(argc == 1);
 
   udx_interface_event_t *event;
   size_t event_len;
@@ -2065,6 +2091,7 @@ udx_napi_interface_event_stop (js_env_t *env, js_callback_info_t *info) {
   size_t argc = 1;
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
+  assert(argc == 1);
 
   udx_interface_event_t *event;
   size_t event_len;
@@ -2088,6 +2115,7 @@ udx_napi_interface_event_close (js_env_t *env, js_callback_info_t *info) {
   size_t argc = 1;
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
+  assert(argc == 1);
 
   udx_interface_event_t *event;
   size_t event_len;
@@ -2111,6 +2139,7 @@ udx_napi_interface_event_get_addrs (js_env_t *env, js_callback_info_t *info) {
   size_t argc = 1;
   err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
   assert(err == 0);
+  assert(argc == 1);
 
   udx_interface_event_t *event;
   size_t event_len;
