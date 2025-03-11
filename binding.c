@@ -1823,10 +1823,16 @@ udx_napi_stream_writev (js_env_t *env, js_callback_info_t *info) {
   assert(err == 0);
 
   uv_buf_t *batch = malloc(sizeof(uv_buf_t) * len);
-  js_value_t *element;
+
+  js_value_t **elements = malloc(sizeof(js_value_t *) * len);
+
+  uint32_t fetched;
+  err = js_get_array_elements(env, argv[3], elements, len, 0, &fetched);
+  assert(err == 0);
+  assert(fetched == len);
+
   for (uint32_t i = 0; i < len; i++) {
-    err = js_get_element(env, argv[3], i, &element);
-    assert(err == 0);
+    js_value_t *element = elements[i];
 
     char *buf;
     size_t buf_len;
@@ -1835,8 +1841,13 @@ udx_napi_stream_writev (js_env_t *env, js_callback_info_t *info) {
 
     batch[i] = uv_buf_init(buf, buf_len);
   }
+
   err = udx_stream_write(req, stream, batch, len, on_udx_stream_ack);
+  assert(err >= 0);
+
   free(batch);
+
+  free(elements);
 
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
