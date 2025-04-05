@@ -800,12 +800,15 @@ test('write to unconnected stream', async function (t) {
   })
 })
 
-test('backpressures stream', async function (t) {
+test.solo('backpressures stream', async function (t) {
   t.plan(2)
 
   const u = new UDX()
 
   const send = 64 * 1024 * 1024
+  const interval = setInterval(() => {
+    t.comment('recv ' + recv + ' bytes')
+  }, 1000)
 
   let sent = 0
   let recv = 0
@@ -837,7 +840,7 @@ test('backpressures stream', async function (t) {
   b.on('end', function () {
     t.is(recv, send)
     t.ok(send > 0, 'sanity check, sent ' + send + ' bytes')
-
+    clearInterval(interval)
     b.end()
     socket.close()
   })
