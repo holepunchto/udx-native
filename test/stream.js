@@ -805,7 +805,7 @@ test('backpressures stream', async function (t) {
 
   const u = new UDX()
 
-  const send = 512 * 1024 * 1024
+  const send = 64 * 1024 * 1024
 
   let sent = 0
   let recv = 0

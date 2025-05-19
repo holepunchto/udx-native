@@ -14,6 +14,8 @@ if(target MATCHES "win32")
 endif()
 
 fetch_package("github:holepunchto/libudx#61fea2485c875db32896d65a4e3e6f371106f8b6")
+# TODO: latest main
+#fetch_package("github:holepunchto/libudx#d81e1a8de9f8a2017b251dfcd8b1a66c0839ab20")
 
 add_bare_module(udx_native_bare)
 
