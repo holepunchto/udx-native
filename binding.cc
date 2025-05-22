@@ -1,6 +1,7 @@
-#include <stdlib.h>
-#include <js.h>
 #include <bare.h>
+#include <js.h>
+#include <jstl.h>
+#include <stdlib.h>
 #include <string.h>
 #include <udx.h>
 
@@ -8,76 +9,107 @@
 #define UDX_NAPI_NON_INTERACTIVE 1
 #define UDX_NAPI_FRAMED          2
 
-typedef struct {
+namespace {
+// socket
+using cb_socket_send_t = js_function_t<void, js_receiver_t, uint64_t, int>;
+using cb_socket_message_t = js_function_t<js_typedarray_span_t<>, js_receiver_t, int64_t, int, js_string_t, int>;
+using cb_socket_close_t = js_function_t<void, js_receiver_t>;
+using cb_socket_realloc_message_t = js_function_t<js_typedarray_span_t<>, js_receiver_t>;
+
+// stream
+using cb_stream_end_t = js_function_t<void, js_receiver_t, uint32_t>;
+using cb_stream_data_t = js_function_t<js_typedarray_span_t<>, js_receiver_t, uint32_t>;
+using cb_stream_realloc_data_t = js_function_t<js_typedarray_span_t<>, js_receiver_t>;
+using cb_stream_drain_t = js_function_t<void, js_receiver_t>;
+using cb_stream_ack_t = js_function_t<void, js_receiver_t, uint32_t>;
+using cb_stream_send_t = js_function_t<void, js_receiver_t, int32_t, int32_t>;
+using cb_stream_message_t = js_function_t<js_typedarray_span_t<>, js_receiver_t, uint32_t>;
+using cb_stream_realloc_message_t = js_function_t<js_typedarray_span_t<>, js_receiver_t>;
+using cb_stream_close_t = js_function_t<void, js_receiver_t, std::optional<js_object_t>>;
+using cb_stream_firewall_t = js_function_t<uint32_t, js_receiver_t, js_receiver_t, uint32_t, js_string_t, uint32_t>;
+using cb_stream_remote_changed_t = js_function_t<void, js_receiver_t>;
+
+// udx
+using cb_udx_lookup_t = js_function_t<void, js_receiver_t, std::optional<js_object_t>, js_string_t, uint32_t>;
+
+// interface
+using cb_interface_event_t = js_function_t<void, js_receiver_t>;
+using cb_interface_close_t = js_function_t<void, js_receiver_t>;
+}; // namespace
+
+struct udx_napi_t {
   udx_t udx;
 
-  char *read_buf;
-  size_t read_buf_free;
+  // char *read_buf;
+  // size_t read_buf_free;
+  std::span<uint8_t> read_buf; // maybe restore applicable here.
 
   js_deferred_teardown_t *teardown;
   bool exiting;
   bool has_teardown;
-} udx_napi_t;
+};
 
-typedef struct {
+struct udx_napi_socket_t {
   udx_socket_t socket;
   udx_napi_t *udx;
 
   js_env_t *env;
-  js_ref_t *ctx;
-  js_ref_t *on_send;
-  js_ref_t *on_message;
-  js_ref_t *on_close;
-  js_ref_t *realloc_message;
-} udx_napi_socket_t;
 
-typedef struct {
+  js_persistent_t<js_receiver_t> ctx;
+
+  js_persistent_t<cb_socket_send_t> on_send;
+  js_persistent_t<cb_socket_message_t> on_message;
+  js_persistent_t<cb_socket_close_t> on_close;
+  js_persistent_t<cb_socket_realloc_message_t> realloc_message; // TODO: deprecate
+};
+
+struct udx_napi_stream_t {
   udx_stream_t stream;
   udx_napi_t *udx;
 
   int mode;
 
-  char *read_buf;
-  char *read_buf_head;
+  uint8_t *read_buf;
+  uint8_t *read_buf_head;
   size_t read_buf_free;
 
   ssize_t frame_len;
 
   js_env_t *env;
-  js_ref_t *ctx;
-  js_ref_t *on_data;
-  js_ref_t *on_end;
-  js_ref_t *on_drain;
-  js_ref_t *on_ack;
-  js_ref_t *on_send;
-  js_ref_t *on_message;
-  js_ref_t *on_close;
-  js_ref_t *on_firewall;
-  js_ref_t *on_remote_changed;
-  js_ref_t *realloc_data;
-  js_ref_t *realloc_message;
-} udx_napi_stream_t;
+  js_persistent_t<js_receiver_t> ctx;
+  js_persistent_t<cb_stream_data_t> on_data;
+  js_persistent_t<cb_stream_end_t> on_end;
+  js_persistent_t<cb_stream_drain_t> on_drain;
+  js_persistent_t<cb_stream_ack_t> on_ack;
+  js_persistent_t<cb_stream_send_t> on_send;
+  js_persistent_t<cb_stream_message_t> on_message;
+  js_persistent_t<cb_stream_close_t> on_close;
+  js_persistent_t<cb_stream_firewall_t> on_firewall;
+  js_persistent_t<cb_stream_remote_changed_t> on_remote_changed;
+  js_persistent_t<cb_stream_realloc_data_t> realloc_data;
+  js_persistent_t<cb_stream_realloc_message_t> realloc_message; // TODO: deprecate
+};
 
-typedef struct {
+struct udx_napi_lookup_t {
   udx_lookup_t handle;
   udx_napi_t *udx;
 
-  char *host;
+  js_persistent_t<js_string_t> host; // TODO: not used
 
   js_env_t *env;
-  js_ref_t *ctx;
-  js_ref_t *on_lookup;
-} udx_napi_lookup_t;
+  js_persistent_t<js_receiver_t> ctx;
+  js_persistent_t<cb_udx_lookup_t> on_lookup;
+};
 
-typedef struct {
+struct udx_napi_interface_event_t {
   udx_interface_event_t handle;
   udx_napi_t *udx;
 
   js_env_t *env;
-  js_ref_t *ctx;
-  js_ref_t *on_event;
-  js_ref_t *on_close;
-} udx_napi_interface_event_t;
+  js_persistent_t<js_receiver_t> ctx;
+  js_persistent_t<cb_interface_event_t> on_event;
+  js_persistent_t<cb_interface_close_t> on_close;
+};
 
 inline static void
 parse_address (struct sockaddr *name, char *ip, size_t size, int *port, int *family) {
@@ -95,7 +127,9 @@ parse_address (struct sockaddr *name, char *ip, size_t size, int *port, int *fam
 static void
 on_udx_send (udx_socket_send_t *req, int status) {
   int err;
-  udx_napi_socket_t *n = (udx_napi_socket_t *) req->socket;
+
+  auto *n = reinterpret_cast<udx_napi_socket_t *>(req->socket);
+
   if (n->udx->exiting) return;
 
   js_env_t *env = n->env;
@@ -104,22 +138,18 @@ on_udx_send (udx_socket_send_t *req, int status) {
   err = js_open_handle_scope(env, &scope);
   assert(err == 0);
 
-  js_value_t *ctx;
-  err = js_get_reference_value(env, n->ctx, &ctx);
+  js_receiver_t ctx;
+  err = js_get_reference_value(env, n->ctx, ctx);
   assert(err == 0);
 
-  js_value_t *callback;
-  err = js_get_reference_value(env, n->on_send, &callback);
+  cb_socket_send_t callback;
+  err = js_get_reference_value(env, n->on_send, callback);
   assert(err == 0);
 
-  js_value_t *argv[2];
-  err = js_create_int32(env, (uintptr_t) req->data, &(argv[0]));
-  assert(err == 0);
-  err = js_create_int32(env, status, &(argv[1]));
-  assert(err == 0);
+  auto id = reinterpret_cast<uintptr_t>(req->data);
 
-  err = js_call_function_with_checkpoint(env, ctx, callback, 2, argv, NULL);
-  assert(err == 0);
+  err = js_call_function_with_checkpoint(env, callback, ctx, static_cast<uint64_t>(id), status);
+  assert(err != js_pending_exception);
 
   err = js_close_handle_scope(env, scope);
   assert(err == 0);
@@ -127,7 +157,8 @@ on_udx_send (udx_socket_send_t *req, int status) {
 
 static void
 on_udx_message (udx_socket_t *self, ssize_t read_len, const uv_buf_t *buf, const struct sockaddr *from) {
-  udx_napi_socket_t *n = (udx_napi_socket_t *) self;
+  auto *n = reinterpret_cast<udx_napi_socket_t *>(self);
+
   if (n->udx->exiting) return;
 
   int err;
@@ -136,9 +167,9 @@ on_udx_message (udx_socket_t *self, ssize_t read_len, const uv_buf_t *buf, const
   int family = 0;
   parse_address((struct sockaddr *) from, ip, INET6_ADDRSTRLEN, &port, &family);
 
-  if (buf->len > n->udx->read_buf_free) return;
+  if (buf->len > n->udx->read_buf.size()) return;
 
-  memcpy(n->udx->read_buf, buf->base, buf->len);
+  memcpy(n->udx->read_buf.data(), buf->base, buf->len);
 
   js_env_t *env = n->env;
 
@@ -146,53 +177,55 @@ on_udx_message (udx_socket_t *self, ssize_t read_len, const uv_buf_t *buf, const
   err = js_open_handle_scope(env, &scope);
   assert(err == 0);
 
-  js_value_t *ctx;
-  err = js_get_reference_value(env, n->ctx, &ctx);
+  js_receiver_t ctx;
+  err = js_get_reference_value(env, n->ctx, ctx);
   assert(err == 0);
 
-  js_value_t *callback;
-  err = js_get_reference_value(env, n->on_message, &callback);
+  cb_socket_message_t callback;
+  err = js_get_reference_value(env, n->on_message, callback);
   assert(err == 0);
 
-  js_value_t *argv[4];
-  err = js_create_uint32(env, read_len, &(argv[0]));
-  assert(err == 0);
-  err = js_create_uint32(env, port, &(argv[1]));
-  assert(err == 0);
-  err = js_create_string_utf8(env, (utf8_t *) ip, -1, &(argv[2]));
-  assert(err == 0);
-  err = js_create_uint32(env, family, &(argv[3]));
+  js_string_t ip_str;
+  err = js_create_string(env, ip, ip_str);
   assert(err == 0);
 
-  js_value_t *res;
+  js_typedarray_span_t<> res;
 
-  err = js_call_function_with_checkpoint(env, ctx, callback, 4, argv, &res);
+  err = js_call_function_with_checkpoint(
+    env,
+    callback,
+    ctx,
+    static_cast<int64_t>(read_len),
+    port,
+    ip_str,
+    family,
+    res
+  );
 
   if (err == 0) {
-    err = js_get_typedarray_info(env, res, NULL, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free), NULL, NULL);
-    assert(err == 0);
+    n->udx->read_buf = res;
   } else {
     // avoid reentry
     if (!(n->udx->exiting)) {
+      // TODO: why not reallocate on native?
       js_env_t *env = n->env;
 
       js_handle_scope_t *scope;
       err = js_open_handle_scope(env, &scope);
       assert(err == 0);
 
-      js_value_t *ctx;
-      err = js_get_reference_value(env, n->ctx, &ctx);
+      js_receiver_t ctx;
+      err = js_get_reference_value(env, n->ctx, ctx);
       assert(err == 0);
 
-      js_value_t *callback;
-      err = js_get_reference_value(env, n->realloc_message, &callback);
+      cb_socket_realloc_message_t callback;
+      err = js_get_reference_value(env, n->realloc_message, callback);
       assert(err == 0);
 
-      err = js_call_function_with_checkpoint(env, ctx, callback, 0, NULL, &res);
+      err = js_call_function_with_checkpoint(env, callback, ctx, res);
       assert(err == 0);
 
-      err = js_get_typedarray_info(env, res, NULL, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free), NULL, NULL);
-      assert(err == 0);
+      n->udx->read_buf = res;
 
       err = js_close_handle_scope(env, scope);
       assert(err == 0);
@@ -214,37 +247,32 @@ on_udx_close (udx_socket_t *self) {
     err = js_open_handle_scope(env, &scope);
     assert(err == 0);
 
-    js_value_t *ctx;
-    err = js_get_reference_value(env, n->ctx, &ctx);
+    js_receiver_t ctx;
+    err = js_get_reference_value(env, n->ctx, ctx);
     assert(err == 0);
 
-    js_value_t *callback;
-    err = js_get_reference_value(env, n->on_close, &callback);
+    cb_socket_close_t callback;
+    err = js_get_reference_value(env, n->on_close, callback);
     assert(err == 0);
 
-    err = js_call_function_with_checkpoint(env, ctx, callback, 0, NULL, NULL);
-    assert(err == 0);
+    err = js_call_function_with_checkpoint(env, callback, ctx);
+    assert(err != js_pending_exception);
 
     err = js_close_handle_scope(env, scope);
     assert(err == 0);
   }
 
-  err = js_delete_reference(env, n->on_send);
-  assert(err == 0);
-  err = js_delete_reference(env, n->on_message);
-  assert(err == 0);
-  err = js_delete_reference(env, n->on_close);
-  assert(err == 0);
-  err = js_delete_reference(env, n->realloc_message);
-  assert(err == 0);
-  err = js_delete_reference(env, n->ctx);
-  assert(err == 0);
+  n->on_send.reset();
+  n->on_message.reset();
+  n->on_close.reset();
+  n->realloc_message.reset();
+  n->ctx.reset();
 }
 
 static void
 on_udx_teardown (js_deferred_teardown_t *handle, void *data) {
-  udx_napi_t *self = (udx_napi_t *) data;
-  udx_t *udx = (udx_t *) data;
+  auto self = reinterpret_cast<udx_napi_t *>(data);
+  udx_t *udx = &self->udx;
 
   self->exiting = true;
   udx_teardown(udx);
@@ -262,7 +290,7 @@ ensure_teardown (js_env_t *env, udx_napi_t *udx) {
 static void
 on_udx_stream_end (udx_stream_t *stream) {
   int err;
-  udx_napi_stream_t *n = (udx_napi_stream_t *) stream;
+  auto n = reinterpret_cast<udx_napi_stream_t *>(stream);
   if (n->udx->exiting) return;
 
   size_t read = n->read_buf_head - n->read_buf;
@@ -273,20 +301,17 @@ on_udx_stream_end (udx_stream_t *stream) {
   err = js_open_handle_scope(env, &scope);
   assert(err == 0);
 
-  js_value_t *ctx;
-  err = js_get_reference_value(env, n->ctx, &ctx);
+  js_receiver_t ctx;
+  err = js_get_reference_value(env, n->ctx, ctx);
   assert(err == 0);
 
-  js_value_t *callback;
-  err = js_get_reference_value(env, n->on_end, &callback);
+  cb_stream_end_t callback;
+
+  err = js_get_reference_value(env, n->on_end, callback);
   assert(err == 0);
 
-  js_value_t *argv[1];
-  err = js_create_uint32(env, read, &(argv[0]));
-  assert(err == 0);
-
-  err = js_call_function_with_checkpoint(env, ctx, callback, 1, argv, NULL);
-  assert(err == 0);
+  err = js_call_function_with_checkpoint(env, callback, ctx, static_cast<uint32_t>(read));
+  assert(err != js_pending_exception);
 
   err = js_close_handle_scope(env, scope);
   assert(err == 0);
@@ -296,7 +321,7 @@ static void
 on_udx_stream_read (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf) {
   if (read_len == UV_EOF) return on_udx_stream_end(stream);
 
-  udx_napi_stream_t *n = (udx_napi_stream_t *) stream;
+  auto n = reinterpret_cast<udx_napi_stream_t *>(stream);
   if (n->udx->exiting) return;
 
   // ignore the message if it doesn't fit in the read buffer
@@ -340,49 +365,50 @@ on_udx_stream_read (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
   int err = js_open_handle_scope(env, &scope);
   assert(err == 0);
 
-  js_value_t *ctx;
-  err = js_get_reference_value(env, n->ctx, &ctx);
+  js_receiver_t ctx;
+  err = js_get_reference_value(env, n->ctx, ctx);
   assert(err == 0);
 
-  js_value_t *callback;
-  err = js_get_reference_value(env, n->on_data, &callback);
+  cb_stream_data_t callback;
+  err = js_get_reference_value(env, n->on_data, callback);
   assert(err == 0);
 
   js_value_t *argv[1];
   err = js_create_uint32(env, read, &(argv[0]));
   assert(err == 0);
 
-  js_value_t *res;
-  err = js_call_function_with_checkpoint(env, ctx, callback, 1, argv, &res);
+  js_typedarray_span_t<> res;
+  err = js_call_function_with_checkpoint(env, callback, ctx, static_cast<uint32_t>(read), res);
 
   if (err == 0) {
-    err = js_get_typedarray_info(env, res, NULL, (void **) &(n->read_buf), &(n->read_buf_free), NULL, NULL);
-    assert(err == 0);
+    // err = js_get_typedarray_info(env, res, NULL, (void **) &(n->read_buf), &(n->read_buf_free), NULL, NULL);
+    // assert(err == 0);
+    n->read_buf = res.data();
+    n->read_buf_free = res.size();
     n->read_buf_head = n->read_buf;
   } else {
     // avoid re-entry
     if (!(n->udx->exiting)) {
-      js_handle_scope_t *scope;
-      err = js_open_handle_scope(env, &scope);
+      js_handle_scope_t *inner_scope;
+      err = js_open_handle_scope(env, &inner_scope);
       assert(err == 0);
 
-      js_value_t *ctx;
-      err = js_get_reference_value(env, n->ctx, &ctx);
+      js_receiver_t ctx;
+      err = js_get_reference_value(env, n->ctx, ctx);
       assert(err == 0);
 
-      js_value_t *callback;
-      err = js_get_reference_value(env, n->realloc_data, &callback);
+      cb_stream_realloc_data_t callback;
+      err = js_get_reference_value(env, n->realloc_data, callback);
       assert(err == 0);
 
-      err = js_call_function_with_checkpoint(env, ctx, callback, 0, NULL, &res);
+      err = js_call_function_with_checkpoint(env, callback, ctx, res);
       assert(err == 0);
 
-      err = js_get_typedarray_info(env, res, NULL, (void **) &(n->read_buf), &(n->read_buf_free), NULL, NULL);
-      assert(err == 0);
-
+      n->read_buf = res.data();
+      n->read_buf_free = res.size();
       n->read_buf_head = n->read_buf;
 
-      err = js_close_handle_scope(env, scope);
+      err = js_close_handle_scope(env, inner_scope);
       assert(err == 0);
     }
   }
@@ -393,7 +419,7 @@ on_udx_stream_read (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
 
 static void
 on_udx_stream_drain (udx_stream_t *stream) {
-  udx_napi_stream_t *n = (udx_napi_stream_t *) stream;
+  auto n = reinterpret_cast<udx_napi_stream_t *>(stream);
   if (n->udx->exiting) return;
 
   js_env_t *env = n->env;
@@ -402,16 +428,16 @@ on_udx_stream_drain (udx_stream_t *stream) {
   int err = js_open_handle_scope(env, &scope);
   assert(err == 0);
 
-  js_value_t *ctx;
-  err = js_get_reference_value(env, n->ctx, &ctx);
+  js_receiver_t ctx;
+  err = js_get_reference_value(env, n->ctx, ctx);
   assert(err == 0);
 
-  js_value_t *callback;
-  err = js_get_reference_value(env, n->on_drain, &callback);
+  cb_stream_drain_t callback;
+  err = js_get_reference_value(env, n->on_drain, callback);
   assert(err == 0);
 
-  err = js_call_function_with_checkpoint(env, ctx, callback, 0, NULL, NULL);
-  assert(err == 0);
+  err = js_call_function_with_checkpoint(env, callback, ctx);
+  assert(err != js_pending_exception);
 
   err = js_close_handle_scope(env, scope);
   assert(err == 0);
@@ -420,7 +446,8 @@ on_udx_stream_drain (udx_stream_t *stream) {
 static void
 on_udx_stream_ack (udx_stream_write_t *req, int status, int unordered) {
   int err = 0;
-  udx_napi_stream_t *n = (udx_napi_stream_t *) req->stream;
+
+  auto n = reinterpret_cast<udx_napi_stream_t *>(req->stream);
   if (n->udx->exiting) return;
 
   js_env_t *env = n->env;
@@ -429,19 +456,17 @@ on_udx_stream_ack (udx_stream_write_t *req, int status, int unordered) {
   err = js_open_handle_scope(env, &scope);
   assert(err == 0);
 
-  js_value_t *ctx;
-  err = js_get_reference_value(env, n->ctx, &ctx);
+  js_receiver_t ctx;
+  err = js_get_reference_value(env, n->ctx, ctx);
   assert(err == 0);
 
-  js_value_t *callback;
-  err = js_get_reference_value(env, n->on_ack, &callback);
+  cb_stream_ack_t callback;
+  err = js_get_reference_value(env, n->on_ack, callback);
   assert(err == 0);
 
-  js_value_t *argv[1];
-  err = js_create_uint32(env, (uintptr_t) req->data, &(argv[0]));
-  assert(err == 0);
+  auto offset = (uintptr_t) req->data; // TODO: search uintptr_t and consider replacing with native pointers
 
-  err = js_call_function_with_checkpoint(env, ctx, callback, 1, argv, NULL);
+  err = js_call_function_with_checkpoint(env, callback, ctx, static_cast<uint32_t>(offset));
   assert(err == 0);
 
   err = js_close_handle_scope(env, scope);
@@ -451,7 +476,8 @@ on_udx_stream_ack (udx_stream_write_t *req, int status, int unordered) {
 static void
 on_udx_stream_send (udx_stream_send_t *req, int status) {
   int err;
-  udx_napi_stream_t *n = (udx_napi_stream_t *) req->stream;
+
+  auto n = reinterpret_cast<udx_napi_stream_t *>(req->stream);
   if (n->udx->exiting) return;
 
   js_env_t *env = n->env;
@@ -460,21 +486,17 @@ on_udx_stream_send (udx_stream_send_t *req, int status) {
   err = js_open_handle_scope(env, &scope);
   assert(err == 0);
 
-  js_value_t *ctx;
-  err = js_get_reference_value(env, n->ctx, &ctx);
+  js_receiver_t ctx;
+  err = js_get_reference_value(env, n->ctx, ctx);
   assert(err == 0);
 
-  js_value_t *callback;
-  err = js_get_reference_value(env, n->on_send, &callback);
+  cb_stream_send_t callback;
+  err = js_get_reference_value(env, n->on_send, callback);
   assert(err == 0);
 
-  js_value_t *argv[2];
-  err = js_create_int32(env, (uintptr_t) req->data, &(argv[0]));
-  assert(err == 0);
-  err = js_create_int32(env, status, &(argv[1]));
-  assert(err == 0);
+  auto id = reinterpret_cast<uintptr_t>(req->data);
 
-  err = js_call_function_with_checkpoint(env, ctx, callback, 2, argv, NULL);
+  err = js_call_function_with_checkpoint(env, callback, ctx, static_cast<int32_t>(id), status);
   assert(err == 0);
 
   err = js_close_handle_scope(env, scope);
@@ -484,12 +506,13 @@ on_udx_stream_send (udx_stream_send_t *req, int status) {
 static void
 on_udx_stream_recv (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf) {
   int err;
-  udx_napi_stream_t *n = (udx_napi_stream_t *) stream;
+
+  auto n = reinterpret_cast<udx_napi_stream_t *>(stream);
   if (n->udx->exiting) return;
 
-  if (buf->len > n->udx->read_buf_free) return;
+  if (buf->len > n->udx->read_buf.size()) return;
 
-  memcpy(n->udx->read_buf, buf->base, buf->len);
+  memcpy(n->udx->read_buf.data(), buf->base, buf->len);
 
   js_env_t *env = n->env;
 
@@ -497,46 +520,46 @@ on_udx_stream_recv (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
   err = js_open_handle_scope(env, &scope);
   assert(err == 0);
 
-  js_value_t *ctx;
-  err = js_get_reference_value(env, n->ctx, &ctx);
+  js_receiver_t ctx;
+  err = js_get_reference_value(env, n->ctx, ctx);
   assert(err == 0);
 
-  js_value_t *callback;
-  err = js_get_reference_value(env, n->on_message, &callback);
+  cb_stream_message_t callback;
+  err = js_get_reference_value(env, n->on_message, callback);
   assert(err == 0);
 
   js_value_t *argv[1];
   err = js_create_uint32(env, read_len, &(argv[0]));
   assert(err == 0);
 
-  js_value_t *res;
-  err = js_call_function_with_checkpoint(env, ctx, callback, 1, argv, &res);
+  js_typedarray_span_t<> res;
+  err = js_call_function_with_checkpoint(env, callback, ctx, static_cast<uint32_t>(read_len), res);
 
   if (err == 0) {
-    err = js_get_typedarray_info(env, res, NULL, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free), NULL, NULL);
-    assert(err == 0);
+    n->udx->read_buf = res;
+    // err = js_get_typedarray_info(env, res, NULL, (void **) &(n->udx->read_buf), &(n->udx->read_buf.size()), NULL, NULL);
+    // assert(err == 0);
   } else {
     // avoid re-entry
     if (!(n->udx->exiting)) {
-      js_handle_scope_t *scope;
-      err = js_open_handle_scope(env, &scope);
+      js_handle_scope_t *inner_scope;
+      err = js_open_handle_scope(env, &inner_scope);
       assert(err == 0);
 
-      js_value_t *ctx;
-      err = js_get_reference_value(env, n->ctx, &ctx);
+      js_receiver_t ctx;
+      err = js_get_reference_value(env, n->ctx, ctx);
       assert(err == 0);
 
-      js_value_t *callback;
-      err = js_get_reference_value(env, n->realloc_message, &callback);
+      cb_stream_realloc_message_t callback;
+      err = js_get_reference_value(env, n->realloc_message, callback);
       assert(err == 0);
 
-      err = js_call_function_with_checkpoint(env, ctx, callback, 0, NULL, &res);
-      assert(err == 0);
+      err = js_call_function_with_checkpoint(env, callback, ctx, res);
+      assert(err != js_pending_exception);
 
-      err = js_get_typedarray_info(env, res, NULL, (void **) &(n->udx->read_buf), &(n->udx->read_buf_free), NULL, NULL);
-      assert(err == 0);
+      n->udx->read_buf = res;
 
-      err = js_close_handle_scope(env, scope);
+      err = js_close_handle_scope(env, inner_scope);
       assert(err == 0);
     }
   }
@@ -547,38 +570,27 @@ on_udx_stream_recv (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
 
 static void
 on_udx_stream_finalize (udx_stream_t *stream) {
-  udx_napi_stream_t *n = (udx_napi_stream_t *) stream;
-
-  int err = js_delete_reference(n->env, n->on_data);
-  assert(err == 0);
-  err = js_delete_reference(n->env, n->on_end);
-  assert(err == 0);
-  err = js_delete_reference(n->env, n->on_drain);
-  assert(err == 0);
-  err = js_delete_reference(n->env, n->on_ack);
-  assert(err == 0);
-  err = js_delete_reference(n->env, n->on_send);
-  assert(err == 0);
-  err = js_delete_reference(n->env, n->on_message);
-  assert(err == 0);
-  err = js_delete_reference(n->env, n->on_close);
-  assert(err == 0);
-  err = js_delete_reference(n->env, n->on_firewall);
-  assert(err == 0);
-  err = js_delete_reference(n->env, n->on_remote_changed);
-  assert(err == 0);
-  err = js_delete_reference(n->env, n->realloc_data);
-  assert(err == 0);
-  err = js_delete_reference(n->env, n->realloc_message);
-  assert(err == 0);
-  err = js_delete_reference(n->env, n->ctx);
-  assert(err == 0);
+  auto n = reinterpret_cast<udx_napi_stream_t *>(stream);
+  n->on_data.reset();
+  n->on_end.reset();
+  n->on_drain.reset();
+  n->on_ack.reset();
+  n->on_send.reset();
+  n->on_message.reset();
+  n->on_close.reset();
+  n->on_firewall.reset();
+  n->on_remote_changed.reset();
+  n->realloc_data.reset();
+  n->realloc_message.reset();
+  n->ctx.reset();
 }
 
 static void
 on_udx_stream_close (udx_stream_t *stream, int status) {
   int err;
-  udx_napi_stream_t *n = (udx_napi_stream_t *) stream;
+
+  auto n = reinterpret_cast<udx_napi_stream_t *>(stream);
+
   if (n->udx->exiting) return;
 
   js_env_t *env = n->env;
@@ -587,30 +599,32 @@ on_udx_stream_close (udx_stream_t *stream, int status) {
   err = js_open_handle_scope(env, &scope);
   assert(err == 0);
 
-  js_value_t *ctx;
-  err = js_get_reference_value(env, n->ctx, &ctx);
+  js_receiver_t ctx;
+  err = js_get_reference_value(env, n->ctx, ctx);
   assert(err == 0);
 
-  js_value_t *callback;
-  err = js_get_reference_value(env, n->on_close, &callback);
+  cb_stream_close_t callback;
+  err = js_get_reference_value(env, n->on_close, callback);
   assert(err == 0);
 
-  js_value_t *argv[1];
+  std::optional<js_object_t> res;
 
-  if (status >= 0) {
-    js_get_null(env, &(argv[0]));
-  } else {
+  if (status < 0) {
+    // not strictly necessary to have jstl-error support
+    // but forwarding the code + msg is.
     js_value_t *code;
     js_value_t *msg;
     err = js_create_string_utf8(env, (utf8_t *) uv_err_name(status), -1, &code);
     assert(err == 0);
     err = js_create_string_utf8(env, (utf8_t *) uv_strerror(status), -1, &msg);
     assert(err == 0);
-    err = js_create_error(env, code, msg, &(argv[0]));
+    js_value_t *error;
+    err = js_create_error(env, code, msg, &error);
     assert(err == 0);
+    res = static_cast<js_object_t>(error);
   }
 
-  err = js_call_function_with_checkpoint(env, ctx, callback, 1, argv, NULL);
+  err = js_call_function_with_checkpoint(env, callback, ctx, res);
   assert(err == 0);
 
   err = js_close_handle_scope(env, scope);
@@ -637,31 +651,33 @@ on_udx_stream_firewall (udx_stream_t *stream, udx_socket_t *socket, const struct
   err = js_open_handle_scope(env, &scope);
   assert(err == 0);
 
-  js_value_t *ctx;
-  err = js_get_reference_value(env, n->ctx, &ctx);
+  js_receiver_t ctx;
+  err = js_get_reference_value(env, n->ctx, ctx);
   assert(err == 0);
 
-  js_value_t *callback;
-  err = js_get_reference_value(env, n->on_firewall, &callback);
+  cb_stream_firewall_t callback;
+  err = js_get_reference_value(env, n->on_firewall, callback);
   assert(err == 0);
 
-  js_value_t *res;
-  js_value_t *argv[4];
-
-  err = js_get_reference_value(env, s->ctx, &(argv[0]));
-  assert(err == 0);
-  err = js_create_uint32(env, port, &(argv[1]));
-  assert(err == 0);
-  err = js_create_string_utf8(env, (utf8_t *) ip, -1, &(argv[2]));
-  assert(err == 0);
-  err = js_create_uint32(env, family, &(argv[3]));
+  js_string_t ip_str;
+  err = js_create_string(env, ip, ip_str);
   assert(err == 0);
 
-  err = js_call_function_with_checkpoint(env, ctx, callback, 4, argv, &res);
-  if (err == 0) {
-    err = js_get_value_uint32(env, res, &fw);
-    assert(err == 0);
-  }
+  js_receiver_t socket_ctx;
+  js_get_reference_value(env, s->ctx, socket_ctx);
+  assert(err == 0);
+
+  err = js_call_function_with_checkpoint(
+    env,
+    callback,
+    ctx,
+    socket_ctx,
+    static_cast<uint32_t>(port),
+    ip_str,
+    static_cast<uint32_t>(family),
+    fw
+  );
+  assert(err != js_pending_exception);
 
   err = js_close_handle_scope(env, scope);
   assert(err == 0);
@@ -681,15 +697,15 @@ on_udx_stream_remote_changed (udx_stream_t *stream) {
   err = js_open_handle_scope(env, &scope);
   assert(err == 0);
 
-  js_value_t *ctx;
-  err = js_get_reference_value(env, n->ctx, &ctx);
+  js_receiver_t ctx;
+  err = js_get_reference_value(env, n->ctx, ctx);
   assert(err == 0);
 
-  js_value_t *callback;
-  err = js_get_reference_value(env, n->on_remote_changed, &callback);
+  cb_stream_remote_changed_t callback;
+  err = js_get_reference_value(env, n->on_remote_changed, callback);
   assert(err == 0);
 
-  err = js_call_function_with_checkpoint(env, ctx, callback, 0, NULL, NULL);
+  err = js_call_function_with_checkpoint(env, callback, ctx);
   assert(err == 0);
 
   err = js_close_handle_scope(env, scope);
@@ -699,7 +715,8 @@ on_udx_stream_remote_changed (udx_stream_t *stream) {
 static void
 on_udx_lookup (udx_lookup_t *lookup, int status, const struct sockaddr *addr, int addr_len) {
   int err;
-  udx_napi_lookup_t *n = (udx_napi_lookup_t *) lookup;
+
+  auto n = reinterpret_cast<udx_napi_lookup_t *>(lookup);
   if (n->udx->exiting) return;
 
   js_env_t *env = n->env;
@@ -711,13 +728,16 @@ on_udx_lookup (udx_lookup_t *lookup, int status, const struct sockaddr *addr, in
   err = js_open_handle_scope(env, &scope);
   assert(err == 0);
 
-  js_value_t *ctx;
-  err = js_get_reference_value(env, n->ctx, &ctx);
+  js_receiver_t ctx;
+  err = js_get_reference_value(env, n->ctx, ctx);
   assert(err == 0);
 
-  js_value_t *callback;
-  err = js_get_reference_value(env, n->on_lookup, &callback);
+  cb_udx_lookup_t callback;
+  err = js_get_reference_value(env, n->on_lookup, callback);
   assert(err == 0);
+
+  std::optional<js_object_t> error;
+  js_string_t ip_str;
 
   if (status >= 0) {
     if (addr->sa_family == AF_INET) {
@@ -727,46 +747,34 @@ on_udx_lookup (udx_lookup_t *lookup, int status, const struct sockaddr *addr, in
       uv_ip6_name((struct sockaddr_in6 *) addr, ip, addr_len);
       family = 6;
     }
-
-    js_value_t *argv[3];
-    err = js_get_null(env, &(argv[0]));
-    assert(err == 0);
-    err = js_create_string_utf8(env, (utf8_t *) ip, -1, &(argv[1]));
-    assert(err == 0);
-    err = js_create_uint32(env, family, &(argv[2]));
-    assert(err == 0);
-
-    err = js_call_function_with_checkpoint(env, ctx, callback, 3, argv, NULL);
-    assert(err == 0);
   } else {
-    js_value_t *argv[1];
+    js_value_t *val;
     js_value_t *code;
     js_value_t *msg;
     err = js_create_string_utf8(env, (utf8_t *) uv_err_name(status), -1, &code);
     assert(err == 0);
     err = js_create_string_utf8(env, (utf8_t *) uv_strerror(status), -1, &msg);
     assert(err == 0);
-    err = js_create_error(env, code, msg, &(argv[0]));
+    err = js_create_error(env, code, msg, &val);
     assert(err == 0);
 
-    err = js_call_function_with_checkpoint(env, ctx, callback, 1, argv, NULL);
-    assert(err == 0);
+    error = static_cast<js_object_t>(val);
   }
 
-  free(n->host);
+  err = js_call_function_with_checkpoint(env, callback, ctx, error, ip_str, static_cast<uint32_t>(family));
+  assert(err != js_pending_exception);
 
   err = js_close_handle_scope(env, scope);
   assert(err == 0);
 
-  err = js_delete_reference(n->env, n->on_lookup);
-  assert(err == 0);
-  err = js_delete_reference(n->env, n->ctx);
-  assert(err == 0);
+  n->on_lookup.reset();
+  n->ctx.reset();
+  n->host.reset();
 }
 
 static void
 on_udx_interface_event (udx_interface_event_t *handle, int status) {
-  udx_napi_interface_event_t *e = (udx_napi_interface_event_t *) handle;
+  auto e = reinterpret_cast<udx_napi_interface_event_t *>(handle);
   if (e->udx->exiting) return;
 
   js_env_t *env = e->env;
@@ -775,15 +783,15 @@ on_udx_interface_event (udx_interface_event_t *handle, int status) {
   int err = js_open_handle_scope(env, &scope);
   assert(err == 0);
 
-  js_value_t *ctx;
-  err = js_get_reference_value(env, e->ctx, &ctx);
+  js_receiver_t ctx;
+  err = js_get_reference_value(env, e->ctx, ctx);
   assert(err == 0);
 
-  js_value_t *callback;
-  err = js_get_reference_value(env, e->on_event, &callback);
+  cb_interface_event_t callback;
+  err = js_get_reference_value(env, e->on_event, callback);
   assert(err == 0);
 
-  err = js_call_function_with_checkpoint(env, ctx, callback, 0, NULL, NULL);
+  err = js_call_function_with_checkpoint(env, callback, ctx);
   assert(err == 0);
 
   err = js_close_handle_scope(env, scope);
@@ -801,31 +809,29 @@ on_udx_interface_event_close (udx_interface_event_t *handle) {
   int err = js_open_handle_scope(env, &scope);
   assert(err == 0);
 
-  js_value_t *ctx;
-  err = js_get_reference_value(env, e->ctx, &ctx);
+  js_receiver_t ctx;
+  err = js_get_reference_value(env, e->ctx, ctx);
   assert(err == 0);
 
-  js_value_t *callback;
-  err = js_get_reference_value(env, e->on_close, &callback);
+  cb_interface_close_t callback;
+  err = js_get_reference_value(env, e->on_close, callback);
   assert(err == 0);
 
-  err = js_call_function_with_checkpoint(env, ctx, callback, 0, NULL, NULL);
+  err = js_call_function_with_checkpoint(env, callback, ctx);
   assert(err == 0);
 
   err = js_close_handle_scope(env, scope);
   assert(err == 0);
 
-  err = js_delete_reference(env, e->on_event);
-  assert(err == 0);
-  err = js_delete_reference(env, e->on_close);
-  assert(err == 0);
-  err = js_delete_reference(env, e->ctx);
-  assert(err == 0);
+  e->on_event.reset();
+  e->on_close.reset();
+  e->ctx.reset();
 }
 
 static void
 on_udx_idle (udx_t *u) {
-  udx_napi_t *self = (udx_napi_t *) u;
+  auto self = reinterpret_cast<udx_napi_t *>(u);
+
   if (!self->has_teardown) return;
   self->has_teardown = false;
 
@@ -833,118 +839,89 @@ on_udx_idle (udx_t *u) {
   if (err != 0) abort();
 }
 
-js_value_t *
-udx_napi_init (js_env_t *env, js_callback_info_t *info) {
+static inline void
+udx_napi_init (
+  js_env_t *env,
+  js_typedarray_span_of_t<udx_napi_t, 1> self,
+  js_typedarray_span_t<> read_buf
+) {
   int err;
-  js_value_t *argv[2];
-  size_t argc = 2;
-
-  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
-  assert(err == 0);
-  assert(argc == 2);
-
-  udx_napi_t *self;
-  size_t self_len;
-
-  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &self, &self_len, NULL, NULL);
-  assert(err == 0);
-
-  char *read_buf;
-  size_t read_buf_len;
-  err = js_get_typedarray_info(env, argv[1], NULL, (void **) &read_buf, &read_buf_len, NULL, NULL);
-  assert(err == 0);
-
   uv_loop_t *loop;
   err = js_get_env_loop(env, &loop);
   assert(err == 0);
 
-  err = udx_init(loop, &(self->udx), on_udx_idle);
+  err = udx_init(loop, &self->udx, on_udx_idle);
   assert(err == 0);
 
+  // self->read_buf.data() = read_buf.data();
+  // self->read_buf_free = read_buf.size();
   self->read_buf = read_buf;
-  self->read_buf_free = read_buf_len;
+
   self->exiting = false;
   self->has_teardown = false;
-
-  return NULL;
 }
 
-js_value_t *
-udx_napi_socket_init (js_env_t *env, js_callback_info_t *info) {
+static inline void
+udx_napi_socket_init (
+  js_env_t *env,
+  js_receiver_t rctx,
+  js_typedarray_span_of_t<udx_napi_t, 1> udx,
+  js_typedarray_span_of_t<udx_napi_socket_t, 1> self,
+
+  js_object_t ctx, // should equal js_receiver_t (can be removed)
+
+  cb_socket_send_t on_send,
+  cb_socket_message_t on_message,
+  cb_socket_close_t on_close,
+  cb_socket_realloc_message_t realloc_message
+) {
   int err;
-  js_value_t *argv[7];
-  size_t argc = 7;
-  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
-  assert(err == 0);
-  assert(argc == 7);
 
-  udx_napi_t *udx;
-  size_t udx_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &udx, &udx_len, NULL, NULL);
-  assert(err == 0);
+  bool tmp;
+  err = js_strict_equals(env, static_cast<js_value_t *>(ctx), static_cast<js_value_t *>(rctx), &tmp);
+  assert(!tmp && "keep context arg");
+  assert(tmp && "remove context arg");
 
-  udx_napi_socket_t *self;
-  size_t self_len;
-  err = js_get_typedarray_info(env, argv[1], NULL, (void **) &self, &self_len, NULL, NULL);
-  assert(err == 0);
-
-  udx_socket_t *socket = (udx_socket_t *) self;
-
-  self->udx = udx;
+  udx_socket_t *socket = &self->socket;
+  self->udx = &*udx;
   self->env = env;
-  err = js_create_reference(env, argv[2], 1, &(self->ctx));
-  assert(err == 0);
-  err = js_create_reference(env, argv[3], 1, &(self->on_send));
-  assert(err == 0);
-  err = js_create_reference(env, argv[4], 1, &(self->on_message));
-  assert(err == 0);
-  err = js_create_reference(env, argv[5], 1, &(self->on_close));
-  assert(err == 0);
-  err = js_create_reference(env, argv[6], 1, &(self->realloc_message));
-  assert(err == 0);
 
-  err = udx_socket_init((udx_t *) udx, socket, on_udx_close);
+  err = js_create_reference(env, rctx, self->ctx);
+  assert(err == 0);
+  err = js_create_reference(env, on_send, self->on_send);
+  assert(err == 0);
+  err = js_create_reference(env, on_message, self->on_message);
+  assert(err == 0);
+  err = js_create_reference(env, on_close, self->on_close);
+  assert(err == 0);
+  err = js_create_reference(env, realloc_message, self->realloc_message);
+
+  err = udx_socket_init(&udx->udx, socket, on_udx_close);
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
-    return NULL;
+    return;
   }
 
   ensure_teardown(env, udx);
-
-  return NULL;
 }
 
-js_value_t *
-udx_napi_socket_bind (js_env_t *env, js_callback_info_t *info) {
+static inline int32_t
+udx_napi_socket_bind (
+  js_env_t *env,
+  js_typedarray_span_of_t<udx_socket_t, 1> self,
+  uint32_t port,
+  js_string_t ip_str,
+  uint32_t family,
+  uint32_t flags
+) {
   int err;
-  js_value_t *argv[5];
-  size_t argc = 5;
-  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
-  assert(err == 0);
-  assert(argc == 5);
 
-  udx_socket_t *self;
-  size_t self_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &self, &self_len, NULL, NULL);
+  char ip[INET6_ADDRSTRLEN] = {0};
+  std::string tmp;
+  err = js_get_value_string(env, ip_str, tmp);
   assert(err == 0);
-
-  uint32_t port;
-  err = js_get_value_uint32(env, argv[1], &port);
-  assert(err == 0);
-
-  char ip[INET6_ADDRSTRLEN];
-  size_t ip_len;
-  err = js_get_value_string_utf8(env, argv[2], (utf8_t *) &ip, INET6_ADDRSTRLEN, &ip_len);
-  assert(err == 0);
-
-  uint32_t family;
-  err = js_get_value_uint32(env, argv[3], &family);
-  assert(err == 0);
-
-  uint32_t flags;
-  err = js_get_value_uint32(env, argv[4], &flags);
-  assert(err == 0);
+  strncpy(ip, tmp.c_str(), MIN(INET6_ADDRSTRLEN, tmp.length())); // TODO: unhacky
 
   struct sockaddr_storage addr;
   int addr_len;
@@ -960,14 +937,14 @@ udx_napi_socket_bind (js_env_t *env, js_callback_info_t *info) {
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
-    return NULL;
+    return -1;
   }
 
   err = udx_socket_bind(self, (struct sockaddr *) &addr, flags);
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
-    return NULL;
+    return -1;
   }
 
   // TODO: move the bottom stuff into another function, start, so error handling is easier
@@ -979,7 +956,7 @@ udx_napi_socket_bind (js_env_t *env, js_callback_info_t *info) {
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
-    return NULL;
+    return -1;
   }
 
   int local_port;
@@ -995,249 +972,147 @@ udx_napi_socket_bind (js_env_t *env, js_callback_info_t *info) {
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
-    return NULL;
+    return -1;
   }
 
-  js_value_t *return_uint32;
-  err = js_create_uint32(env, local_port, &return_uint32);
-  assert(err == 0);
-
-  return return_uint32;
+  return local_port;
 }
 
-js_value_t *
-udx_napi_socket_set_ttl (js_env_t *env, js_callback_info_t *info) {
+static inline void
+udx_napi_socket_set_ttl (
+  js_env_t *env,
+  js_typedarray_span_of_t<udx_socket_t, 1> self,
+  uint32_t ttl
+) {
   int err;
-  js_value_t *argv[2];
-  size_t argc = 2;
-  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
-  assert(err == 0);
-  assert(argc == 2);
-
-  udx_socket_t *self;
-  size_t self_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &self, &self_len, NULL, NULL);
-  assert(err == 0);
-
-  uint32_t ttl;
-  err = js_get_value_uint32(env, argv[1], &ttl);
-  assert(err == 0);
 
   err = udx_socket_set_ttl(self, ttl);
+
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
-    return NULL;
   }
-
-  return NULL;
 }
 
-js_value_t *
-udx_napi_socket_set_membership (js_env_t *env, js_callback_info_t *info) {
+static inline void
+udx_napi_socket_set_membership (
+  js_env_t *env,
+  js_typedarray_span_of_t<udx_socket_t, 1> socket,
+  js_string_t mcast_addr_str,
+  js_string_t iface_addr_str,
+  bool join
+) {
   int err;
-  js_value_t *argv[4];
-  size_t argc = 4;
-  assert(argc == 4);
 
-  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
-  assert(err == 0);
+  char mcast_addr[INET6_ADDRSTRLEN] = {0};
 
-  udx_socket_t *socket;
-  size_t socket_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &socket, &socket_len, NULL, NULL);
+  std::string tmp;
+  err = js_get_value_string(env, mcast_addr_str, tmp);
   assert(err == 0);
+  strncpy(mcast_addr, tmp.c_str(), MIN(tmp.length(), INET6_ADDRSTRLEN)); // TODO: unhacky
 
-  char mcast_addr[INET6_ADDRSTRLEN];
-  size_t mcast_addr_len;
-  err = js_get_value_string_utf8(env, argv[1], (utf8_t *) mcast_addr, INET6_ADDRSTRLEN, &mcast_addr_len);
+  char iface_addr[INET6_ADDRSTRLEN] = {0};
+  err = js_get_value_string(env, iface_addr_str, tmp);
   assert(err == 0);
-
-  char iface_addr[INET6_ADDRSTRLEN];
-  size_t iface_addr_len;
-  err = js_get_value_string_utf8(env, argv[2], (utf8_t *) iface_addr, INET6_ADDRSTRLEN, &iface_addr_len);
-  assert(err == 0);
+  strncpy(iface_addr, tmp.c_str(), MIN(tmp.length(), INET6_ADDRSTRLEN)); // TODO: unhacky
+  size_t iface_addr_len = tmp.length();
 
   char *iface_param = iface_addr_len > 0 ? iface_addr : NULL;
 
-  bool join; // true for join, false for leave
-  err = js_get_value_bool(env, argv[3], &join);
-  assert(err == 0);
-
   err = udx_socket_set_membership(socket, mcast_addr, iface_param, join ? UV_JOIN_GROUP : UV_LEAVE_GROUP);
+
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
-    return NULL;
   }
-
-  return NULL;
 }
 
-js_value_t *
-udx_napi_socket_get_recv_buffer_size (js_env_t *env, js_callback_info_t *info) {
+static inline uint32_t
+udx_napi_socket_get_recv_buffer_size (
+  js_env_t *env,
+  js_typedarray_span_of_t<udx_socket_t, 1> self
+) {
   int err;
-  js_value_t *argv[1];
-  size_t argc = 1;
-  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
-  assert(err == 0);
-  assert(argc == 1);
-
-  udx_socket_t *self;
-  size_t self_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &self, &self_len, NULL, NULL);
-  assert(err == 0);
 
   int size = 0;
 
   err = udx_socket_get_recv_buffer_size(self, &size);
+
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
-    return NULL;
   }
 
-  js_value_t *return_uint32;
-  err = js_create_uint32(env, size, &return_uint32);
-  assert(err == 0);
-
-  return return_uint32;
+  return size;
 }
 
-js_value_t *
-udx_napi_socket_set_recv_buffer_size (js_env_t *env, js_callback_info_t *info) {
-  int err;
-  js_value_t *argv[2];
-  size_t argc = 2;
-  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
-  assert(err == 0);
-  assert(argc == 2);
+static inline void
+udx_napi_socket_set_recv_buffer_size (
+  js_env_t *env,
+  js_typedarray_span_of_t<udx_socket_t, 1> self,
+  uint32_t size
+) {
+  int err = udx_socket_set_recv_buffer_size(self, size);
 
-  udx_socket_t *self;
-  size_t self_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &self, &self_len, NULL, NULL);
-  assert(err == 0);
-
-  int32_t size;
-  err = js_get_value_int32(env, argv[1], &size);
-  assert(err == 0);
-
-  err = udx_socket_set_recv_buffer_size(self, size);
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
-    return NULL;
   }
-
-  return NULL;
 }
 
-js_value_t *
-udx_napi_socket_get_send_buffer_size (js_env_t *env, js_callback_info_t *info) {
-  int err;
-  js_value_t *argv[1];
-  size_t argc = 1;
-  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
-  assert(err == 0);
-  assert(argc == 1);
-
-  udx_socket_t *self;
-  size_t self_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &self, &self_len, NULL, NULL);
-  assert(err == 0);
-
+static inline uint32_t
+udx_napi_socket_get_send_buffer_size (
+  js_env_t *env,
+  js_typedarray_span_of_t<udx_socket_t, 1> self
+) {
   int size = 0;
 
-  err = udx_socket_get_send_buffer_size(self, &size);
+  int err = udx_socket_get_send_buffer_size(self, &size);
+
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
-    return NULL;
   }
 
-  js_value_t *return_uint32;
-  err = js_create_uint32(env, size, &return_uint32);
-  assert(err == 0);
-
-  return return_uint32;
+  return size;
 }
 
-js_value_t *
-udx_napi_socket_set_send_buffer_size (js_env_t *env, js_callback_info_t *info) {
-  int err;
-  js_value_t *argv[2];
-  size_t argc = 2;
-  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
-  assert(err == 0);
-  assert(argc == 2);
+static inline uint32_t
+udx_napi_socket_set_send_buffer_size (
+  js_env_t *env,
+  js_typedarray_span_of_t<udx_socket_t, 1> self,
+  uint32_t size
+) {
+  int err = udx_socket_set_send_buffer_size(self, size);
 
-  udx_socket_t *self;
-  size_t self_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &self, &self_len, NULL, NULL);
-  assert(err == 0);
-
-  int32_t size;
-  err = js_get_value_int32(env, argv[1], &size);
-  assert(err == 0);
-
-  err = udx_socket_set_send_buffer_size(self, size);
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
-    return NULL;
   }
 
-  js_value_t *return_uint32;
-  err = js_create_uint32(env, size, &return_uint32);
-  assert(err == 0);
-
-  return return_uint32;
+  return size;
 }
 
-js_value_t *
-udx_napi_socket_send_ttl (js_env_t *env, js_callback_info_t *info) {
+static inline void
+udx_napi_socket_send_ttl (
+  js_env_t *env,
+  js_typedarray_span_of_t<udx_socket_t, 1> self,
+  js_typedarray_span_of_t<udx_socket_send_t, 1> req,
+  uint32_t rid,
+  js_typedarray_span_of_t<char> buf,
+  uint32_t port,
+  js_string_t ip_str,
+  uint32_t family,
+  uint32_t ttl
+) {
   int err;
-  js_value_t *argv[8];
-  size_t argc = 8;
-  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
-  assert(err == 0);
-  assert(argc == 8);
 
-  udx_socket_t *self;
-  size_t self_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &self, &self_len, NULL, NULL);
-  assert(err == 0);
-
-  udx_socket_send_t *req;
-  size_t req_len;
-  err = js_get_typedarray_info(env, argv[1], NULL, (void **) &req, &req_len, NULL, NULL);
-  assert(err == 0);
-
-  uint32_t rid;
-  err = js_get_value_uint32(env, argv[2], &rid);
-  assert(err == 0);
-
-  char *buf;
-  size_t buf_len;
-  err = js_get_typedarray_info(env, argv[3], NULL, (void **) &buf, &buf_len, NULL, NULL);
-  assert(err == 0);
-
-  uint32_t port;
-  err = js_get_value_uint32(env, argv[4], &port);
-  assert(err == 0);
-
-  char ip[INET6_ADDRSTRLEN];
+  char ip[INET6_ADDRSTRLEN] = {0};
   size_t ip_len;
-  err = js_get_value_string_utf8(env, argv[5], (utf8_t *) &ip, INET6_ADDRSTRLEN, &ip_len);
+  std::string tmp;
+  err = js_get_value_string(env, ip_str, tmp);
   assert(err == 0);
-
-  uint32_t family;
-  err = js_get_value_uint32(env, argv[6], &family);
-  assert(err == 0);
-
-  uint32_t ttl;
-  err = js_get_value_uint32(env, argv[7], &ttl);
-  assert(err == 0);
+  strncpy(ip, tmp.c_str(), MIN(tmp.length(), INET6_ADDRSTRLEN)); // TODO: unhacky
 
   req->data = (void *) ((uintptr_t) rid);
 
@@ -1252,74 +1127,57 @@ udx_napi_socket_send_ttl (js_env_t *env, js_callback_info_t *info) {
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
-    return NULL;
+    return;
   }
 
-  uv_buf_t b = uv_buf_init(buf, buf_len);
+  uv_buf_t b = uv_buf_init(buf.data(), buf.size());
 
   err = udx_socket_send_ttl(req, self, &b, 1, (const struct sockaddr *) &addr, ttl, on_udx_send);
 
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
-
-    return NULL;
   }
-
-  return NULL;
 }
 
-js_value_t *
-udx_napi_socket_close (js_env_t *env, js_callback_info_t *info) {
+static inline void
+udx_napi_socket_close (
+  js_env_t *env,
+  js_typedarray_span_of_t<udx_socket_t, 1> self
+) {
   int err;
-  js_value_t *argv[1];
-  size_t argc = 1;
-  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
-  assert(err == 0);
-  assert(argc == 1);
-
-  udx_socket_t *self;
-  size_t self_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &self, &self_len, NULL, NULL);
-  assert(err == 0);
 
   err = udx_socket_close(self);
+
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
   }
-
-  return NULL;
 }
 
-js_value_t *
-udx_napi_stream_init (js_env_t *env, js_callback_info_t *info) {
+static inline void
+udx_napi_stream_init (
+  js_env_t *env,
+  js_typedarray_span_of_t<udx_napi_t, 1> udx,
+  js_typedarray_span_of_t<udx_napi_stream_t, 1> self,
+  uint32_t id,
+  uint32_t framed,
+  js_receiver_t ctx, // TODO: use default receiver
+  cb_stream_data_t on_data,
+  cb_stream_end_t on_end,
+  cb_stream_drain_t on_drain,
+  cb_stream_ack_t on_ack,
+  cb_stream_send_t on_send,
+  cb_stream_message_t on_message,
+  cb_stream_close_t on_close,
+  cb_stream_firewall_t on_firewall,
+  cb_stream_remote_changed_t on_remote_changed,
+  cb_stream_realloc_data_t realloc_data,
+  cb_stream_realloc_message_t realloc_message
+) {
   int err;
-  js_value_t *argv[16];
-  size_t argc = 16;
-  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
-  assert(err == 0);
-  assert(argc == 16);
 
-  udx_napi_t *udx;
-  size_t udx_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &udx, &udx_len, NULL, NULL);
-  assert(err == 0);
-
-  udx_napi_stream_t *self;
-  size_t self_len;
-  err = js_get_typedarray_info(env, argv[1], NULL, (void **) &self, &self_len, NULL, NULL);
-  assert(err == 0);
-
-  uint32_t id;
-  err = js_get_value_uint32(env, argv[2], &id);
-  assert(err == 0);
-
-  uint32_t framed;
-  err = js_get_value_uint32(env, argv[3], &framed);
-  assert(err == 0);
-
-  udx_stream_t *stream = (udx_stream_t *) self;
+  auto stream = &self->stream;
 
   self->mode = framed ? UDX_NAPI_FRAMED : UDX_NAPI_INTERACTIVE;
 
@@ -1331,191 +1189,120 @@ udx_napi_stream_init (js_env_t *env, js_callback_info_t *info) {
 
   self->udx = udx;
   self->env = env;
-  err = js_create_reference(env, argv[4], 1, &(self->ctx));
+
+  err = js_create_reference(env, ctx, self->ctx);
   assert(err == 0);
-  err = js_create_reference(env, argv[5], 1, &(self->on_data));
+  err = js_create_reference(env, on_data, self->on_data);
   assert(err == 0);
-  err = js_create_reference(env, argv[6], 1, &(self->on_end));
+  err = js_create_reference(env, on_end, self->on_end);
   assert(err == 0);
-  err = js_create_reference(env, argv[7], 1, &(self->on_drain));
+  err = js_create_reference(env, on_drain, self->on_drain);
   assert(err == 0);
-  err = js_create_reference(env, argv[8], 1, &(self->on_ack));
+  err = js_create_reference(env, on_ack, self->on_ack);
   assert(err == 0);
-  err = js_create_reference(env, argv[9], 1, &(self->on_send));
+  err = js_create_reference(env, on_send, self->on_send);
   assert(err == 0);
-  err = js_create_reference(env, argv[10], 1, &(self->on_message));
+  err = js_create_reference(env, on_message, self->on_message);
   assert(err == 0);
-  err = js_create_reference(env, argv[11], 1, &(self->on_close));
+  err = js_create_reference(env, on_close, self->on_close);
   assert(err == 0);
-  err = js_create_reference(env, argv[12], 1, &(self->on_firewall));
+  err = js_create_reference(env, on_firewall, self->on_firewall);
   assert(err == 0);
-  err = js_create_reference(env, argv[13], 1, &(self->on_remote_changed));
+  err = js_create_reference(env, on_remote_changed, self->on_remote_changed);
   assert(err == 0);
-  err = js_create_reference(env, argv[14], 1, &(self->realloc_data));
+  err = js_create_reference(env, realloc_data, self->realloc_data);
   assert(err == 0);
-  err = js_create_reference(env, argv[15], 1, &(self->realloc_message));
+  err = js_create_reference(env, realloc_message, self->realloc_message);
   assert(err == 0);
 
-  err = udx_stream_init((udx_t *) udx, stream, id, on_udx_stream_close, on_udx_stream_finalize);
+  err = udx_stream_init(&udx->udx, stream, id, on_udx_stream_close, on_udx_stream_finalize);
+
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
-    return NULL;
+    return;
   }
 
   udx_stream_firewall(stream, on_udx_stream_firewall);
   udx_stream_write_resume(stream, on_udx_stream_drain);
 
   ensure_teardown(env, udx);
-
-  return NULL;
 }
 
-js_value_t *
-udx_napi_stream_set_seq (js_env_t *env, js_callback_info_t *info) {
-  int err;
-  js_value_t *argv[2];
-  size_t argc = 2;
-  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
-  assert(err == 0);
-  assert(argc == 2);
+static inline void
+udx_napi_stream_set_seq (
+  js_env_t *env,
+  js_typedarray_span_of_t<udx_napi_stream_t, 1> stream,
+  uint32_t seq
+) {
+  int err = udx_stream_set_seq(&stream->stream, seq);
 
-  udx_stream_t *stream;
-  size_t stream_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &stream, &stream_len, NULL, NULL);
-  assert(err == 0);
-
-  uint32_t seq;
-  err = js_get_value_uint32(env, argv[1], &seq);
-  assert(err == 0);
-
-  err = udx_stream_set_seq(stream, seq);
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
-    return NULL;
   }
-
-  return NULL;
 }
 
-js_value_t *
-udx_napi_stream_set_ack (js_env_t *env, js_callback_info_t *info) {
-  int err;
-  js_value_t *argv[2];
-  size_t argc = 2;
-  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
-  assert(err == 0);
-  assert(argc == 2);
+static inline void
+udx_napi_stream_set_ack (
+  js_env_t *env,
+  js_typedarray_span_of_t<udx_napi_stream_t, 1> stream,
+  uint32_t ack
+) {
+  int err = udx_stream_set_ack(&stream->stream, ack);
 
-  udx_stream_t *stream;
-  size_t stream_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &stream, &stream_len, NULL, NULL);
-  assert(err == 0);
-
-  uint32_t ack;
-  err = js_get_value_uint32(env, argv[1], &ack);
-  assert(err == 0);
-
-  err = udx_stream_set_ack(stream, ack);
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
-    return NULL;
   }
-
-  return NULL;
 }
 
-js_value_t *
-udx_napi_stream_set_mode (js_env_t *env, js_callback_info_t *info) {
-  int err;
-  js_value_t *argv[2];
-  size_t argc = 2;
-  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
-  assert(err == 0);
-  assert(argc == 2);
-
-  udx_napi_stream_t *stream;
-  size_t stream_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &stream, &stream_len, NULL, NULL);
-  assert(err == 0);
-
-  uint32_t mode;
-  err = js_get_value_uint32(env, argv[1], &mode);
-  assert(err == 0);
-
+static inline void
+udx_napi_stream_set_mode (
+  js_env_t *env,
+  js_typedarray_span_of_t<udx_napi_stream_t, 1> stream,
+  uint32_t mode
+) {
   stream->mode = mode;
-
-  return NULL;
 }
 
-js_value_t *
-udx_napi_stream_recv_start (js_env_t *env, js_callback_info_t *info) {
+static inline void
+udx_napi_stream_recv_start (
+  js_env_t *env,
+  js_typedarray_span_of_t<udx_napi_stream_t, 1> stream,
+  js_typedarray_span_t<> read_buf
+) {
   int err;
-  js_value_t *argv[2];
-  size_t argc = 2;
-  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
-  assert(err == 0);
-  assert(argc == 2);
 
-  udx_napi_stream_t *stream;
-  size_t stream_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &stream, &stream_len, NULL, NULL);
-  assert(err == 0);
+  stream->read_buf = read_buf.data();
+  stream->read_buf_head = read_buf.data();
+  stream->read_buf_free = read_buf.size();
 
-  char *read_buf;
-  size_t read_buf_len;
-  err = js_get_typedarray_info(env, argv[1], NULL, (void **) &read_buf, &read_buf_len, NULL, NULL);
+  err = udx_stream_read_start(&stream->stream, on_udx_stream_read);
   assert(err == 0);
-
-  stream->read_buf = read_buf;
-  stream->read_buf_head = read_buf;
-  stream->read_buf_free = read_buf_len;
-
-  err = udx_stream_read_start((udx_stream_t *) stream, on_udx_stream_read);
+  err = udx_stream_recv_start(&stream->stream, on_udx_stream_recv);
   assert(err == 0);
-  err = udx_stream_recv_start((udx_stream_t *) stream, on_udx_stream_recv);
-  assert(err == 0);
-
-  return NULL;
 }
 
-js_value_t *
-udx_napi_stream_connect (js_env_t *env, js_callback_info_t *info) {
+static inline void
+udx_napi_stream_connect (
+  js_env_t *env,
+  js_typedarray_span_of_t<udx_napi_stream_t, 1> stream,
+  js_typedarray_span_of_t<udx_napi_socket_t, 1> socket,
+  uint32_t remote_id,
+  uint32_t port,
+  js_string_t ip_str,
+  uint32_t family
+) {
   int err;
-  js_value_t *argv[6];
-  size_t argc = 6;
-  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
-  assert(err == 0);
-  assert(argc == 6);
-
-  udx_stream_t *stream;
-  size_t stream_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &stream, &stream_len, NULL, NULL);
-  assert(err == 0);
-
-  udx_socket_t *socket;
-  size_t socket_len;
-  err = js_get_typedarray_info(env, argv[1], NULL, (void **) &socket, &socket_len, NULL, NULL);
-  assert(err == 0);
-
-  uint32_t remote_id;
-  err = js_get_value_uint32(env, argv[2], &remote_id);
-  assert(err == 0);
-
-  uint32_t port;
-  err = js_get_value_uint32(env, argv[3], &port);
-  assert(err == 0);
 
   char ip[INET6_ADDRSTRLEN];
-  size_t ip_len;
-  err = js_get_value_string_utf8(env, argv[4], (utf8_t *) &ip, INET6_ADDRSTRLEN, &ip_len);
+  std::string tmp;
+
+  err = js_get_value_string(env, ip_str, tmp);
   assert(err == 0);
 
-  uint32_t family;
-  err = js_get_value_uint32(env, argv[5], &family);
-  assert(err == 0);
+  strncpy(ip, tmp.c_str(), MIN(tmp.length(), INET6_ADDRSTRLEN));
 
   struct sockaddr_storage addr;
 
@@ -1528,55 +1315,36 @@ udx_napi_stream_connect (js_env_t *env, js_callback_info_t *info) {
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
-    return NULL;
+    return;
   }
 
-  err = udx_stream_connect(stream, socket, remote_id, (const struct sockaddr *) &addr);
+  err = udx_stream_connect(&stream->stream, &socket->socket, remote_id, (const struct sockaddr *) &addr);
 
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
-    return NULL;
   }
-
-  return NULL;
 }
 
-js_value_t *
-udx_napi_stream_change_remote (js_env_t *env, js_callback_info_t *info) {
+static inline void
+udx_napi_stream_change_remote (
+  js_env_t *env,
+  js_typedarray_span_of_t<udx_napi_stream_t, 1> stream,
+  js_typedarray_span_of_t<udx_napi_socket_t, 1> socket,
+  uint32_t remote_id,
+  uint32_t port,
+  js_string_t ip_str,
+  uint32_t family
+) {
   int err;
-  js_value_t *argv[6];
-  size_t argc = 6;
-  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
-  assert(err == 0);
-  assert(argc == 6);
-
-  udx_stream_t *stream;
-  size_t stream_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &stream, &stream_len, NULL, NULL);
-  assert(err == 0);
-
-  udx_socket_t *socket;
-  size_t socket_len;
-  err = js_get_typedarray_info(env, argv[1], NULL, (void **) &socket, &socket_len, NULL, NULL);
-  assert(err == 0);
-
-  uint32_t remote_id;
-  err = js_get_value_uint32(env, argv[2], &remote_id);
-  assert(err == 0);
-
-  uint32_t port;
-  err = js_get_value_uint32(env, argv[3], &port);
-  assert(err == 0);
 
   char ip[INET6_ADDRSTRLEN];
-  size_t ip_len;
-  err = js_get_value_string_utf8(env, argv[4], (utf8_t *) &ip, INET6_ADDRSTRLEN, &ip_len);
+  std::string tmp;
+
+  err = js_get_value_string(env, ip_str, tmp);
   assert(err == 0);
 
-  uint32_t family;
-  err = js_get_value_uint32(env, argv[5], &family);
-  assert(err == 0);
+  strncpy(ip, tmp.c_str(), MIN(tmp.length(), INET6_ADDRSTRLEN));
 
   struct sockaddr_storage addr;
 
@@ -1589,419 +1357,194 @@ udx_napi_stream_change_remote (js_env_t *env, js_callback_info_t *info) {
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
-    return NULL;
+    return;
   }
 
-  int immediate = err = udx_stream_change_remote(stream, socket, remote_id, (const struct sockaddr *) &addr, on_udx_stream_remote_changed);
+  int immediate = err = udx_stream_change_remote(&stream->stream, &socket->socket, remote_id, (const struct sockaddr *) &addr, on_udx_stream_remote_changed);
 
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
-    return NULL;
+    return;
   }
 
   if (immediate == 1) {
-    udx_napi_stream_t *n = (udx_napi_stream_t *) stream;
-    js_value_t *ctx;
-    err = js_get_reference_value(env, n->ctx, &ctx);
+    js_receiver_t ctx;
+    err = js_get_reference_value(env, stream->ctx, ctx);
     assert(err == 0);
 
-    js_value_t *callback;
-    err = js_get_reference_value(env, n->on_remote_changed, &callback);
+    cb_stream_remote_changed_t callback;
+    err = js_get_reference_value(env, stream->on_remote_changed, callback);
     assert(err == 0);
 
-    err = js_call_function(env, ctx, callback, 0, NULL, NULL);
-    assert(err == 0);
+    err = js_call_function(env, callback, ctx);
+    assert(err != js_pending_exception);
   }
-
-  return NULL;
 }
 
-js_value_t *
-udx_napi_stream_relay_to (js_env_t *env, js_callback_info_t *info) {
-  int err;
-  js_value_t *argv[2];
-  size_t argc = 2;
-  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
-  assert(err == 0);
-  assert(argc == 2);
+static inline void
+udx_napi_stream_relay_to (
+  js_env_t *env,
+  js_typedarray_span_of_t<udx_napi_stream_t, 1> stream,
+  js_typedarray_span_of_t<udx_napi_stream_t, 1> destination
+) {
+  int err = udx_stream_relay_to(&stream->stream, &destination->stream);
 
-  udx_stream_t *stream;
-  size_t stream_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &stream, &stream_len, NULL, NULL);
-  assert(err == 0);
-
-  udx_stream_t *destination;
-  size_t destination_len;
-  err = js_get_typedarray_info(env, argv[1], NULL, (void **) &destination, &destination_len, NULL, NULL);
-  assert(err == 0);
-
-  err = udx_stream_relay_to(stream, destination);
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
-    return NULL;
   }
-
-  return NULL;
 }
 
-js_value_t *
-udx_napi_stream_send (js_env_t *env, js_callback_info_t *info) {
-  int err;
-  js_value_t *argv[4];
-  size_t argc = 4;
-  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
-  assert(err == 0);
-  assert(argc == 4);
-
-  udx_stream_t *stream;
-  size_t stream_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &stream, &stream_len, NULL, NULL);
-  assert(err == 0);
-
-  udx_stream_send_t *req;
-  size_t req_len;
-  err = js_get_typedarray_info(env, argv[1], NULL, (void **) &req, &req_len, NULL, NULL);
-  assert(err == 0);
-
-  uint32_t rid;
-  err = js_get_value_uint32(env, argv[2], &rid);
-  assert(err == 0);
-
-  char *buf;
-  size_t buf_len;
-  err = js_get_typedarray_info(env, argv[3], NULL, (void **) &buf, &buf_len, NULL, NULL);
-  assert(err == 0);
-
+static inline uint32_t
+udx_napi_stream_send (
+  js_env_t *env,
+  js_typedarray_span_of_t<udx_napi_stream_t, 1> stream,
+  js_typedarray_span_of_t<udx_stream_send_t, 1> req,
+  uint32_t rid,
+  js_typedarray_span_of_t<char> buf
+) {
   req->data = (void *) ((uintptr_t) rid);
 
-  uv_buf_t b = uv_buf_init(buf, buf_len);
+  uv_buf_t b = uv_buf_init(buf.data(), buf.size());
 
-  err = udx_stream_send(req, stream, &b, 1, on_udx_stream_send);
-  if (err < 0) {
-    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+  int res = udx_stream_send(req, &stream->stream, &b, 1, on_udx_stream_send);
+
+  if (res < 0) {
+    int err = js_throw_error(env, uv_err_name(res), uv_strerror(res));
     assert(err == 0);
-    return NULL;
   }
 
-  js_value_t *return_uint32;
-  err = js_create_uint32(env, err, &return_uint32);
-  assert(err == 0);
-
-  return return_uint32;
+  return res;
 }
 
-uint32_t
-udx_napi_typed_stream_write(
-    js_value_t *receiver,
-    js_value_t *stream_handle,
-    js_value_t *req_handle,
-    uint32_t rid,
-    js_value_t *buffer,
-    js_typed_callback_info_t *info
+static inline int64_t
+udx_napi_stream_write (
+  js_env_t *env,
+  js_receiver_t,
+  js_typedarray_span_of_t<udx_napi_stream_t, 1> stream,
+  js_typedarray_span_of_t<udx_stream_write_t, 1> req,
+  uint32_t rid,
+  js_typedarray_span_of_t<char> buf
 ) {
   int err;
-  js_env_t *env = NULL;
-  err = js_get_typed_callback_info(info, &env, NULL);
-  assert(err == 0);
-
-  js_typedarray_view_t *view_stream = NULL;
-  udx_stream_t *stream;
-  size_t stream_len;
-  err = js_get_typedarray_view(env, stream_handle, NULL, (void **) &stream, &stream_len, &view_stream);
-  assert(err == 0);
-
-  js_typedarray_view_t *view_req = NULL;
-  udx_stream_write_t *req;
-  size_t req_len;
-  err = js_get_typedarray_view(env, req_handle, NULL, (void **) &req, &req_len, &view_req);
-  assert(err == 0);
-  assert(req_len >= sizeof(udx_stream_write_t));
 
   req->data = (void *) ((uintptr_t) rid);
 
-  js_typedarray_view_t *view_buf = NULL;
-  char *buf;
-  size_t buf_len;
-  err = js_get_typedarray_view(env, buffer, NULL, (void **) &buf, &buf_len, &view_buf);
-  assert(err == 0);
+  auto b = uv_buf_init(buf.data(), buf.size());
 
-  uv_buf_t b = uv_buf_init(buf, buf_len);
-
-  int res = udx_stream_write(req, stream, &b, 1, on_udx_stream_ack);
+  int res = udx_stream_write(&*req, &stream->stream, &b, 1, on_udx_stream_ack);
 
   if (res < 0) {
     err = js_throw_error(env, uv_err_name(res), uv_strerror(res));
     assert(err == 0);
   }
 
-  err = js_release_typedarray_view(env, view_buf);
-  assert(err == 0);
-
-  err = js_release_typedarray_view(env, view_req);
-  assert(err == 0);
-
-  err = js_release_typedarray_view(env, view_stream);
-  assert(err == 0);
-
   return res;
 }
 
-js_value_t *
-udx_napi_stream_write (js_env_t *env, js_callback_info_t *info) {
+// TODO: use only on platforms without fastcall support
+static inline int64_t
+udx_napi_stream_writev (
+  js_env_t *env,
+  js_typedarray_span_of_t<udx_napi_stream_t, 1> stream,
+  js_typedarray_span_of_t<udx_stream_write_t, 1> req,
+  uint32_t rid,
+  std::vector<js_typedarray_span_of_t<char>> buffers
+) {
   int err;
-  js_value_t *argv[4];
-  size_t argc = 4;
-  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
-  assert(err == 0);
-  assert(argc == 4);
-
-  udx_stream_t *stream;
-  size_t stream_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &stream, &stream_len, NULL, NULL);
-  assert(err == 0);
-
-  udx_stream_write_t *req;
-  size_t req_len;
-  err = js_get_typedarray_info(env, argv[1], NULL, (void **) &req, &req_len, NULL, NULL);
-  assert(err == 0);
-
-  uint32_t rid;
-  err = js_get_value_uint32(env, argv[2], &rid);
-  assert(err == 0);
 
   req->data = (void *) ((uintptr_t) rid);
 
-  char *buf;
-  size_t buf_len;
-  err = js_get_typedarray_info(env, argv[3], NULL, (void **) &buf, &buf_len, NULL, NULL);
-  assert(err == 0);
+  const auto len = buffers.size();
 
-  uv_buf_t b = uv_buf_init(buf, buf_len);
+  std::vector<uv_buf_t> batch(len);
 
-  err = udx_stream_write(req, stream, &b, 1, on_udx_stream_ack);
-  if (err < 0) {
-    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
-    assert(err == 0);
+  for (int i = 0; i < len; i++) {
+    auto buf = buffers[i];
+    batch[i] = {.base = buf.data(), .len = buf.size()};
   }
 
-  js_value_t *res;
-  err = js_create_uint32(env, err, &res);
-  assert(err == 0);
+  int res = udx_stream_write(req, &stream->stream, batch.data(), len, on_udx_stream_ack);
+
+  if (res < 0) {
+    err = js_throw_error(env, uv_err_name(res), uv_strerror(res));
+    assert(err == 0);
+  }
 
   return res;
 }
 
-js_value_t *
-udx_napi_stream_writev (js_env_t *env, js_callback_info_t *info) {
-  int err;
-  js_value_t *argv[4];
-  size_t argc = 4;
-  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
-  assert(err == 0);
-  assert(argc == 4);
-
-  udx_stream_t *stream;
-  size_t stream_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &stream, &stream_len, NULL, NULL);
-  assert(err == 0);
-
-  udx_stream_write_t *req;
-  size_t req_len;
-  err = js_get_typedarray_info(env, argv[1], NULL, (void **) &req, &req_len, NULL, NULL);
-  assert(err == 0);
-
-  uint32_t rid;
-  err = js_get_value_uint32(env, argv[2], &rid);
-  assert(err == 0);
-
-  req->data = (void *) ((uintptr_t) rid);
-
-  uint32_t len;
-  err = js_get_array_length(env, argv[3], &len);
-  assert(err == 0);
-
-  uv_buf_t *batch = malloc(sizeof(uv_buf_t) * len);
-
-  js_value_t **elements = malloc(sizeof(js_value_t *) * len);
-
-  uint32_t fetched;
-  err = js_get_array_elements(env, argv[3], elements, len, 0, &fetched);
-  assert(err == 0);
-  assert(fetched == len);
-
-  for (uint32_t i = 0; i < len; i++) {
-    js_value_t *element = elements[i];
-
-    char *buf;
-    size_t buf_len;
-    err = js_get_typedarray_info(env, element, NULL, (void **) &buf, &buf_len, NULL, NULL);
-    assert(err == 0);
-
-    batch[i] = uv_buf_init(buf, buf_len);
-  }
-
-  err = udx_stream_write(req, stream, batch, len, on_udx_stream_ack);
-  assert(err >= 0);
-
-  free(batch);
-
-  free(elements);
-
-  if (err < 0) {
-    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
-    assert(err == 0);
-  }
-
-  js_value_t *res;
-  err = js_create_uint32(env, err, &res);
-  assert(err == 0);
-
-  return res;
-}
-
-int32_t
-udx_napi_typed_stream_write_sizeof (js_value_t *recever, uint32_t bufs, js_typed_callback_info_t *info) {
+static inline uint32_t
+udx_napi_stream_write_sizeof (uint32_t bufs) {
   return udx_stream_write_sizeof(bufs);
 }
 
-js_value_t *
-udx_napi_stream_write_sizeof (js_env_t *env, js_callback_info_t *info) {
-  int err;
-  js_value_t *argv[1];
-  size_t argc = 1;
-  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
-  assert(err == 0);
-  assert(argc == 1);
-
-  uint32_t bufs;
-  err = js_get_value_uint32(env, argv[0], &bufs);
-  assert(err == 0);
-
-  js_value_t *return_uint32;
-  err = js_create_uint32(env, udx_stream_write_sizeof(bufs), &return_uint32);
-  assert(err == 0);
-
-  return return_uint32;
-}
-
-js_value_t *
-udx_napi_stream_write_end (js_env_t *env, js_callback_info_t *info) {
-  int err;
-  js_value_t *argv[4];
-  size_t argc = 4;
-  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
-  assert(err == 0);
-  assert(argc == 4);
-
-  udx_stream_t *stream;
-  size_t stream_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &stream, &stream_len, NULL, NULL);
-  assert(err == 0);
-
-  udx_stream_write_t *req;
-  size_t req_len;
-  err = js_get_typedarray_info(env, argv[1], NULL, (void **) &req, &req_len, NULL, NULL);
-  assert(err == 0);
-
-  uint32_t rid;
-  err = js_get_value_uint32(env, argv[2], &rid);
-  assert(err == 0);
-
-  char *buf;
-  size_t buf_len;
-  err = js_get_typedarray_info(env, argv[3], NULL, (void **) &buf, &buf_len, NULL, NULL);
-  assert(err == 0);
-
+static inline uint32_t
+udx_napi_stream_write_end (
+  js_env_t *env,
+  js_typedarray_span_of_t<udx_napi_stream_t, 1> stream,
+  js_typedarray_span_of_t<udx_stream_write_t, 1> req,
+  uint32_t rid,
+  js_typedarray_span_of_t<char> buf
+) {
   req->data = (void *) ((uintptr_t) rid);
 
-  uv_buf_t b = uv_buf_init(buf, buf_len);
+  uv_buf_t b = uv_buf_init(buf.data(), buf.size());
 
-  err = udx_stream_write_end(req, stream, &b, 1, on_udx_stream_ack);
-  if (err < 0) {
-    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+  int res = udx_stream_write_end(req, &stream->stream, &b, 1, on_udx_stream_ack);
+
+  if (res < 0) {
+    int err = js_throw_error(env, uv_err_name(res), uv_strerror(res));
     assert(err == 0);
-    return NULL;
   }
 
-  js_value_t *return_uint32;
-  err = js_create_uint32(env, err, &return_uint32);
-  assert(err == 0);
-
-  return return_uint32;
+  return res;
 }
 
-js_value_t *
-udx_napi_stream_destroy (js_env_t *env, js_callback_info_t *info) {
-  int err;
-  js_value_t *argv[1];
-  size_t argc = 1;
-  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
-  assert(err == 0);
-  assert(argc == 1);
+static inline uint32_t
+udx_napi_stream_destroy (
+  js_env_t *env,
+  js_typedarray_span_of_t<udx_napi_stream_t, 1> stream
+) {
+  int res = udx_stream_destroy(&stream->stream);
 
-  udx_stream_t *stream;
-  size_t stream_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &stream, &stream_len, NULL, NULL);
-  assert(err == 0);
-
-  err = udx_stream_destroy(stream);
-  if (err < 0) {
-    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+  if (res < 0) {
+    int err = js_throw_error(env, uv_err_name(res), uv_strerror(res));
     assert(err == 0);
-    return NULL;
   }
 
-  js_value_t *return_uint32;
-  err = js_create_uint32(env, err, &return_uint32);
-  assert(err == 0);
-
-  return return_uint32;
+  return res;
 }
 
-js_value_t *
-udx_napi_lookup (js_env_t *env, js_callback_info_t *info) {
+static inline void
+udx_napi_lookup (
+  js_env_t *env,
+  js_typedarray_span_of_t<udx_napi_t, 1> udx,
+  js_typedarray_span_of_t<udx_napi_lookup_t, 1> self,
+  js_string_t host_str,
+  uint32_t family,
+  js_receiver_t ctx, // TODO: use auto receiver
+  cb_udx_lookup_t on_lookup
+) {
   int err;
-  js_value_t *argv[6];
-  size_t argc = 6;
-  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
-  assert(err == 0);
-  assert(argc == 6);
-
-  udx_napi_t *udx;
-  size_t udx_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &udx, &udx_len, NULL, NULL);
-  assert(err == 0);
-
-  udx_napi_lookup_t *self;
-  size_t self_len;
-  err = js_get_typedarray_info(env, argv[1], NULL, (void **) &self, &self_len, NULL, NULL);
-  assert(err == 0);
 
   self->udx = udx;
 
-  size_t host_size = 0;
-  err = js_get_value_string_utf8(env, argv[2], NULL, 0, &host_size);
+  std::string host;
+  err = js_get_value_string(env, host_str, host);
+
+  udx_lookup_t *lookup = &self->handle;
+
+  err = js_create_reference(env, host_str, self->host);
   assert(err == 0);
 
-  char *host = (char *) malloc((host_size + 1) * sizeof(char));
-  size_t host_len;
-  err = js_get_value_string_utf8(env, argv[2], (utf8_t *) host, host_size + 1, &host_len);
-  assert(err == 0);
-  host[host_size] = '\0';
-
-  uint32_t family;
-  err = js_get_value_uint32(env, argv[3], &family);
-  assert(err == 0);
-
-  udx_lookup_t *lookup = (udx_lookup_t *) self;
-
-  self->host = host;
+  // self->host = host.c_str(); // TODO: where is it used / freed?
   self->env = env;
-  err = js_create_reference(env, argv[4], 1, &(self->ctx));
+
+  err = js_create_reference(env, ctx, self->ctx);
   assert(err == 0);
-  err = js_create_reference(env, argv[5], 1, &(self->on_lookup));
+  err = js_create_reference(env, on_lookup, self->on_lookup);
   assert(err == 0);
 
   int flags = 0;
@@ -2009,162 +1552,114 @@ udx_napi_lookup (js_env_t *env, js_callback_info_t *info) {
   if (family == 4) flags |= UDX_LOOKUP_FAMILY_IPV4;
   if (family == 6) flags |= UDX_LOOKUP_FAMILY_IPV6;
 
-  err = udx_lookup((udx_t *) udx, lookup, host, flags, on_udx_lookup);
+  err = udx_lookup(&udx->udx, lookup, host.c_str(), flags, on_udx_lookup);
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
-    return NULL;
+    return;
   }
 
   ensure_teardown(env, udx);
-
-  return NULL;
 }
 
-js_value_t *
-udx_napi_interface_event_init (js_env_t *env, js_callback_info_t *info) {
+static inline void
+udx_napi_interface_event_init (
+  js_env_t *env,
+  js_typedarray_span_of_t<udx_napi_t, 1> udx,
+  js_typedarray_span_of_t<udx_napi_interface_event_t, 1> self,
+  js_receiver_t ctx, // TODO: use default receiver
+  cb_interface_event_t on_event,
+  cb_interface_close_t on_close
+) {
   int err;
-  js_value_t *argv[5];
-  size_t argc = 5;
-  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
-  assert(err == 0);
-  assert(argc == 5);
-
-  udx_napi_t *udx;
-  size_t udx_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &udx, &udx_len, NULL, NULL);
-  assert(err == 0);
-
-  udx_napi_interface_event_t *self;
-  size_t self_len;
-  err = js_get_typedarray_info(env, argv[1], NULL, (void **) &self, &self_len, NULL, NULL);
-  assert(err == 0);
 
   self->udx = udx;
-
-  udx_interface_event_t *event = (udx_interface_event_t *) self;
-
   self->env = env;
-  err = js_create_reference(env, argv[2], 1, &(self->ctx));
+
+  err = js_create_reference(env, ctx, self->ctx);
   assert(err == 0);
-  err = js_create_reference(env, argv[3], 1, &(self->on_event));
+  err = js_create_reference(env, on_event, self->on_event);
   assert(err == 0);
-  err = js_create_reference(env, argv[4], 1, &(self->on_close));
+  err = js_create_reference(env, on_close, self->on_close);
   assert(err == 0);
 
-  err = udx_interface_event_init((udx_t *) udx, event, on_udx_interface_event_close);
+  err = udx_interface_event_init(&udx->udx, &self->handle, on_udx_interface_event_close);
+
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
-    return NULL;
+    return;
   }
 
-  err = udx_interface_event_start(event, on_udx_interface_event, 5000);
+  err = udx_interface_event_start(&self->handle, on_udx_interface_event, 5000);
+
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
-    return NULL;
+    return;
   }
 
   ensure_teardown(env, udx);
-
-  return NULL;
 }
 
-js_value_t *
-udx_napi_interface_event_start (js_env_t *env, js_callback_info_t *info) {
-  int err;
-  js_value_t *argv[1];
-  size_t argc = 1;
-  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
-  assert(err == 0);
-  assert(argc == 1);
+static inline void
+udx_napi_interface_event_start (
+  js_env_t *env,
+  js_typedarray_span_of_t<udx_napi_interface_event_t, 1> self
+) {
+  int err = udx_interface_event_start(&self->handle, on_udx_interface_event, 5000);
 
-  udx_interface_event_t *event;
-  size_t event_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &event, &event_len, NULL, NULL);
-  assert(err == 0);
-
-  err = udx_interface_event_start(event, on_udx_interface_event, 5000);
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
-    return NULL;
   }
-
-  return NULL;
 }
 
-js_value_t *
-udx_napi_interface_event_stop (js_env_t *env, js_callback_info_t *info) {
+static inline void
+udx_napi_interface_event_stop (
+  js_env_t *env,
+  js_typedarray_span_of_t<udx_napi_interface_event_t, 1> self
+) {
   int err;
-  js_value_t *argv[1];
-  size_t argc = 1;
-  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
-  assert(err == 0);
-  assert(argc == 1);
 
-  udx_interface_event_t *event;
-  size_t event_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &event, &event_len, NULL, NULL);
-  assert(err == 0);
+  err = udx_interface_event_stop(&self->handle);
 
-  err = udx_interface_event_stop(event);
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
-    return NULL;
   }
-
-  return NULL;
 }
 
-js_value_t *
-udx_napi_interface_event_close (js_env_t *env, js_callback_info_t *info) {
+static inline void
+udx_napi_interface_event_close (
+  js_env_t *env,
+  js_typedarray_span_of_t<udx_napi_interface_event_t, 1> self
+) {
   int err;
-  js_value_t *argv[1];
-  size_t argc = 1;
-  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
-  assert(err == 0);
-  assert(argc == 1);
 
-  udx_interface_event_t *event;
-  size_t event_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &event, &event_len, NULL, NULL);
-  assert(err == 0);
+  err = udx_interface_event_close(&self->handle);
 
-  err = udx_interface_event_close(event);
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
-    return NULL;
   }
-
-  return NULL;
 }
 
-js_value_t *
-udx_napi_interface_event_get_addrs (js_env_t *env, js_callback_info_t *info) {
+static inline std::vector<js_object_t>
+udx_napi_interface_event_get_addrs (
+  js_env_t *env,
+  js_typedarray_span_of_t<udx_napi_interface_event_t, 1> self
+) {
   int err;
-  js_value_t *argv[1];
-  size_t argc = 1;
-  err = js_get_callback_info(env, info, &argc, argv, NULL, NULL);
-  assert(err == 0);
-  assert(argc == 1);
 
-  udx_interface_event_t *event;
-  size_t event_len;
-  err = js_get_typedarray_info(env, argv[0], NULL, (void **) &event, &event_len, NULL, NULL);
-  assert(err == 0);
+  auto event = &self->handle;
 
   char ip[INET6_ADDRSTRLEN];
   int family = 0;
 
-  js_value_t *napi_result;
-  err = js_create_array(env, &napi_result);
-  assert(err == 0);
+  std::vector<js_object_t> result;
 
-  for (int i = 0, j = 0; i < event->addrs_len; i++) {
+  for (int i = 0; i < event->addrs_len; i++) {
     uv_interface_address_t addr = event->addrs[i];
 
     if (addr.address.address4.sin_family == AF_INET) {
@@ -2177,38 +1672,24 @@ udx_napi_interface_event_get_addrs (js_env_t *env, js_callback_info_t *info) {
       continue;
     }
 
-    js_value_t *napi_item;
-    err = js_create_object(env, &napi_item);
-    assert(err == 0);
-    err = js_set_element(env, napi_result, j++, napi_item);
+    js_object_t item;
+
+    err = js_set_property(env, item, "name", addr.name);
     assert(err == 0);
 
-    js_value_t *napi_name;
-    err = js_create_string_utf8(env, (utf8_t *) addr.name, -1, &napi_name);
-    assert(err == 0);
-    err = js_set_named_property(env, napi_item, "name", napi_name);
+    err = js_set_property(env, item, "host", ip);
     assert(err == 0);
 
-    js_value_t *napi_ip;
-    err = js_create_string_utf8(env, (utf8_t *) ip, -1, &napi_ip);
-    assert(err == 0);
-    err = js_set_named_property(env, napi_item, "host", napi_ip);
+    err = js_set_property(env, item, "family", family);
     assert(err == 0);
 
-    js_value_t *napi_family;
-    err = js_create_uint32(env, family, &napi_family);
-    assert(err == 0);
-    err = js_set_named_property(env, napi_item, "family", napi_family);
+    err = js_set_property(env, item, "internal", static_cast<bool>(addr.is_internal));
     assert(err == 0);
 
-    js_value_t *napi_internal;
-    err = js_get_boolean(env, addr.is_internal, &napi_internal);
-    assert(err == 0);
-    err = js_set_named_property(env, napi_item, "internal", napi_internal);
-    assert(err == 0);
+    result.push_back(item);
   }
 
-  return napi_result;
+  return result;
 }
 
 js_value_t *
@@ -2254,83 +1735,49 @@ udx_native_exports (js_env_t *env, js_value_t *exports) {
   V("sizeof_udx_napi_t", sizeof(udx_napi_t));
   V("sizeof_udx_napi_socket_t", sizeof(udx_napi_socket_t));
   V("sizeof_udx_napi_stream_t", sizeof(udx_napi_stream_t));
-  V("sizeof_udx_napi_lookup_t",  sizeof(udx_napi_lookup_t));
+  V("sizeof_udx_napi_lookup_t", sizeof(udx_napi_lookup_t));
   V("sizeof_udx_napi_interface_event_t", sizeof(udx_napi_interface_event_t));
   V("sizeof_udx_socket_send_t", sizeof(udx_socket_send_t));
   V("sizeof_udx_stream_send_t", sizeof(udx_stream_send_t));
 #undef V
+  js_object_t _exports = static_cast<js_object_t>(exports);
 
   // functions
-#define V(name, untyped, signature, typed) \
-  { \
-    js_value_t *val; \
-    if (signature) { \
-      err = js_create_typed_function(env, name, -1, untyped, signature, typed, NULL, &val); \
-      assert(err == 0); \
-    } else { \
-      err = js_create_function(env, name, -1, untyped, NULL, &val); \
-      assert(err == 0); \
-    } \
-    err = js_set_named_property(env, exports, name, val); \
-    assert(err == 0); \
-  }
+#define V(name, fn) \
+  err = js_set_property<fn>(env, _exports, name); \
+  assert(err == 0);
 
-  V("udx_napi_init", udx_napi_init, NULL, NULL);
-  V("udx_napi_socket_init", udx_napi_socket_init, NULL, NULL);
-  V("udx_napi_socket_bind", udx_napi_socket_bind, NULL, NULL);
-  V("udx_napi_socket_set_ttl", udx_napi_socket_set_ttl, NULL, NULL);
-  V("udx_napi_socket_get_recv_buffer_size", udx_napi_socket_get_recv_buffer_size, NULL, NULL);
-  V("udx_napi_socket_set_recv_buffer_size", udx_napi_socket_set_recv_buffer_size, NULL, NULL);
-  V("udx_napi_socket_get_send_buffer_size", udx_napi_socket_get_send_buffer_size, NULL, NULL);
-  V("udx_napi_socket_set_send_buffer_size", udx_napi_socket_set_send_buffer_size, NULL, NULL);
-  V("udx_napi_socket_set_membership", udx_napi_socket_set_membership, NULL, NULL);
-  V("udx_napi_socket_send_ttl", udx_napi_socket_send_ttl, NULL, NULL);
-  V("udx_napi_socket_close", udx_napi_socket_close, NULL, NULL);
-  V("udx_napi_stream_init", udx_napi_stream_init, NULL, NULL);
-  V("udx_napi_stream_set_seq", udx_napi_stream_set_seq, NULL, NULL);
-  V("udx_napi_stream_set_ack", udx_napi_stream_set_ack, NULL, NULL);
-  V("udx_napi_stream_set_mode", udx_napi_stream_set_mode, NULL, NULL);
-  V("udx_napi_stream_connect", udx_napi_stream_connect, NULL, NULL);
-  V("udx_napi_stream_change_remote", udx_napi_stream_change_remote, NULL, NULL);
-  V("udx_napi_stream_relay_to", udx_napi_stream_relay_to, NULL, NULL);
-  V("udx_napi_stream_send", udx_napi_stream_send, NULL, NULL);
-  V("udx_napi_stream_recv_start", udx_napi_stream_recv_start, NULL, NULL);
-  V("udx_napi_stream_write", udx_napi_stream_write, 
-    &((js_callback_signature_t) {
-      .version = 0,
-      .result = js_uint32, // status
-      .args_len = 5,
-      .args = (int[]) {
-        js_object, // receiver
-        js_object, // stream handle
-        js_object, // request handle
-        js_uint32, // request id
-        js_object  // typed-array: payload
-      }
-    }),
-    udx_napi_typed_stream_write
-  );
-  V("udx_napi_stream_writev", udx_napi_stream_writev, NULL, NULL);
-  V("udx_napi_stream_write_sizeof", udx_napi_stream_write_sizeof,
-    &((js_callback_signature_t) {
-      .version = 0,
-      .result = js_int32, // size
-      .args_len = 2,
-      .args = (int[]) {
-        js_object, // receiver
-        js_uint32, // len
-      }
-    }),
-    udx_napi_typed_stream_write_sizeof
-  );
-  V("udx_napi_stream_write_end", udx_napi_stream_write_end, NULL, NULL);
-  V("udx_napi_stream_destroy", udx_napi_stream_destroy, NULL, NULL);
-  V("udx_napi_lookup", udx_napi_lookup, NULL, NULL);
-  V("udx_napi_interface_event_init", udx_napi_interface_event_init, NULL, NULL);
-  V("udx_napi_interface_event_start", udx_napi_interface_event_start, NULL, NULL);
-  V("udx_napi_interface_event_stop", udx_napi_interface_event_stop, NULL, NULL);
-  V("udx_napi_interface_event_close", udx_napi_interface_event_close, NULL, NULL);
-  V("udx_napi_interface_event_get_addrs", udx_napi_interface_event_get_addrs, NULL, NULL);
+  V("udx_napi_init", udx_napi_init);
+  V("udx_napi_socket_init", udx_napi_socket_init);
+  V("udx_napi_socket_bind", udx_napi_socket_bind);
+  V("udx_napi_socket_set_ttl", udx_napi_socket_set_ttl);
+  V("udx_napi_socket_get_recv_buffer_size", udx_napi_socket_get_recv_buffer_size);
+  V("udx_napi_socket_set_recv_buffer_size", udx_napi_socket_set_recv_buffer_size);
+  V("udx_napi_socket_get_send_buffer_size", udx_napi_socket_get_send_buffer_size);
+  V("udx_napi_socket_set_send_buffer_size", udx_napi_socket_set_send_buffer_size);
+  V("udx_napi_socket_set_membership", udx_napi_socket_set_membership);
+  V("udx_napi_socket_send_ttl", udx_napi_socket_send_ttl);
+  V("udx_napi_socket_close", udx_napi_socket_close);
+  V("udx_napi_stream_init", udx_napi_stream_init);
+  V("udx_napi_stream_set_seq", udx_napi_stream_set_seq);
+  V("udx_napi_stream_set_ack", udx_napi_stream_set_ack);
+  V("udx_napi_stream_set_mode", udx_napi_stream_set_mode);
+  V("udx_napi_stream_connect", udx_napi_stream_connect);
+  V("udx_napi_stream_change_remote", udx_napi_stream_change_remote);
+  V("udx_napi_stream_relay_to", udx_napi_stream_relay_to);
+  V("udx_napi_stream_send", udx_napi_stream_send);
+  V("udx_napi_stream_recv_start", udx_napi_stream_recv_start);
+  V("udx_napi_stream_write", udx_napi_stream_write);
+  V("udx_napi_stream_writev", udx_napi_stream_writev);
+  V("udx_napi_stream_write_sizeof", udx_napi_stream_write_sizeof);
+  V("udx_napi_stream_write_end", udx_napi_stream_write_end);
+  V("udx_napi_stream_destroy", udx_napi_stream_destroy);
+  V("udx_napi_lookup", udx_napi_lookup);
+  V("udx_napi_interface_event_init", udx_napi_interface_event_init);
+  V("udx_napi_interface_event_start", udx_napi_interface_event_start);
+  V("udx_napi_interface_event_stop", udx_napi_interface_event_stop);
+  V("udx_napi_interface_event_close", udx_napi_interface_event_close);
+  V("udx_napi_interface_event_get_addrs", udx_napi_interface_event_get_addrs);
 #undef V
 
   return exports;
