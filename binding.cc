@@ -30,7 +30,7 @@ using cb_stream_firewall_t = js_function_t<uint32_t, js_receiver_t, js_receiver_
 using cb_stream_remote_changed_t = js_function_t<void, js_receiver_t>;
 
 // udx
-using cb_udx_lookup_t = js_function_t<void, js_receiver_t, std::optional<js_object_t>, js_string_t, uint32_t>;
+using cb_udx_lookup_t = js_function_t<void, js_receiver_t, std::optional<js_object_t>, std::optional<js_string_t>, int32_t>;
 
 // interface
 using cb_interface_event_t = js_function_t<void, js_receiver_t>;
@@ -40,9 +40,9 @@ using cb_interface_close_t = js_function_t<void, js_receiver_t>;
 struct udx_napi_t {
   udx_t udx;
 
-  // char *read_buf;
-  // size_t read_buf_free;
-  std::span<uint8_t> read_buf; // maybe restore applicable here.
+  uint8_t *read_buf;
+  size_t read_buf_free;
+  // std::span<uint8_t> read_buf; // maybe restore.
 
   js_deferred_teardown_t *teardown;
   bool exiting;
@@ -124,6 +124,19 @@ parse_address (struct sockaddr *name, char *ip, size_t size, int *port, int *fam
   }
 }
 
+inline static int
+load_address (js_env_t *env, char *addr, js_string_t &j_str) {
+  std::string tmp;
+
+  int err = js_get_value_string(env, j_str, tmp);
+  assert(err == 0);
+
+  strncpy(addr, tmp.c_str(), MIN(INET6_ADDRSTRLEN, tmp.length()));
+  addr[tmp.length()] = '\0';
+
+  return tmp.length();
+}
+
 static void
 on_udx_send (udx_socket_send_t *req, int status) {
   int err;
@@ -155,6 +168,45 @@ on_udx_send (udx_socket_send_t *req, int status) {
   assert(err == 0);
 }
 
+// TODO: template for stream
+static inline void
+realloc_readbuffer (int callback_status, udx_napi_socket_t *socket, js_typedarray_span_t<> &value) {
+  auto udx = socket->udx;
+
+  if (callback_status == 0) {
+    udx->read_buf = value.data();
+    udx->read_buf_free = value.size();
+  } else {
+    // avoid reentry
+    if (!(udx->exiting)) {
+      int err;
+      js_env_t *env = socket->env;
+
+      js_handle_scope_t *scope;
+      err = js_open_handle_scope(env, &scope);
+      assert(err == 0);
+
+      js_receiver_t ctx;
+      err = js_get_reference_value(env, socket->ctx, ctx);
+      assert(err == 0);
+
+      cb_socket_realloc_message_t callback;
+      err = js_get_reference_value(env, socket->realloc_message, callback);
+      assert(err == 0);
+
+      err = js_call_function_with_checkpoint(env, callback, ctx, value);
+      assert(err == 0);
+
+      udx->read_buf = value.data();
+      udx->read_buf_free = value.size();
+
+      err = js_close_handle_scope(env, scope);
+      assert(err == 0);
+    }
+  }
+}
+
+
 static void
 on_udx_message (udx_socket_t *self, ssize_t read_len, const uv_buf_t *buf, const struct sockaddr *from) {
   auto *n = reinterpret_cast<udx_napi_socket_t *>(self);
@@ -167,9 +219,9 @@ on_udx_message (udx_socket_t *self, ssize_t read_len, const uv_buf_t *buf, const
   int family = 0;
   parse_address((struct sockaddr *) from, ip, INET6_ADDRSTRLEN, &port, &family);
 
-  if (buf->len > n->udx->read_buf.size()) return;
+  if (buf->len > n->udx->read_buf_free) return;
 
-  memcpy(n->udx->read_buf.data(), buf->base, buf->len);
+  memcpy(n->udx->read_buf, buf->base, buf->len);
 
   js_env_t *env = n->env;
 
@@ -202,35 +254,7 @@ on_udx_message (udx_socket_t *self, ssize_t read_len, const uv_buf_t *buf, const
     res
   );
 
-  if (err == 0) {
-    n->udx->read_buf = res;
-  } else {
-    // avoid reentry
-    if (!(n->udx->exiting)) {
-      // TODO: why not reallocate on native?
-      js_env_t *env = n->env;
-
-      js_handle_scope_t *scope;
-      err = js_open_handle_scope(env, &scope);
-      assert(err == 0);
-
-      js_receiver_t ctx;
-      err = js_get_reference_value(env, n->ctx, ctx);
-      assert(err == 0);
-
-      cb_socket_realloc_message_t callback;
-      err = js_get_reference_value(env, n->realloc_message, callback);
-      assert(err == 0);
-
-      err = js_call_function_with_checkpoint(env, callback, ctx, res);
-      assert(err == 0);
-
-      n->udx->read_buf = res;
-
-      err = js_close_handle_scope(env, scope);
-      assert(err == 0);
-    }
-  }
+  realloc_readbuffer(err, n, res);
 
   err = js_close_handle_scope(env, scope);
   assert(err == 0);
@@ -272,10 +296,10 @@ on_udx_close (udx_socket_t *self) {
 static void
 on_udx_teardown (js_deferred_teardown_t *handle, void *data) {
   auto self = reinterpret_cast<udx_napi_t *>(data);
-  udx_t *udx = &self->udx;
 
   self->exiting = true;
-  udx_teardown(udx);
+
+  udx_teardown(&self->udx);
 }
 
 static void
@@ -283,7 +307,13 @@ ensure_teardown (js_env_t *env, udx_napi_t *udx) {
   if (udx->has_teardown) return;
   udx->has_teardown = true;
 
-  int err = js_add_deferred_teardown_callback(env, on_udx_teardown, (void *) udx, &(udx->teardown));
+  int err = js_add_deferred_teardown_callback(
+      env,
+      on_udx_teardown,
+      reinterpret_cast<void *>(udx),
+      &udx->teardown
+  );
+
   if (err != 0) abort();
 }
 
@@ -381,8 +411,6 @@ on_udx_stream_read (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
   err = js_call_function_with_checkpoint(env, callback, ctx, static_cast<uint32_t>(read), res);
 
   if (err == 0) {
-    // err = js_get_typedarray_info(env, res, NULL, (void **) &(n->read_buf), &(n->read_buf_free), NULL, NULL);
-    // assert(err == 0);
     n->read_buf = res.data();
     n->read_buf_free = res.size();
     n->read_buf_head = n->read_buf;
@@ -478,6 +506,7 @@ on_udx_stream_send (udx_stream_send_t *req, int status) {
   int err;
 
   auto n = reinterpret_cast<udx_napi_stream_t *>(req->stream);
+
   if (n->udx->exiting) return;
 
   js_env_t *env = n->env;
@@ -508,11 +537,12 @@ on_udx_stream_recv (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
   int err;
 
   auto n = reinterpret_cast<udx_napi_stream_t *>(stream);
+
   if (n->udx->exiting) return;
 
-  if (buf->len > n->udx->read_buf.size()) return;
+  if (buf->len > n->udx->read_buf_free) return;
 
-  memcpy(n->udx->read_buf.data(), buf->base, buf->len);
+  memcpy(n->udx->read_buf, buf->base, buf->len);
 
   js_env_t *env = n->env;
 
@@ -535,8 +565,13 @@ on_udx_stream_recv (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
   js_typedarray_span_t<> res;
   err = js_call_function_with_checkpoint(env, callback, ctx, static_cast<uint32_t>(read_len), res);
 
+  // TODO: template realloc for stream or just pass necessary params
+  // realloc_readbuffer(err, n, res);
+
   if (err == 0) {
-    n->udx->read_buf = res;
+    n->udx->read_buf = res.data();
+    n->udx->read_buf_free = res.size();
+
     // err = js_get_typedarray_info(env, res, NULL, (void **) &(n->udx->read_buf), &(n->udx->read_buf.size()), NULL, NULL);
     // assert(err == 0);
   } else {
@@ -557,7 +592,8 @@ on_udx_stream_recv (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
       err = js_call_function_with_checkpoint(env, callback, ctx, res);
       assert(err != js_pending_exception);
 
-      n->udx->read_buf = res;
+      n->udx->read_buf = res.data();
+      n->udx->read_buf_free = res.size();
 
       err = js_close_handle_scope(env, inner_scope);
       assert(err == 0);
@@ -571,6 +607,7 @@ on_udx_stream_recv (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
 static void
 on_udx_stream_finalize (udx_stream_t *stream) {
   auto n = reinterpret_cast<udx_napi_stream_t *>(stream);
+
   n->on_data.reset();
   n->on_end.reset();
   n->on_drain.reset();
@@ -610,8 +647,6 @@ on_udx_stream_close (udx_stream_t *stream, int status) {
   std::optional<js_object_t> res;
 
   if (status < 0) {
-    // not strictly necessary to have jstl-error support
-    // but forwarding the code + msg is.
     js_value_t *code;
     js_value_t *msg;
     err = js_create_string_utf8(env, (utf8_t *) uv_err_name(status), -1, &code);
@@ -737,7 +772,7 @@ on_udx_lookup (udx_lookup_t *lookup, int status, const struct sockaddr *addr, in
   assert(err == 0);
 
   std::optional<js_object_t> error;
-  js_string_t ip_str;
+  std::optional<js_string_t> ip_str;
 
   if (status >= 0) {
     if (addr->sa_family == AF_INET) {
@@ -747,6 +782,12 @@ on_udx_lookup (udx_lookup_t *lookup, int status, const struct sockaddr *addr, in
       uv_ip6_name((struct sockaddr_in6 *) addr, ip, addr_len);
       family = 6;
     }
+
+    js_string_t out;
+    err = js_create_string(env, ip, out);
+    assert(err == 0);
+
+    ip_str = out;
   } else {
     js_value_t *val;
     js_value_t *code;
@@ -761,7 +802,7 @@ on_udx_lookup (udx_lookup_t *lookup, int status, const struct sockaddr *addr, in
     error = static_cast<js_object_t>(val);
   }
 
-  err = js_call_function_with_checkpoint(env, callback, ctx, error, ip_str, static_cast<uint32_t>(family));
+  err = js_call_function_with_checkpoint(env, callback, ctx, error, ip_str, family);
   assert(err != js_pending_exception);
 
   err = js_close_handle_scope(env, scope);
@@ -853,9 +894,9 @@ udx_napi_init (
   err = udx_init(loop, &self->udx, on_udx_idle);
   assert(err == 0);
 
-  // self->read_buf.data() = read_buf.data();
-  // self->read_buf_free = read_buf.size();
-  self->read_buf = read_buf;
+  self->read_buf = read_buf.data();
+  self->read_buf_free = read_buf.size();
+  // self->read_buf = read_buf; // std::span test
 
   self->exiting = false;
   self->has_teardown = false;
@@ -864,11 +905,10 @@ udx_napi_init (
 static inline void
 udx_napi_socket_init (
   js_env_t *env,
-  js_receiver_t rctx,
   js_typedarray_span_of_t<udx_napi_t, 1> udx,
   js_typedarray_span_of_t<udx_napi_socket_t, 1> self,
 
-  js_object_t ctx, // should equal js_receiver_t (can be removed)
+  js_receiver_t ctx,
 
   cb_socket_send_t on_send,
   cb_socket_message_t on_message,
@@ -877,16 +917,11 @@ udx_napi_socket_init (
 ) {
   int err;
 
-  bool tmp;
-  err = js_strict_equals(env, static_cast<js_value_t *>(ctx), static_cast<js_value_t *>(rctx), &tmp);
-  assert(!tmp && "keep context arg");
-  assert(tmp && "remove context arg");
-
   udx_socket_t *socket = &self->socket;
   self->udx = &*udx;
   self->env = env;
 
-  err = js_create_reference(env, rctx, self->ctx);
+  err = js_create_reference(env, ctx, self->ctx);
   assert(err == 0);
   err = js_create_reference(env, on_send, self->on_send);
   assert(err == 0);
@@ -895,6 +930,7 @@ udx_napi_socket_init (
   err = js_create_reference(env, on_close, self->on_close);
   assert(err == 0);
   err = js_create_reference(env, realloc_message, self->realloc_message);
+  assert(err == 0);
 
   err = udx_socket_init(&udx->udx, socket, on_udx_close);
   if (err < 0) {
@@ -909,7 +945,7 @@ udx_napi_socket_init (
 static inline int32_t
 udx_napi_socket_bind (
   js_env_t *env,
-  js_typedarray_span_of_t<udx_socket_t, 1> self,
+  js_typedarray_span_of_t<udx_napi_socket_t, 1> self,
   uint32_t port,
   js_string_t ip_str,
   uint32_t family,
@@ -917,11 +953,10 @@ udx_napi_socket_bind (
 ) {
   int err;
 
-  char ip[INET6_ADDRSTRLEN] = {0};
-  std::string tmp;
-  err = js_get_value_string(env, ip_str, tmp);
-  assert(err == 0);
-  strncpy(ip, tmp.c_str(), MIN(INET6_ADDRSTRLEN, tmp.length())); // TODO: unhacky
+  auto socket = &self->socket;
+
+  char ip[INET6_ADDRSTRLEN];
+  load_address(env, ip, ip_str);
 
   struct sockaddr_storage addr;
   int addr_len;
@@ -940,7 +975,7 @@ udx_napi_socket_bind (
     return -1;
   }
 
-  err = udx_socket_bind(self, (struct sockaddr *) &addr, flags);
+  err = udx_socket_bind(socket, (struct sockaddr *) &addr, flags);
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
@@ -952,7 +987,7 @@ udx_napi_socket_bind (
   struct sockaddr_storage name;
 
   // wont error in practice
-  err = udx_socket_getsockname(self, (struct sockaddr *) &name, &addr_len);
+  err = udx_socket_getsockname(socket, (struct sockaddr *) &name, &addr_len);
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
@@ -968,7 +1003,7 @@ udx_napi_socket_bind (
   }
 
   // wont error in practice
-  err = udx_socket_recv_start(self, on_udx_message);
+  err = udx_socket_recv_start(socket, on_udx_message);
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
@@ -981,12 +1016,12 @@ udx_napi_socket_bind (
 static inline void
 udx_napi_socket_set_ttl (
   js_env_t *env,
-  js_typedarray_span_of_t<udx_socket_t, 1> self,
+  js_typedarray_span_of_t<udx_napi_socket_t, 1> self,
   uint32_t ttl
 ) {
   int err;
 
-  err = udx_socket_set_ttl(self, ttl);
+  err = udx_socket_set_ttl(&self->socket, ttl);
 
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
@@ -997,29 +1032,22 @@ udx_napi_socket_set_ttl (
 static inline void
 udx_napi_socket_set_membership (
   js_env_t *env,
-  js_typedarray_span_of_t<udx_socket_t, 1> socket,
+  js_typedarray_span_of_t<udx_napi_socket_t, 1> socket,
   js_string_t mcast_addr_str,
   js_string_t iface_addr_str,
   bool join
 ) {
   int err;
 
-  char mcast_addr[INET6_ADDRSTRLEN] = {0};
+  char mcast_addr[INET6_ADDRSTRLEN];
+  load_address(env, mcast_addr, mcast_addr_str);
 
-  std::string tmp;
-  err = js_get_value_string(env, mcast_addr_str, tmp);
-  assert(err == 0);
-  strncpy(mcast_addr, tmp.c_str(), MIN(tmp.length(), INET6_ADDRSTRLEN)); // TODO: unhacky
-
-  char iface_addr[INET6_ADDRSTRLEN] = {0};
-  err = js_get_value_string(env, iface_addr_str, tmp);
-  assert(err == 0);
-  strncpy(iface_addr, tmp.c_str(), MIN(tmp.length(), INET6_ADDRSTRLEN)); // TODO: unhacky
-  size_t iface_addr_len = tmp.length();
+  char iface_addr[INET6_ADDRSTRLEN];
+  size_t iface_addr_len = load_address(env, iface_addr, iface_addr_str);
 
   char *iface_param = iface_addr_len > 0 ? iface_addr : NULL;
 
-  err = udx_socket_set_membership(socket, mcast_addr, iface_param, join ? UV_JOIN_GROUP : UV_LEAVE_GROUP);
+  err = udx_socket_set_membership(&socket->socket, mcast_addr, iface_param, join ? UV_JOIN_GROUP : UV_LEAVE_GROUP);
 
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
@@ -1030,13 +1058,13 @@ udx_napi_socket_set_membership (
 static inline uint32_t
 udx_napi_socket_get_recv_buffer_size (
   js_env_t *env,
-  js_typedarray_span_of_t<udx_socket_t, 1> self
+  js_typedarray_span_of_t<udx_napi_socket_t, 1> self
 ) {
   int err;
 
   int size = 0;
 
-  err = udx_socket_get_recv_buffer_size(self, &size);
+  err = udx_socket_get_recv_buffer_size(&self->socket, &size);
 
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
@@ -1049,10 +1077,10 @@ udx_napi_socket_get_recv_buffer_size (
 static inline void
 udx_napi_socket_set_recv_buffer_size (
   js_env_t *env,
-  js_typedarray_span_of_t<udx_socket_t, 1> self,
+  js_typedarray_span_of_t<udx_napi_socket_t, 1> self,
   uint32_t size
 ) {
-  int err = udx_socket_set_recv_buffer_size(self, size);
+  int err = udx_socket_set_recv_buffer_size(&self->socket, size);
 
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
@@ -1063,11 +1091,11 @@ udx_napi_socket_set_recv_buffer_size (
 static inline uint32_t
 udx_napi_socket_get_send_buffer_size (
   js_env_t *env,
-  js_typedarray_span_of_t<udx_socket_t, 1> self
+  js_typedarray_span_of_t<udx_napi_socket_t, 1> self
 ) {
   int size = 0;
 
-  int err = udx_socket_get_send_buffer_size(self, &size);
+  int err = udx_socket_get_send_buffer_size(&self->socket, &size);
 
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
@@ -1080,10 +1108,10 @@ udx_napi_socket_get_send_buffer_size (
 static inline uint32_t
 udx_napi_socket_set_send_buffer_size (
   js_env_t *env,
-  js_typedarray_span_of_t<udx_socket_t, 1> self,
+  js_typedarray_span_of_t<udx_napi_socket_t, 1> self,
   uint32_t size
 ) {
-  int err = udx_socket_set_send_buffer_size(self, size);
+  int err = udx_socket_set_send_buffer_size(&self->socket, size);
 
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
@@ -1096,7 +1124,7 @@ udx_napi_socket_set_send_buffer_size (
 static inline void
 udx_napi_socket_send_ttl (
   js_env_t *env,
-  js_typedarray_span_of_t<udx_socket_t, 1> self,
+  js_typedarray_span_of_t<udx_napi_socket_t, 1> self,
   js_typedarray_span_of_t<udx_socket_send_t, 1> req,
   uint32_t rid,
   js_typedarray_span_of_t<char> buf,
@@ -1107,12 +1135,8 @@ udx_napi_socket_send_ttl (
 ) {
   int err;
 
-  char ip[INET6_ADDRSTRLEN] = {0};
-  size_t ip_len;
-  std::string tmp;
-  err = js_get_value_string(env, ip_str, tmp);
-  assert(err == 0);
-  strncpy(ip, tmp.c_str(), MIN(tmp.length(), INET6_ADDRSTRLEN)); // TODO: unhacky
+  char ip[INET6_ADDRSTRLEN];
+  load_address(env, ip, ip_str);
 
   req->data = (void *) ((uintptr_t) rid);
 
@@ -1132,7 +1156,7 @@ udx_napi_socket_send_ttl (
 
   uv_buf_t b = uv_buf_init(buf.data(), buf.size());
 
-  err = udx_socket_send_ttl(req, self, &b, 1, (const struct sockaddr *) &addr, ttl, on_udx_send);
+  err = udx_socket_send_ttl(req, &self->socket, &b, 1, (const struct sockaddr *) &addr, ttl, on_udx_send);
 
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
@@ -1143,11 +1167,11 @@ udx_napi_socket_send_ttl (
 static inline void
 udx_napi_socket_close (
   js_env_t *env,
-  js_typedarray_span_of_t<udx_socket_t, 1> self
+  js_typedarray_span_of_t<udx_napi_socket_t, 1> self
 ) {
   int err;
 
-  err = udx_socket_close(self);
+  err = udx_socket_close(&self->socket);
 
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
@@ -1160,9 +1184,11 @@ udx_napi_stream_init (
   js_env_t *env,
   js_typedarray_span_of_t<udx_napi_t, 1> udx,
   js_typedarray_span_of_t<udx_napi_stream_t, 1> self,
+
   uint32_t id,
   uint32_t framed,
-  js_receiver_t ctx, // TODO: use default receiver
+  js_receiver_t ctx,
+
   cb_stream_data_t on_data,
   cb_stream_end_t on_end,
   cb_stream_drain_t on_drain,
@@ -1297,12 +1323,7 @@ udx_napi_stream_connect (
   int err;
 
   char ip[INET6_ADDRSTRLEN];
-  std::string tmp;
-
-  err = js_get_value_string(env, ip_str, tmp);
-  assert(err == 0);
-
-  strncpy(ip, tmp.c_str(), MIN(tmp.length(), INET6_ADDRSTRLEN));
+  load_address(env, ip, ip_str);
 
   struct sockaddr_storage addr;
 
@@ -1339,12 +1360,7 @@ udx_napi_stream_change_remote (
   int err;
 
   char ip[INET6_ADDRSTRLEN];
-  std::string tmp;
-
-  err = js_get_value_string(env, ip_str, tmp);
-  assert(err == 0);
-
-  strncpy(ip, tmp.c_str(), MIN(tmp.length(), INET6_ADDRSTRLEN));
+  load_address(env, ip, ip_str);
 
   struct sockaddr_storage addr;
 
@@ -1423,11 +1439,13 @@ udx_napi_stream_write (
   js_env_t *env,
   js_receiver_t,
   js_typedarray_span_of_t<udx_napi_stream_t, 1> stream,
-  js_typedarray_span_of_t<udx_stream_write_t, 1> req,
+  js_typedarray_span_t<> req_handle,
   uint32_t rid,
   js_typedarray_span_of_t<char> buf
 ) {
   int err;
+
+  auto req = reinterpret_cast<udx_stream_write_t *>(req_handle.data());
 
   req->data = (void *) ((uintptr_t) rid);
 
@@ -1448,11 +1466,13 @@ static inline int64_t
 udx_napi_stream_writev (
   js_env_t *env,
   js_typedarray_span_of_t<udx_napi_stream_t, 1> stream,
-  js_typedarray_span_of_t<udx_stream_write_t, 1> req,
+  js_typedarray_span_t<> req_handle,
   uint32_t rid,
   std::vector<js_typedarray_span_of_t<char>> buffers
 ) {
   int err;
+
+  auto req = reinterpret_cast<udx_stream_write_t *>(req_handle.data());
 
   req->data = (void *) ((uintptr_t) rid);
 
@@ -1484,10 +1504,13 @@ static inline uint32_t
 udx_napi_stream_write_end (
   js_env_t *env,
   js_typedarray_span_of_t<udx_napi_stream_t, 1> stream,
-  js_typedarray_span_of_t<udx_stream_write_t, 1> req,
+  js_typedarray_span_t<> req_handle,
   uint32_t rid,
   js_typedarray_span_of_t<char> buf
 ) {
+
+  auto req = reinterpret_cast<udx_stream_write_t *>(req_handle.data());
+
   req->data = (void *) ((uintptr_t) rid);
 
   uv_buf_t b = uv_buf_init(buf.data(), buf.size());
@@ -1533,13 +1556,14 @@ udx_napi_lookup (
 
   std::string host;
   err = js_get_value_string(env, host_str, host);
+  assert(err == 0);
 
   udx_lookup_t *lookup = &self->handle;
 
+  // TODO: self->host is not used anywhere.
   err = js_create_reference(env, host_str, self->host);
   assert(err == 0);
 
-  // self->host = host.c_str(); // TODO: where is it used / freed?
   self->env = env;
 
   err = js_create_reference(env, ctx, self->ctx);
@@ -1567,7 +1591,7 @@ udx_napi_interface_event_init (
   js_env_t *env,
   js_typedarray_span_of_t<udx_napi_t, 1> udx,
   js_typedarray_span_of_t<udx_napi_interface_event_t, 1> self,
-  js_receiver_t ctx, // TODO: use default receiver
+  js_receiver_t ctx,
   cb_interface_event_t on_event,
   cb_interface_close_t on_close
 ) {
@@ -1673,6 +1697,8 @@ udx_napi_interface_event_get_addrs (
     }
 
     js_object_t item;
+    err = js_create_object(env, item);
+    assert(err == 0);
 
     err = js_set_property(env, item, "name", addr.name);
     assert(err == 0);
