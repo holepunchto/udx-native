@@ -94,8 +94,6 @@ struct udx_napi_lookup_t {
   udx_lookup_t handle;
   udx_napi_t *udx;
 
-  js_persistent_t<js_string_t> host; // TODO: not used
-
   js_env_t *env;
   js_persistent_t<js_receiver_t> ctx;
   js_persistent_t<cb_udx_lookup_t> on_lookup;
@@ -801,7 +799,6 @@ on_udx_lookup (udx_lookup_t *lookup, int status, const struct sockaddr *addr, in
 
   n->on_lookup.reset();
   n->ctx.reset();
-  n->host.reset();
 }
 
 static void
@@ -1559,13 +1556,6 @@ udx_napi_lookup (
   assert(err == 0);
 
   udx_lookup_t *lookup = &self->handle;
-
-  // TODO: self->host is not used anywhere.
-#if 1
-  __builtin_debugtrap();
-  err = js_create_reference(env, host_str, self->host);
-  assert(err == 0);
-#endif
 
   self->env = env;
 
