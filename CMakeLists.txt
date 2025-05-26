@@ -14,7 +14,8 @@ if(target MATCHES "win32")
 endif()
 
 fetch_package("github:holepunchto/libudx#7306be2d")
-fetch_package("github:holepunchto/libjstl#d08e05c")
+# add_subdirectory(../libudx ${CMAKE_BINARY_DIR}/udx)
+fetch_package("github:holepunchto/libjstl#26205ed")
 
 add_bare_module(udx_native_bare)
 

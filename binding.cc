@@ -12,7 +12,7 @@
 namespace {
 // socket
 using cb_socket_send_t = js_function_t<void, js_receiver_t, uint64_t, int>;
-using cb_socket_message_t = js_function_t<js_typedarray_span_t<>, js_receiver_t, int64_t, int, js_string_t, int>;
+using cb_socket_message_t = js_function_t<js_typedarray_span_t<>, js_receiver_t, int64_t, int, std::string, int>;
 using cb_socket_close_t = js_function_t<void, js_receiver_t>;
 using cb_socket_realloc_message_t = js_function_t<js_typedarray_span_t<>, js_receiver_t>;
 
@@ -26,11 +26,11 @@ using cb_stream_send_t = js_function_t<void, js_receiver_t, int32_t, int32_t>;
 using cb_stream_message_t = js_function_t<js_typedarray_span_t<>, js_receiver_t, uint32_t>;
 using cb_stream_realloc_message_t = js_function_t<js_typedarray_span_t<>, js_receiver_t>;
 using cb_stream_close_t = js_function_t<void, js_receiver_t, std::optional<js_object_t>>;
-using cb_stream_firewall_t = js_function_t<uint32_t, js_receiver_t, js_receiver_t, uint32_t, js_string_t, uint32_t>;
+using cb_stream_firewall_t = js_function_t<uint32_t, js_receiver_t, js_receiver_t, uint32_t, std::string, uint32_t>;
 using cb_stream_remote_changed_t = js_function_t<void, js_receiver_t>;
 
 // udx
-using cb_udx_lookup_t = js_function_t<void, js_receiver_t, std::optional<js_object_t>, std::optional<js_string_t>, int32_t>;
+using cb_udx_lookup_t = js_function_t<void, js_receiver_t, std::optional<js_object_t>, std::optional<std::string>, int32_t>;
 
 // interface
 using cb_interface_event_t = js_function_t<void, js_receiver_t>;
@@ -125,16 +125,16 @@ parse_address (struct sockaddr *name, char *ip, size_t size, int *port, int *fam
 }
 
 inline static int
-load_address (js_env_t *env, char *addr, js_string_t &j_str) {
-  std::string tmp;
+load_address (js_env_t *env, char *addr, std::string str) {
+  memset(addr, 0, INET6_ADDRSTRLEN);
 
-  int err = js_get_value_string(env, j_str, tmp);
-  assert(err == 0);
+  const char *val = str.c_str();
+  size_t len = str.length();
 
-  strncpy(addr, tmp.c_str(), MIN(INET6_ADDRSTRLEN, tmp.length()));
-  addr[tmp.length()] = '\0';
+  strncpy(addr, val, MIN(INET6_ADDRSTRLEN, len));
+  // printf("load_addr len=%zu val=%s\n", len, val);
 
-  return tmp.length();
+  return len;
 }
 
 static void
@@ -237,9 +237,8 @@ on_udx_message (udx_socket_t *self, ssize_t read_len, const uv_buf_t *buf, const
   err = js_get_reference_value(env, n->on_message, callback);
   assert(err == 0);
 
-  js_string_t ip_str;
-  err = js_create_string(env, ip, ip_str);
-  assert(err == 0);
+  std::string ip_str;
+  ip_str = ip;
 
   js_typedarray_span_t<> res;
 
@@ -694,10 +693,6 @@ on_udx_stream_firewall (udx_stream_t *stream, udx_socket_t *socket, const struct
   err = js_get_reference_value(env, n->on_firewall, callback);
   assert(err == 0);
 
-  js_string_t ip_str;
-  err = js_create_string(env, ip, ip_str);
-  assert(err == 0);
-
   js_receiver_t socket_ctx;
   js_get_reference_value(env, s->ctx, socket_ctx);
   assert(err == 0);
@@ -708,7 +703,7 @@ on_udx_stream_firewall (udx_stream_t *stream, udx_socket_t *socket, const struct
     ctx,
     socket_ctx,
     static_cast<uint32_t>(port),
-    ip_str,
+    std::string(ip),
     static_cast<uint32_t>(family),
     fw
   );
@@ -772,7 +767,7 @@ on_udx_lookup (udx_lookup_t *lookup, int status, const struct sockaddr *addr, in
   assert(err == 0);
 
   std::optional<js_object_t> error;
-  std::optional<js_string_t> ip_str;
+  std::optional<std::string> ip_str;
 
   if (status >= 0) {
     if (addr->sa_family == AF_INET) {
@@ -783,11 +778,7 @@ on_udx_lookup (udx_lookup_t *lookup, int status, const struct sockaddr *addr, in
       family = 6;
     }
 
-    js_string_t out;
-    err = js_create_string(env, ip, out);
-    assert(err == 0);
-
-    ip_str = out;
+    ip_str = ip;
   } else {
     js_value_t *val;
     js_value_t *code;
@@ -887,6 +878,9 @@ udx_napi_init (
   js_typedarray_span_t<> read_buf
 ) {
   int err;
+
+  *self = {};
+
   uv_loop_t *loop;
   err = js_get_env_loop(env, &loop);
   assert(err == 0);
@@ -916,6 +910,8 @@ udx_napi_socket_init (
   cb_socket_realloc_message_t realloc_message
 ) {
   int err;
+
+  *self = {};
 
   udx_socket_t *socket = &self->socket;
   self->udx = &*udx;
@@ -947,7 +943,7 @@ udx_napi_socket_bind (
   js_env_t *env,
   js_typedarray_span_of_t<udx_napi_socket_t, 1> self,
   uint32_t port,
-  js_string_t ip_str,
+  std::string ip_str,
   uint32_t family,
   uint32_t flags
 ) {
@@ -1033,8 +1029,8 @@ static inline void
 udx_napi_socket_set_membership (
   js_env_t *env,
   js_typedarray_span_of_t<udx_napi_socket_t, 1> socket,
-  js_string_t mcast_addr_str,
-  js_string_t iface_addr_str,
+  std::string mcast_addr_str,
+  std::string iface_addr_str,
   bool join
 ) {
   int err;
@@ -1129,7 +1125,7 @@ udx_napi_socket_send_ttl (
   uint32_t rid,
   js_typedarray_span_of_t<char> buf,
   uint32_t port,
-  js_string_t ip_str,
+  std::string ip_str,
   uint32_t family,
   uint32_t ttl
 ) {
@@ -1202,6 +1198,8 @@ udx_napi_stream_init (
   cb_stream_realloc_message_t realloc_message
 ) {
   int err;
+
+  *self = {};
 
   auto stream = &self->stream;
 
@@ -1317,7 +1315,7 @@ udx_napi_stream_connect (
   js_typedarray_span_of_t<udx_napi_socket_t, 1> socket,
   uint32_t remote_id,
   uint32_t port,
-  js_string_t ip_str,
+  std::string ip_str,
   uint32_t family
 ) {
   int err;
@@ -1354,7 +1352,7 @@ udx_napi_stream_change_remote (
   js_typedarray_span_of_t<udx_napi_socket_t, 1> socket,
   uint32_t remote_id,
   uint32_t port,
-  js_string_t ip_str,
+  std::string ip_str,
   uint32_t family
 ) {
   int err;
@@ -1552,6 +1550,8 @@ udx_napi_lookup (
 ) {
   int err;
 
+  *self = {};
+
   self->udx = udx;
 
   std::string host;
@@ -1561,8 +1561,11 @@ udx_napi_lookup (
   udx_lookup_t *lookup = &self->handle;
 
   // TODO: self->host is not used anywhere.
+#if 1
+  __builtin_debugtrap();
   err = js_create_reference(env, host_str, self->host);
   assert(err == 0);
+#endif
 
   self->env = env;
 
@@ -1596,6 +1599,8 @@ udx_napi_interface_event_init (
   cb_interface_close_t on_close
 ) {
   int err;
+
+  *self = {};
 
   self->udx = udx;
   self->env = env;
