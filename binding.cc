@@ -19,11 +19,11 @@ using cb_socket_realloc_message_t = js_function_t<js_typedarray_span_t<>, js_rec
 // stream
 using cb_stream_end_t = js_function_t<void, js_receiver_t, uint32_t>;
 using cb_stream_data_t = js_function_t<js_typedarray_span_t<>, js_receiver_t, uint32_t>;
-using cb_stream_realloc_data_t = js_function_t<js_typedarray_span_t<>, js_receiver_t>;
 using cb_stream_drain_t = js_function_t<void, js_receiver_t>;
 using cb_stream_ack_t = js_function_t<void, js_receiver_t, uint32_t>;
 using cb_stream_send_t = js_function_t<void, js_receiver_t, int32_t, int32_t>;
 using cb_stream_message_t = js_function_t<js_typedarray_span_t<>, js_receiver_t, uint32_t>;
+using cb_stream_realloc_data_t = js_function_t<js_typedarray_span_t<>, js_receiver_t>;
 using cb_stream_realloc_message_t = js_function_t<js_typedarray_span_t<>, js_receiver_t>;
 using cb_stream_close_t = js_function_t<void, js_receiver_t, std::optional<js_object_t>>;
 using cb_stream_firewall_t = js_function_t<uint32_t, js_receiver_t, js_receiver_t, uint32_t, std::string, uint32_t>;
@@ -166,45 +166,6 @@ on_udx_send (udx_socket_send_t *req, int status) {
   assert(err == 0);
 }
 
-// TODO: template for stream
-static inline void
-realloc_readbuffer (int callback_status, udx_napi_socket_t *socket, js_typedarray_span_t<> &value) {
-  auto udx = socket->udx;
-
-  if (callback_status == 0) {
-    udx->read_buf = value.data();
-    udx->read_buf_free = value.size();
-  } else {
-    // avoid reentry
-    if (!(udx->exiting)) {
-      int err;
-      js_env_t *env = socket->env;
-
-      js_handle_scope_t *scope;
-      err = js_open_handle_scope(env, &scope);
-      assert(err == 0);
-
-      js_receiver_t ctx;
-      err = js_get_reference_value(env, socket->ctx, ctx);
-      assert(err == 0);
-
-      cb_socket_realloc_message_t callback;
-      err = js_get_reference_value(env, socket->realloc_message, callback);
-      assert(err == 0);
-
-      err = js_call_function_with_checkpoint(env, callback, ctx, value);
-      assert(err == 0);
-
-      udx->read_buf = value.data();
-      udx->read_buf_free = value.size();
-
-      err = js_close_handle_scope(env, scope);
-      assert(err == 0);
-    }
-  }
-}
-
-
 static void
 on_udx_message (udx_socket_t *self, ssize_t read_len, const uv_buf_t *buf, const struct sockaddr *from) {
   auto *n = reinterpret_cast<udx_napi_socket_t *>(self);
@@ -251,7 +212,37 @@ on_udx_message (udx_socket_t *self, ssize_t read_len, const uv_buf_t *buf, const
     res
   );
 
-  realloc_readbuffer(err, n, res);
+  if (err == 0) {
+    n->udx->read_buf = res.data();
+    n->udx->read_buf_free = res.size();
+  } else {
+    // avoid reentry
+    if (!(n->udx->exiting)) {
+      int err;
+      js_env_t *env = n->env;
+
+      js_handle_scope_t *scope;
+      err = js_open_handle_scope(env, &scope);
+      assert(err == 0);
+
+      js_receiver_t ctx;
+      err = js_get_reference_value(env, n->ctx, ctx);
+      assert(err == 0);
+
+      cb_socket_realloc_message_t callback;
+      err = js_get_reference_value(env, n->realloc_message, callback);
+      assert(err == 0);
+
+      err = js_call_function_with_checkpoint(env, callback, ctx, res);
+      assert(err == 0);
+
+      n->udx->read_buf = res.data();
+      n->udx->read_buf_free = res.size();
+
+      err = js_close_handle_scope(env, scope);
+      assert(err == 0);
+    }
+  }
 
   err = js_close_handle_scope(env, scope);
   assert(err == 0);
@@ -562,15 +553,9 @@ on_udx_stream_recv (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
   js_typedarray_span_t<> res;
   err = js_call_function_with_checkpoint(env, callback, ctx, static_cast<uint32_t>(read_len), res);
 
-  // TODO: template realloc for stream or just pass necessary params
-  // realloc_readbuffer(err, n, res);
-
   if (err == 0) {
     n->udx->read_buf = res.data();
     n->udx->read_buf_free = res.size();
-
-    // err = js_get_typedarray_info(env, res, NULL, (void **) &(n->udx->read_buf), &(n->udx->read_buf.size()), NULL, NULL);
-    // assert(err == 0);
   } else {
     // avoid re-entry
     if (!(n->udx->exiting)) {
@@ -887,7 +872,6 @@ udx_napi_init (
 
   self->read_buf = read_buf.data();
   self->read_buf_free = read_buf.size();
-  // self->read_buf = read_buf; // std::span test
 
   self->exiting = false;
   self->has_teardown = false;

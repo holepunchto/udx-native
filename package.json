@@ -43,7 +43,7 @@
   },
   "homepage": "https://github.com/holepunchto/udx-native#readme",
   "engines": {
-    "bare": ">=1.16.0"
+    "bare": ">=1.17.4"
   },
   "dependencies": {
     "b4a": "^1.5.0",
