@@ -297,10 +297,10 @@ ensure_teardown (js_env_t *env, udx_napi_t *udx) {
   udx->has_teardown = true;
 
   int err = js_add_deferred_teardown_callback(
-      env,
-      on_udx_teardown,
-      reinterpret_cast<void *>(udx),
-      &udx->teardown
+    env,
+    on_udx_teardown,
+    reinterpret_cast<void *>(udx),
+    &udx->teardown
   );
 
   if (err != 0) abort();
