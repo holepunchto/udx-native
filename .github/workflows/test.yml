@@ -14,9 +14,9 @@ jobs:
         - os: ubuntu-latest
           platform: linux
           arch: x64
-        #- os: macos-latest
-        #  platform: darwin
-        ###  arch: arm64
+        - os: macos-latest
+          platform: darwin
+          arch: arm64
         - os: windows-latest
           platform: win32
           arch: x64
@@ -39,7 +39,6 @@ jobs:
         echo "/opt/homebrew/opt/llvm/bin" >> "$GITHUB_PATH"
         echo "LDFLAGS=-L/opt/homebrew/opt/llvm/lib" >> "$GITHUB_ENV"
         echo "CPPFLAGS=-I/opt/homebrew/opt/llvm/include" >> "$GITHUB_ENV"
-        clang -v
       if: ${{ matrix.platform == 'darwin' }}
     - run: clang -v
     - run: npm install -g bare-runtime bare-make
