@@ -1461,7 +1461,7 @@ udx_napi_stream_writev (
 
   for (int i = 0; i < len; i++) {
     auto buf = buffers[i];
-    batch[i] = {.base = buf.data(), .len = buf.size()};
+    batch[i] = uv_buf_init(buf.data(), buf.size());
   }
 
   int res = udx_stream_write(req, &stream->stream, batch.data(), len, on_udx_stream_ack);
