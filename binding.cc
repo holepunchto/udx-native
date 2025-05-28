@@ -127,10 +127,11 @@ load_address (js_env_t *env, char *addr, std::string str) {
   memset(addr, 0, INET6_ADDRSTRLEN);
 
   const char *val = str.c_str();
-  size_t len = str.length();
 
-  strncpy(addr, val, MIN(INET6_ADDRSTRLEN, len));
-  // printf("load_addr len=%zu val=%s\n", len, val);
+  size_t len = INET6_ADDRSTRLEN;
+  if (str.length() < INET6_ADDRSTRLEN) len = str.length();
+
+  strncpy(addr, val, len);
 
   return len;
 }
