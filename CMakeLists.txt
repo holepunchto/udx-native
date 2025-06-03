@@ -14,7 +14,7 @@ if(target MATCHES "win32")
 endif()
 
 fetch_package("github:holepunchto/libudx#1701e3")
-fetch_package("github:holepunchto/libjstl#069d305")
+fetch_package("github:holepunchto/libjstl#77df46b")
 
 add_bare_module(udx_native_bare)
 

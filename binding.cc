@@ -160,8 +160,8 @@ on_udx_send (udx_socket_send_t *req, int status) {
 
   auto id = reinterpret_cast<uintptr_t>(req->data);
 
-  err = js_call_function_with_checkpoint(env, callback, ctx, static_cast<uint64_t>(id), status);
-  assert(err != js_pending_exception);
+  err = js_call_function_with_checkpoint(env, callback, ctx, uint64_t(id), status);
+  assert(err == 0);
 
   err = js_close_handle_scope(env, scope);
   assert(err == 0);
@@ -206,7 +206,7 @@ on_udx_message (udx_socket_t *self, ssize_t read_len, const uv_buf_t *buf, const
     env,
     callback,
     ctx,
-    static_cast<int64_t>(read_len),
+    int64_t(read_len),
     port,
     ip_str,
     family,
@@ -269,7 +269,7 @@ on_udx_close (udx_socket_t *self) {
     assert(err == 0);
 
     err = js_call_function_with_checkpoint(env, callback, ctx);
-    assert(err != js_pending_exception);
+    assert(err == 0);
 
     err = js_close_handle_scope(env, scope);
     assert(err == 0);
@@ -329,8 +329,8 @@ on_udx_stream_end (udx_stream_t *stream) {
   err = js_get_reference_value(env, n->on_end, callback);
   assert(err == 0);
 
-  err = js_call_function_with_checkpoint(env, callback, ctx, static_cast<uint32_t>(read));
-  assert(err != js_pending_exception);
+  err = js_call_function_with_checkpoint(env, callback, ctx, uint32_t(read));
+  assert(err == 0);
 
   err = js_close_handle_scope(env, scope);
   assert(err == 0);
@@ -397,7 +397,7 @@ on_udx_stream_read (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
   assert(err == 0);
 
   js_typedarray_span_t<> res;
-  err = js_call_function_with_checkpoint(env, callback, ctx, static_cast<uint32_t>(read), res);
+  err = js_call_function_with_checkpoint(env, callback, ctx, uint32_t(read), res);
 
   if (err == 0) {
     n->read_buf = res.data();
@@ -454,7 +454,7 @@ on_udx_stream_drain (udx_stream_t *stream) {
   assert(err == 0);
 
   err = js_call_function_with_checkpoint(env, callback, ctx);
-  assert(err != js_pending_exception);
+  assert(err == 0);
 
   err = js_close_handle_scope(env, scope);
   assert(err == 0);
@@ -481,9 +481,9 @@ on_udx_stream_ack (udx_stream_write_t *req, int status, int unordered) {
   err = js_get_reference_value(env, n->on_ack, callback);
   assert(err == 0);
 
-  auto offset = (uintptr_t) req->data; // TODO: search uintptr_t and consider replacing with native pointers
+  auto offset = reinterpret_cast<uintptr_t>(req->data);
 
-  err = js_call_function_with_checkpoint(env, callback, ctx, static_cast<uint32_t>(offset));
+  err = js_call_function_with_checkpoint(env, callback, ctx, uint32_t(offset));
   assert(err == 0);
 
   err = js_close_handle_scope(env, scope);
@@ -514,7 +514,7 @@ on_udx_stream_send (udx_stream_send_t *req, int status) {
 
   auto id = reinterpret_cast<uintptr_t>(req->data);
 
-  err = js_call_function_with_checkpoint(env, callback, ctx, static_cast<int32_t>(id), status);
+  err = js_call_function_with_checkpoint(env, callback, ctx, int32_t(id), status);
   assert(err == 0);
 
   err = js_close_handle_scope(env, scope);
@@ -552,7 +552,7 @@ on_udx_stream_recv (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
   assert(err == 0);
 
   js_typedarray_span_t<> res;
-  err = js_call_function_with_checkpoint(env, callback, ctx, static_cast<uint32_t>(read_len), res);
+  err = js_call_function_with_checkpoint(env, callback, ctx, uint32_t(read_len), res);
 
   if (err == 0) {
     n->udx->read_buf = res.data();
@@ -573,7 +573,7 @@ on_udx_stream_recv (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
       assert(err == 0);
 
       err = js_call_function_with_checkpoint(env, callback, ctx, res);
-      assert(err != js_pending_exception);
+      assert(err == 0);
 
       n->udx->read_buf = res.data();
       n->udx->read_buf_free = res.size();
@@ -630,16 +630,14 @@ on_udx_stream_close (udx_stream_t *stream, int status) {
   std::optional<js_object_t> res;
 
   if (status < 0) {
-    js_value_t *code;
-    js_value_t *msg;
-    err = js_create_string_utf8(env, (utf8_t *) uv_err_name(status), -1, &code);
+    js_string_t code;
+    err = js_create_string(env, uv_err_name(status), code);
     assert(err == 0);
-    err = js_create_string_utf8(env, (utf8_t *) uv_strerror(status), -1, &msg);
+
+    res.emplace(); // init
+
+    err = js_create_error(env, code, uv_strerror(status), *res);
     assert(err == 0);
-    js_value_t *error;
-    err = js_create_error(env, code, msg, &error);
-    assert(err == 0);
-    res = static_cast<js_object_t>(error);
   }
 
   err = js_call_function_with_checkpoint(env, callback, ctx, res);
@@ -686,12 +684,12 @@ on_udx_stream_firewall (udx_stream_t *stream, udx_socket_t *socket, const struct
     callback,
     ctx,
     socket_ctx,
-    static_cast<uint32_t>(port),
+    uint32_t(port),
     std::string(ip),
-    static_cast<uint32_t>(family),
+    uint32_t(family),
     fw
   );
-  assert(err != js_pending_exception);
+  assert(err == 0);
 
   err = js_close_handle_scope(env, scope);
   assert(err == 0);
@@ -764,21 +762,18 @@ on_udx_lookup (udx_lookup_t *lookup, int status, const struct sockaddr *addr, in
 
     ip_str = ip;
   } else {
-    js_value_t *val;
-    js_value_t *code;
-    js_value_t *msg;
-    err = js_create_string_utf8(env, (utf8_t *) uv_err_name(status), -1, &code);
-    assert(err == 0);
-    err = js_create_string_utf8(env, (utf8_t *) uv_strerror(status), -1, &msg);
-    assert(err == 0);
-    err = js_create_error(env, code, msg, &val);
+    js_string_t code;
+    err = js_create_string(env, uv_err_name(status), code);
     assert(err == 0);
 
-    error = static_cast<js_object_t>(val);
+    error.emplace(); // init
+
+    err = js_create_error(env, code, uv_strerror(status), *error);
+    assert(err == 0);
   }
 
   err = js_call_function_with_checkpoint(env, callback, ctx, error, ip_str, family);
-  assert(err != js_pending_exception);
+  assert(err == 0);
 
   err = js_close_handle_scope(env, scope);
   assert(err == 0);
@@ -1116,7 +1111,7 @@ udx_napi_socket_send_ttl (
   char ip[INET6_ADDRSTRLEN];
   load_address(env, ip, ip_str);
 
-  req->data = (void *) ((uintptr_t) rid);
+  req->data = reinterpret_cast<void *>(static_cast<uintptr_t>(rid));
 
   struct sockaddr_storage addr;
 
@@ -1374,7 +1369,7 @@ udx_napi_stream_change_remote (
     assert(err == 0);
 
     err = js_call_function(env, callback, ctx);
-    assert(err != js_pending_exception);
+    assert(err == 0);
   }
 }
 
@@ -1400,7 +1395,7 @@ udx_napi_stream_send (
   uint32_t rid,
   js_typedarray_span_of_t<char> buf
 ) {
-  req->data = (void *) ((uintptr_t) rid);
+  req->data = reinterpret_cast<void *>(static_cast<uintptr_t>(rid));
 
   uv_buf_t b = uv_buf_init(buf.data(), buf.size());
 
@@ -1427,7 +1422,7 @@ udx_napi_stream_write (
 
   auto req = reinterpret_cast<udx_stream_write_t *>(req_handle.data());
 
-  req->data = (void *) ((uintptr_t) rid);
+  req->data = reinterpret_cast<void *>(static_cast<uintptr_t>(rid));
 
   auto b = uv_buf_init(buf.data(), buf.size());
 
@@ -1454,7 +1449,7 @@ udx_napi_stream_writev (
 
   auto req = reinterpret_cast<udx_stream_write_t *>(req_handle.data());
 
-  req->data = (void *) ((uintptr_t) rid);
+  req->data = reinterpret_cast<void *>(static_cast<uintptr_t>(rid));
 
   const auto len = buffers.size();
 
@@ -1491,7 +1486,7 @@ udx_napi_stream_write_end (
 
   auto req = reinterpret_cast<udx_stream_write_t *>(req_handle.data());
 
-  req->data = (void *) ((uintptr_t) rid);
+  req->data = reinterpret_cast<void *>(static_cast<uintptr_t>(rid));
 
   uv_buf_t b = uv_buf_init(buf.data(), buf.size());
 
@@ -1689,7 +1684,7 @@ udx_napi_interface_event_get_addrs (
     err = js_set_property(env, item, "family", family);
     assert(err == 0);
 
-    err = js_set_property(env, item, "internal", static_cast<bool>(addr.is_internal));
+    err = js_set_property(env, item, "internal", bool(addr.is_internal));
     assert(err == 0);
 
     result.push_back(item);
@@ -1704,13 +1699,8 @@ udx_native_exports (js_env_t *env, js_value_t *exports) {
 
   // uint32
 #define V(name, value) \
-  { \
-    js_value_t *val; \
-    err = js_create_uint32(env, value, &val); \
-    assert(err == 0); \
-    err = js_set_named_property(env, exports, name, val); \
-    assert(err == 0); \
-  }
+  err = js_set_property(env, exports, name, uint32_t(value)); \
+  assert(err == 0);
 
   V("UV_UDP_IPV6ONLY", UV_UDP_IPV6ONLY);
   V("UV_UDP_REUSEADDR", UV_UDP_REUSEADDR);
@@ -1746,11 +1736,10 @@ udx_native_exports (js_env_t *env, js_value_t *exports) {
   V("sizeof_udx_socket_send_t", sizeof(udx_socket_send_t));
   V("sizeof_udx_stream_send_t", sizeof(udx_stream_send_t));
 #undef V
-  js_object_t _exports = static_cast<js_object_t>(exports);
 
   // functions
 #define V(name, fn) \
-  err = js_set_property<fn>(env, _exports, name); \
+  err = js_set_property<fn>(env, exports, name); \
   assert(err == 0);
 
   V("udx_napi_init", udx_napi_init);
