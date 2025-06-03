@@ -69,7 +69,6 @@ jobs:
         echo "LDFLAGS=-L/opt/homebrew/opt/llvm/lib" >> "$GITHUB_ENV"
         echo "CPPFLAGS=-I/opt/homebrew/opt/llvm/include" >> "$GITHUB_ENV"
       if: ${{ matrix.platform == 'darwin' }}
-    - run: clang -v
     - run: npm install -g bare-make
     - run: npm install
     - run: bare-make generate --platform ${{ matrix.platform }} --arch ${{ matrix.arch }} ${{ matrix.flags }}
