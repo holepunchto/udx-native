@@ -392,10 +392,6 @@ on_udx_stream_read (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
   err = js_get_reference_value(env, n->on_data, callback);
   assert(err == 0);
 
-  js_value_t *argv[1];
-  err = js_create_uint32(env, read, &(argv[0]));
-  assert(err == 0);
-
   js_typedarray_span_t<> res;
   err = js_call_function_with_checkpoint(env, callback, ctx, uint32_t(read), res);
 
@@ -545,10 +541,6 @@ on_udx_stream_recv (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
 
   cb_stream_message_t callback;
   err = js_get_reference_value(env, n->on_message, callback);
-  assert(err == 0);
-
-  js_value_t *argv[1];
-  err = js_create_uint32(env, read_len, &(argv[0]));
   assert(err == 0);
 
   js_typedarray_span_t<> res;
