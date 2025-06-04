@@ -42,7 +42,6 @@ struct udx_napi_t {
 
   uint8_t *read_buf;
   size_t read_buf_free;
-  // std::span<uint8_t> read_buf; // maybe restore.
 
   js_deferred_teardown_t *teardown;
   bool exiting;
@@ -642,8 +641,8 @@ on_udx_stream_close (udx_stream_t *stream, int status) {
 static int
 on_udx_stream_firewall (udx_stream_t *stream, udx_socket_t *socket, const struct sockaddr *from) {
   int err;
-  udx_napi_stream_t *n = (udx_napi_stream_t *) stream;
-  udx_napi_socket_t *s = (udx_napi_socket_t *) socket;
+  auto *n = reinterpret_cast<udx_napi_stream_t *>(stream);
+  auto *s = reinterpret_cast<udx_napi_socket_t *>(socket);
 
   uint32_t fw = 1; // assume error means firewall it, whilst reporting the uncaught
   if (n->udx->exiting) return fw;
@@ -668,7 +667,7 @@ on_udx_stream_firewall (udx_stream_t *stream, udx_socket_t *socket, const struct
   assert(err == 0);
 
   js_receiver_t socket_ctx;
-  js_get_reference_value(env, s->ctx, socket_ctx);
+  err = js_get_reference_value(env, s->ctx, socket_ctx);
   assert(err == 0);
 
   err = js_call_function_with_checkpoint(
@@ -886,6 +885,14 @@ udx_napi_socket_init (
   self->udx = &*udx;
   self->env = env;
 
+  err = udx_socket_init(&udx->udx, socket, on_udx_close);
+  if (err < 0) {
+    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
+
+    return;
+  }
+
   err = js_create_reference(env, ctx, self->ctx);
   assert(err == 0);
   err = js_create_reference(env, on_send, self->on_send);
@@ -896,13 +903,6 @@ udx_napi_socket_init (
   assert(err == 0);
   err = js_create_reference(env, realloc_message, self->realloc_message);
   assert(err == 0);
-
-  err = udx_socket_init(&udx->udx, socket, on_udx_close);
-  if (err < 0) {
-    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
-    assert(err == 0);
-    return;
-  }
 
   ensure_teardown(env, udx);
 }
@@ -937,6 +937,7 @@ udx_napi_socket_bind (
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
+
     return -1;
   }
 
@@ -1170,8 +1171,6 @@ udx_napi_stream_init (
 
   *self = {};
 
-  auto stream = &self->stream;
-
   self->mode = framed ? UDX_NAPI_FRAMED : UDX_NAPI_INTERACTIVE;
 
   self->frame_len = -1;
@@ -1182,6 +1181,17 @@ udx_napi_stream_init (
 
   self->udx = udx;
   self->env = env;
+
+  auto stream = &self->stream;
+
+  err = udx_stream_init(&udx->udx, stream, id, on_udx_stream_close, on_udx_stream_finalize);
+
+  if (err < 0) {
+    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
+
+    return;
+  }
 
   err = js_create_reference(env, ctx, self->ctx);
   assert(err == 0);
@@ -1207,14 +1217,6 @@ udx_napi_stream_init (
   assert(err == 0);
   err = js_create_reference(env, realloc_message, self->realloc_message);
   assert(err == 0);
-
-  err = udx_stream_init(&udx->udx, stream, id, on_udx_stream_close, on_udx_stream_finalize);
-
-  if (err < 0) {
-    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
-    assert(err == 0);
-    return;
-  }
 
   udx_stream_firewall(stream, on_udx_stream_firewall);
   udx_stream_write_resume(stream, on_udx_stream_drain);
@@ -1531,11 +1533,6 @@ udx_napi_lookup (
 
   self->env = env;
 
-  err = js_create_reference(env, ctx, self->ctx);
-  assert(err == 0);
-  err = js_create_reference(env, on_lookup, self->on_lookup);
-  assert(err == 0);
-
   int flags = 0;
 
   if (family == 4) flags |= UDX_LOOKUP_FAMILY_IPV4;
@@ -1547,6 +1544,11 @@ udx_napi_lookup (
     assert(err == 0);
     return;
   }
+
+  err = js_create_reference(env, ctx, self->ctx);
+  assert(err == 0);
+  err = js_create_reference(env, on_lookup, self->on_lookup);
+  assert(err == 0);
 
   ensure_teardown(env, udx);
 }
@@ -1567,13 +1569,6 @@ udx_napi_interface_event_init (
   self->udx = udx;
   self->env = env;
 
-  err = js_create_reference(env, ctx, self->ctx);
-  assert(err == 0);
-  err = js_create_reference(env, on_event, self->on_event);
-  assert(err == 0);
-  err = js_create_reference(env, on_close, self->on_close);
-  assert(err == 0);
-
   err = udx_interface_event_init(&udx->udx, &self->handle, on_udx_interface_event_close);
 
   if (err < 0) {
@@ -1589,6 +1584,13 @@ udx_napi_interface_event_init (
     assert(err == 0);
     return;
   }
+
+  err = js_create_reference(env, ctx, self->ctx);
+  assert(err == 0);
+  err = js_create_reference(env, on_event, self->on_event);
+  assert(err == 0);
+  err = js_create_reference(env, on_close, self->on_close);
+  assert(err == 0);
 
   ensure_teardown(env, udx);
 }
