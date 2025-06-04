@@ -109,15 +109,21 @@ struct udx_napi_interface_event_t {
 };
 
 inline static void
-parse_address (struct sockaddr *name, char *ip, size_t size, int *port, int *family) {
+parse_address (const struct sockaddr *name, char *ip, size_t size, int *port, int *family) {
   if (name->sa_family == AF_INET) {
-    *port = ntohs(((struct sockaddr_in *) name)->sin_port);
-    *family = 4;
-    uv_ip4_name((struct sockaddr_in *) name, ip, size);
+    auto name_v4 = reinterpret_cast<const struct sockaddr_in *>(name);
+
+    if (port) *port = ntohs(name_v4->sin_port);
+    if (family) *family = 4;
+
+    uv_ip4_name(name_v4, ip, size);
   } else if (name->sa_family == AF_INET6) {
-    *port = ntohs(((struct sockaddr_in6 *) name)->sin6_port);
-    *family = 6;
-    uv_ip6_name((struct sockaddr_in6 *) name, ip, size);
+    auto name_v6 = reinterpret_cast<const struct sockaddr_in6 *>(name);
+
+    if (port) *port = ntohs(name_v6->sin6_port);
+    if (family) *family = 6;
+
+    uv_ip6_name(name_v6, ip, size);
   }
 }
 
@@ -176,7 +182,7 @@ on_udx_message (udx_socket_t *self, ssize_t read_len, const uv_buf_t *buf, const
   int port = 0;
   char ip[INET6_ADDRSTRLEN];
   int family = 0;
-  parse_address((struct sockaddr *) from, ip, INET6_ADDRSTRLEN, &port, &family);
+  parse_address(from, ip, INET6_ADDRSTRLEN, &port, &family);
 
   if (buf->len > n->udx->read_buf_free) return;
 
@@ -250,7 +256,7 @@ on_udx_message (udx_socket_t *self, ssize_t read_len, const uv_buf_t *buf, const
 
 static void
 on_udx_close (udx_socket_t *self) {
-  udx_napi_socket_t *n = (udx_napi_socket_t *) self;
+  auto n = reinterpret_cast<udx_napi_socket_t *>(self);
   int err;
   js_env_t *env = n->env;
 
@@ -349,7 +355,7 @@ on_udx_stream_read (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
     if (buf->len < 3) {
       n->mode = UDX_NAPI_INTERACTIVE;
     } else {
-      uint8_t *b = (uint8_t *) buf->base;
+      auto b = reinterpret_cast<uint8_t *>(buf->base);
       n->frame_len = 3 + (b[0] | (b[1] << 8) | (b[2] << 16));
     }
   }
@@ -650,7 +656,7 @@ on_udx_stream_firewall (udx_stream_t *stream, udx_socket_t *socket, const struct
   int port = 0;
   char ip[INET6_ADDRSTRLEN];
   int family = 0;
-  parse_address((struct sockaddr *) from, ip, INET6_ADDRSTRLEN, &port, &family);
+  parse_address(from, ip, INET6_ADDRSTRLEN, &port, &family);
 
   js_env_t *env = n->env;
 
@@ -691,7 +697,9 @@ on_udx_stream_firewall (udx_stream_t *stream, udx_socket_t *socket, const struct
 static void
 on_udx_stream_remote_changed (udx_stream_t *stream) {
   int err;
-  udx_napi_stream_t *n = (udx_napi_stream_t *) stream;
+
+  auto n = reinterpret_cast<udx_napi_stream_t *>(stream);
+
   if (n->udx->exiting) return;
 
   js_env_t *env = n->env;
@@ -743,13 +751,7 @@ on_udx_lookup (udx_lookup_t *lookup, int status, const struct sockaddr *addr, in
   std::optional<std::string> ip_str;
 
   if (status >= 0) {
-    if (addr->sa_family == AF_INET) {
-      uv_ip4_name((struct sockaddr_in *) addr, ip, addr_len);
-      family = 4;
-    } else if (addr->sa_family == AF_INET6) {
-      uv_ip6_name((struct sockaddr_in6 *) addr, ip, addr_len);
-      family = 6;
-    }
+    parse_address(addr, ip, addr_len, nullptr, &family);
 
     ip_str = ip;
   } else {
@@ -801,7 +803,8 @@ on_udx_interface_event (udx_interface_event_t *handle, int status) {
 
 static void
 on_udx_interface_event_close (udx_interface_event_t *handle) {
-  udx_napi_interface_event_t *e = (udx_napi_interface_event_t *) handle;
+  auto e = reinterpret_cast<udx_napi_interface_event_t *>(handle);
+
   if (e->udx->exiting) return;
 
   js_env_t *env = e->env;
@@ -886,6 +889,7 @@ udx_napi_socket_init (
   self->env = env;
 
   err = udx_socket_init(&udx->udx, socket, on_udx_close);
+
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
@@ -1539,9 +1543,11 @@ udx_napi_lookup (
   if (family == 6) flags |= UDX_LOOKUP_FAMILY_IPV6;
 
   err = udx_lookup(&udx->udx, lookup, host.c_str(), flags, on_udx_lookup);
+
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
+
     return;
   }
 
@@ -1574,6 +1580,7 @@ udx_napi_interface_event_init (
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
+
     return;
   }
 
@@ -1582,6 +1589,7 @@ udx_napi_interface_event_init (
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
+
     return;
   }
 
