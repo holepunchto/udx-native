@@ -45,7 +45,6 @@ struct udx_napi_t {
 
   js_deferred_teardown_t *teardown;
   bool exiting;
-  bool has_teardown;
 };
 
 struct udx_napi_socket_t {
@@ -298,8 +297,7 @@ on_udx_teardown (js_deferred_teardown_t *handle, void *data) {
 
 static void
 ensure_teardown (js_env_t *env, udx_napi_t *udx) {
-  if (udx->has_teardown) return;
-  udx->has_teardown = true;
+  if (udx->teardown) return;
 
   int err = js_add_deferred_teardown_callback(
     env,
@@ -836,10 +834,12 @@ static void
 on_udx_idle (udx_t *u) {
   auto self = reinterpret_cast<udx_napi_t *>(u);
 
-  if (!self->has_teardown) return;
-  self->has_teardown = false;
+  if (!self->teardown) return;
 
   int err = js_finish_deferred_teardown_callback(self->teardown);
+
+  self->teardown = nullptr;
+
   if (err != 0) abort();
 }
 
@@ -864,7 +864,7 @@ udx_napi_init (
   self->read_buf_free = read_buf.size();
 
   self->exiting = false;
-  self->has_teardown = false;
+  self->teardown = nullptr;
 }
 
 static inline void
