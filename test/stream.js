@@ -782,7 +782,7 @@ test('localHost, localFamily and localPort', async function (t) {
 })
 
 test('write to unconnected stream', async function (t) {
-  t.plan(1)
+  t.plan(2)
 
   const udx = new UDX()
 
@@ -794,9 +794,9 @@ test('write to unconnected stream', async function (t) {
 
   uncaught(function (error) {
     t.is(error.code, 'ERR_ASSERTION')
-
     stream.destroy()
     socket.close()
+      .then(() => t.pass('socket closed'))
   })
 })
 
