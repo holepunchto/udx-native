@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <udx.h>
+#include <unordered_map>
 
 #define UDX_NAPI_INTERACTIVE     0
 #define UDX_NAPI_NON_INTERACTIVE 1
@@ -1693,6 +1694,20 @@ udx_napi_interface_event_get_addrs (
   return result;
 }
 
+#define STATS
+
+#ifdef STATS
+static std::unordered_map<std::string, js_function_statistics_t *> statistics;
+
+static inline void
+dump_stats (js_env_t *, js_receiver_t) {
+  printf("N\t O\t Function\n");
+  for (auto &[key, value] : statistics) {
+    printf("%zu\t %i\t%s\n", value->calls(), value->optimized(), key.c_str());
+  }
+}
+#endif
+
 js_value_t *
 udx_native_exports (js_env_t *env, js_value_t *exports) {
   int err;
@@ -1738,9 +1753,19 @@ udx_native_exports (js_env_t *env, js_value_t *exports) {
 #undef V
 
   // functions
+#ifdef STATS
+#define V(name, fn) \
+  static js_function_statistics_t fn##_stat; \
+  err = js_set_property<fn, js_function_options_t{ .statistics = &fn##_stat }>(env, exports, name); \
+  assert(err == 0); \
+  statistics.emplace(name, &fn##_stat);
+
+  V("dump_stats", dump_stats);
+#else
 #define V(name, fn) \
   err = js_set_property<fn>(env, exports, name); \
   assert(err == 0);
+#endif
 
   V("udx_napi_init", udx_napi_init);
   V("udx_napi_socket_init", udx_napi_socket_init);
