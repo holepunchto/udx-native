@@ -49,6 +49,12 @@ target_sources(
     binding.cc
 )
 
+target_compile_definitions(
+  ${udx_native_napi}
+  PRIVATE
+    NAPI_VERSION=9
+)
+
 target_link_libraries(
   ${udx_native_napi}
   PRIVATE
