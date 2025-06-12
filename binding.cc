@@ -205,8 +205,7 @@ on_udx_message (udx_socket_t *self, ssize_t read_len, const uv_buf_t *buf, const
   ip_str = ip;
 
   js_typedarray_span_t<> res;
-
-  err = js_call_function_with_checkpoint(
+  err = js_call_function_with_checkpoint<{}, js_typedarray_span_t<>, js_receiver_t, int64_t, int, std::string, int>(
     env,
     callback,
     ctx,
@@ -238,7 +237,7 @@ on_udx_message (udx_socket_t *self, ssize_t read_len, const uv_buf_t *buf, const
       err = js_get_reference_value(env, n->realloc_message, callback);
       assert(err == 0);
 
-      err = js_call_function_with_checkpoint(env, callback, ctx, res);
+      err = js_call_function_with_checkpoint<{}, js_typedarray_span_t<>, js_receiver_t>(env, callback, ctx, res);
       assert(err == 0);
 
       n->udx->read_buf = res.data();
@@ -328,7 +327,6 @@ on_udx_stream_end (udx_stream_t *stream) {
   assert(err == 0);
 
   cb_stream_end_t callback;
-
   err = js_get_reference_value(env, n->on_end, callback);
   assert(err == 0);
 
@@ -396,7 +394,7 @@ on_udx_stream_read (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
   assert(err == 0);
 
   js_typedarray_span_t<> res;
-  err = js_call_function_with_checkpoint(env, callback, ctx, uint32_t(read), res);
+  err = js_call_function_with_checkpoint<{}, js_typedarray_span_t<>, js_receiver_t, uint32_t>(env, callback, ctx, uint32_t(read), res);
 
   if (err == 0) {
     n->read_buf = res.data();
@@ -417,7 +415,7 @@ on_udx_stream_read (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
       err = js_get_reference_value(env, n->realloc_data, callback);
       assert(err == 0);
 
-      err = js_call_function_with_checkpoint(env, callback, ctx, res);
+      err = js_call_function_with_checkpoint<{}, js_typedarray_span_t<>, js_receiver_t>(env, callback, ctx, res);
       assert(err == 0);
 
       n->read_buf = res.data();
@@ -547,7 +545,7 @@ on_udx_stream_recv (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
   assert(err == 0);
 
   js_typedarray_span_t<> res;
-  err = js_call_function_with_checkpoint(env, callback, ctx, uint32_t(read_len), res);
+  err = js_call_function_with_checkpoint<{}, js_typedarray_span_t<>, js_receiver_t, uint32_t>(env, callback, ctx, uint32_t(read_len), res);
 
   if (err == 0) {
     n->udx->read_buf = res.data();
@@ -567,7 +565,7 @@ on_udx_stream_recv (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
       err = js_get_reference_value(env, n->realloc_message, callback);
       assert(err == 0);
 
-      err = js_call_function_with_checkpoint(env, callback, ctx, res);
+      err = js_call_function_with_checkpoint<{}, js_typedarray_span_t<>, js_receiver_t>(env, callback, ctx, res);
       assert(err == 0);
 
       n->udx->read_buf = res.data();
@@ -674,7 +672,7 @@ on_udx_stream_firewall (udx_stream_t *stream, udx_socket_t *socket, const struct
   err = js_get_reference_value(env, s->ctx, socket_ctx);
   assert(err == 0);
 
-  err = js_call_function_with_checkpoint(
+  err = js_call_function_with_checkpoint<{}, uint32_t, js_receiver_t, js_receiver_t, uint32_t, std::string, uint32_t>(
     env,
     callback,
     ctx,
