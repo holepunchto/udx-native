@@ -6,7 +6,7 @@
   "files": [
     "lib",
     "prebuilds",
-    "binding.c",
+    "binding.cc",
     "binding.js",
     "CMakeLists.txt"
   ],
