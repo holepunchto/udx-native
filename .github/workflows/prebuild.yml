@@ -63,9 +63,7 @@ jobs:
     - uses: actions/setup-node@v4
       with:
         node-version: lts/*
-    - run: |
-        apt update
-        apt install -y git clang lld
+    - run: apt update && apt install -y git clang lld
       if: ${{ matrix.platform == 'linux' }}
     - run: npm install -g bare-make
     - run: npm install
