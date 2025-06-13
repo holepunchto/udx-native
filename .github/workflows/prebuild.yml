@@ -9,9 +9,11 @@ jobs:
         - os: ubuntu-22.04
           platform: linux
           arch: x64
+          container: ubuntu:22.04
         - os: ubuntu-22.04-arm
           platform: linux
           arch: arm64
+          container: ubuntu:22.04
         - os: ubuntu-22.04
           platform: android
           arch: x64
@@ -54,12 +56,15 @@ jobs:
           platform: win32
           arch: arm64
     runs-on: ${{ matrix.os }}
+    container: ${{ matrix.container }}
     name: ${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.tags }}
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-node@v4
       with:
         node-version: lts/*
+    - run: apt update && apt install -y git clang lld
+      if: ${{ matrix.platform == 'linux' }}
     - run: npm install -g bare-make
     - run: npm install
     - run: bare-make generate --platform ${{ matrix.platform }} --arch ${{ matrix.arch }} ${{ matrix.flags }}
