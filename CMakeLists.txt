@@ -15,6 +15,8 @@ endif()
 
 fetch_package("github:holepunchto/libudx#9e2f116")
 fetch_package("github:holepunchto/libjstl#122cbdd")
+# add_subdirectory(../libudx CMAKE_BINARY_DIR/libudx)
+
 
 add_bare_module(udx_native_bare)
 
