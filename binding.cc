@@ -10,6 +10,8 @@
 #define UDX_NAPI_NON_INTERACTIVE 1
 #define UDX_NAPI_FRAMED          2
 
+#define FASTWRITE 1
+
 namespace {
 // socket
 using cb_socket_send_t = js_function_t<void, js_receiver_t, uint64_t, int>;
@@ -1406,6 +1408,152 @@ udx_napi_stream_send (
   return res;
 }
 
+#if FASTWRITE
+
+static uint32_t rid_ctr;
+
+struct udx_napi_stream_write_t {
+  uint32_t rid;
+  uint32_t nwbufs;
+  std::span<js_persistent_t<js_arraybuffer_t>> references;
+  std::span<uv_buf_t> batch;
+
+  udx_stream_write_t ureq;
+
+  static udx_napi_stream_write_t* create (js_env_t *env, size_t nwbufs, js_arraybuffer_t &result) {
+    using T = decltype(udx_napi_stream_write_t::references)::element_type;
+    using Y = decltype(udx_napi_stream_write_t::batch)::element_type;
+
+    size_t self_len = offsetof(udx_napi_stream_write_t, ureq);
+    size_t udx_len = udx_stream_write_sizeof(nwbufs);
+    size_t refs_len = nwbufs * sizeof(T);
+    size_t b_len = nwbufs * sizeof(Y);
+    size_t total = self_len + udx_len + refs_len + b_len;
+
+    udx_napi_stream_write_t *req;
+
+    int err = js_create_arraybuffer(env, total, req, result);
+    assert(err == 0);
+
+    if (err != 0) return nullptr;
+
+    req->ureq.data = req;
+
+    req->nwbufs = nwbufs;
+
+    req->rid = rid_ctr++;
+
+    T* refs_start = reinterpret_cast<T *>(reinterpret_cast<uint8_t *>(req) + self_len + udx_len);
+    req->references = std::span(refs_start, nwbufs);
+
+    Y* b_start = reinterpret_cast<Y *>(reinterpret_cast<uint8_t *>(req) + self_len + udx_len + refs_len);
+    req->batch = std::span(b_start, nwbufs);
+    return req;
+  }
+
+  int
+  load_buffer (
+    js_env_t *env,
+    size_t idx,
+
+    js_arraybuffer_t buffer,
+    uint32_t offset,
+    uint32_t len
+  ) {
+    int err;
+
+    std::span<char> data;
+    err = js_get_arraybuffer_info(env, buffer, data);
+    if (err < 0) return err;
+
+    assert(offset + len <= data.size());
+    this->batch[idx] = uv_buf_init(&data[offset], len);
+
+    err = js_create_reference(env, buffer, this->references[idx]);
+    if (err < 0) return err;
+
+    return 0;
+  }
+
+  int
+  flush (udx_stream_t *stream) {
+    return udx_stream_write(&this->ureq, stream, this->batch.data(), 1, on_udx_stream_ack);
+  }
+};
+
+static inline js_arraybuffer_t
+udx_napi_stream_write (
+  js_env_t *env,
+  js_arraybuffer_span_of_t<udx_napi_stream_t, 1> stream,
+
+  js_arraybuffer_t buffer,
+  uint32_t offset,
+  uint32_t len
+) {
+  int err;
+
+  js_arraybuffer_t req_handle;
+
+  auto req = udx_napi_stream_write_t::create(env, 1, req_handle);
+  assert(req != nullptr);
+
+  int res = req->flush(&stream->stream);
+
+  if (res < 0) {
+    err = js_throw_error(env, uv_err_name(res), uv_strerror(res));
+    assert(err == 0);
+  }
+
+  return req_handle;
+}
+
+static inline js_arraybuffer_t
+udx_napi_stream_writev_init (
+  js_env_t *env,
+  uint32_t nwbufs
+) {
+  js_arraybuffer_t req_handle;
+
+  auto req = udx_napi_stream_write_t::create(env, nwbufs, req_handle);
+  assert(req != nullptr);
+
+  return req_handle;
+}
+
+static inline void
+udx_napi_stream_writev_set (
+  js_env_t *env,
+  uint32_t idx,
+
+  js_arraybuffer_span_t req_handle,
+  js_arraybuffer_t data,
+  uint32_t offset,
+  uint32_t len
+) {
+  auto req = reinterpret_cast<udx_napi_stream_write_t *>(req_handle.data());
+
+  int err = req->load_buffer(env, idx, data, offset, len);
+  assert(err == 0);
+}
+
+static inline int
+udx_napi_stream_writev_flush (
+    js_env_t *env,
+    js_arraybuffer_span_t req_handle,
+    js_typedarray_span_of_t<udx_napi_stream_t, 1> stream
+) {
+  auto req = reinterpret_cast<udx_napi_stream_write_t *>(req_handle.data());
+
+  int res = req->flush(&stream->stream);
+
+  if (res < 0) {
+    int err = js_throw_error(env, uv_err_name(res), uv_strerror(res));
+    assert(err == 0);
+  }
+
+  return res;
+}
+#else
 static inline int64_t
 udx_napi_stream_write (
   js_env_t *env,
@@ -1471,6 +1619,7 @@ static inline uint32_t
 udx_napi_stream_write_sizeof (uint32_t bufs) {
   return udx_stream_write_sizeof(bufs);
 }
+#endif
 
 static inline uint32_t
 udx_napi_stream_write_end (
@@ -1788,8 +1937,14 @@ udx_native_exports (js_env_t *env, js_value_t *exports) {
   V("udx_napi_stream_send", udx_napi_stream_send);
   V("udx_napi_stream_recv_start", udx_napi_stream_recv_start);
   V("udx_napi_stream_write", udx_napi_stream_write);
+#if FASTWRITE
+  V("udx_napi_stream_writev_init", udx_napi_stream_writev_init);
+  V("udx_napi_stream_writev_set", udx_napi_stream_writev_set);
+  V("udx_napi_stream_writev_flush", udx_napi_stream_writev_flush);
+#else
   V("udx_napi_stream_writev", udx_napi_stream_writev);
   V("udx_napi_stream_write_sizeof", udx_napi_stream_write_sizeof);
+#endif
   V("udx_napi_stream_write_end", udx_napi_stream_write_end);
   V("udx_napi_stream_destroy", udx_napi_stream_destroy);
   V("udx_napi_lookup", udx_napi_lookup);
