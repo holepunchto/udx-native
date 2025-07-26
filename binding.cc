@@ -1693,7 +1693,7 @@ udx_napi_interface_event_get_addrs (
   return result;
 }
 
-js_value_t *
+static js_value_t *
 udx_native_exports (js_env_t *env, js_value_t *exports) {
   int err;
 
