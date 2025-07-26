@@ -1694,7 +1694,7 @@ udx_napi_interface_event_get_addrs (
 }
 
 js_value_t *
-udx_native_exports (js_env_t *env, js_value_t *exports) {
+static udx_native_exports (js_env_t *env, js_value_t *exports) {
   int err;
 
   // uint32
