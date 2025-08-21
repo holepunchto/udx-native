@@ -13,7 +13,7 @@ if(target MATCHES "win32")
   add_compile_options(/MT$<$<CONFIG:Debug>:d>)
 endif()
 
-fetch_package("github:jthomas43/libudx#8e805b8")
+fetch_package("github:jthomas43/libudx#e2af745")
 fetch_package("github:holepunchto/libjstl#122cbdd")
 
 add_bare_module(udx_native_bare)
