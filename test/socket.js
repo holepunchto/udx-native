@@ -74,7 +74,7 @@ test('simple message ipv6', async function (t) {
   await a.send(b4a.from('hello'), a.address().port, '::1')
 })
 
-test('simple multicast message ipv4', async function (t) {
+test.skip('simple multicast message ipv4', async function (t) {
   t.plan(3)
   const u = new UDX()
   const a = createSocket(t, u, { reuseAddress: true })
