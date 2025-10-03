@@ -18,13 +18,14 @@
   },
   "addon": true,
   "scripts": {
+    "format": "prettier --write .",
+    "lint": "prettier --check .",
     "test": "npm run lint && npm run test:bare && npm run test:node",
     "test:node": "node test/all.js",
     "test:bare": "bare test/all.js",
     "test:all": "brittle test/*.js test/slow/*.js",
     "test:generate": "brittle -r test/all.js test/*.js",
-    "bench": "brittle test/bench/*.js",
-    "lint": "standard"
+    "bench": "brittle test/bench/*.js"
   },
   "repository": {
     "type": "git",
@@ -58,7 +59,8 @@
     "cmake-fetch": "^1.0.1",
     "cmake-napi": "^1.0.5",
     "is-ci": "^3.0.1",
-    "standard": "^17.1.0",
+    "prettier": "^3.6.2",
+    "prettier-config-holepunch": "^1.0.0",
     "tiny-byte-size": "^1.1.0"
   }
 }
