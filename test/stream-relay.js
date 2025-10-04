@@ -104,20 +104,18 @@ test('relay, throw if stream is closed', function (t) {
 
   const [a, b] = makeTwoStreams(t)
 
-  a
-    .on('close', () => {
-      try {
-        b.relayTo(a)
-        t.fail('should fail')
-      } catch (err) {
-        t.ok(err)
-        b.destroy()
-      }
-    })
-    .destroy()
+  a.on('close', () => {
+    try {
+      b.relayTo(a)
+      t.fail('should fail')
+    } catch (err) {
+      t.ok(err)
+      b.destroy()
+    }
+  }).destroy()
 })
 
-test('remote-changed emitted exactly once', async t => {
+test('remote-changed emitted exactly once', async (t) => {
   t.plan(5)
   let aEmits = 0
   let dEmits = 0
@@ -132,12 +130,12 @@ test('remote-changed emitted exactly once', async t => {
   b.relayTo(c)
 
   // send 'hello' d->c->b->a
-  const pMsg1 = new Promise(resolve => a.once('data', resolve))
+  const pMsg1 = new Promise((resolve) => a.once('data', resolve))
   d.write('hello world')
   t.alike(await pMsg1, b4a.from('hello world'))
 
   // respond 'do change' a->b->c->d
-  const pMsg2 = new Promise(resolve => d.once('data', resolve))
+  const pMsg2 = new Promise((resolve) => d.once('data', resolve))
   a.write('do change')
   t.alike(await pMsg2, b4a.from('do change'))
 
@@ -146,7 +144,7 @@ test('remote-changed emitted exactly once', async t => {
   await d.changeRemote(d.socket, a.id, a.socket.address().port)
 
   // ack 'remote changed' d->a
-  const pMsg3 = new Promise(resolve => a.once('data', resolve))
+  const pMsg3 = new Promise((resolve) => a.once('data', resolve))
   d.write('remote changed')
   t.alike(await pMsg3, b4a.from('remote changed'))
 

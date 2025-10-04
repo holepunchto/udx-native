@@ -25,34 +25,33 @@ test('throughput, 600 ms latency ± 100 ms jitter', async (t) => {
 
   let received = 0
 
-  const elapsed = await t.execution(new Promise((resolve, reject) => {
-    a
-      .on('error', reject)
-      .end(b4a.alloc(32768))
+  const elapsed = await t.execution(
+    new Promise((resolve, reject) => {
+      a.on('error', reject).end(b4a.alloc(32768))
 
-    b
-      .on('error', reject)
-      .on('data', (data) => {
-        received += data.byteLength
+      b.on('error', reject)
+        .on('data', (data) => {
+          received += data.byteLength
 
-        if (received === 32768) resolve()
-      })
-      .on('end', async () => {
-        a.destroy()
-        b.destroy()
+          if (received === 32768) resolve()
+        })
+        .on('end', async () => {
+          a.destroy()
+          b.destroy()
 
-        await aSocket.close()
-        await bSocket.close()
+          await aSocket.close()
+          await bSocket.close()
 
-        socket.close()
-      })
-  }))
+          socket.close()
+        })
+    })
+  )
 
   t.comment(byteSize.perSecond(received, elapsed))
 })
 
-function delay () {
+function delay() {
   return new Promise((resolve) => {
-    setTimeout(resolve, 500 + /* jitter */ (Math.random() * 200 | 0))
+    setTimeout(resolve, 500 + /* jitter */ ((Math.random() * 200) | 0))
   })
 }

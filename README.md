@@ -94,6 +94,7 @@ Returns the address family (`4` or `6`). Returns `0` if invalid.
 Creates a new socket instance.
 
 Available `options`:
+
 ```js
 {
   ipv6Only: false,
@@ -147,9 +148,11 @@ It unbinds the socket so it stops listening for messages.
 Sets the amount of times that a packet is allowed to be forwarded through each router or gateway before being discarded.
 
 #### `socket.getRecvBufferSize()`
+
 #### `socket.setRecvBufferSize()`
 
 #### `socket.getSendBufferSize()`
+
 #### `socket.setSendBufferSize()`
 
 #### `await socket.send(buffer, port, [host], [ttl])`
@@ -188,6 +191,7 @@ Emitted after a succesfull `bind()` call.
 Creates a new stream instance that is a Duplex stream.
 
 Available `options`:
+
 ```js
 {
   firewall: (socket, port, host) => true,
@@ -241,7 +245,9 @@ Indicates if the stream is connected to a socket. It becomes `false` if the stre
 Indicates the maximum size of each packet.
 
 #### `stream.rtt`
+
 #### `stream.cwnd`
+
 #### `stream.inflight`
 
 #### `stream.localHost`
@@ -265,6 +271,7 @@ Connects the stream using a socket to a: remote stream id, and remote socket por
 If no host specified it uses `127.0.0.1` by default.
 
 Available `options`:
+
 ```js
 {
   ack
@@ -314,12 +321,18 @@ Emitted only once if you write data that exceeds the MTU.
 #### `const interfaces = udx.networkInterfaces()`
 
 Returns an array of network interfaces, for example:
+
 ```js
-[
+;[
   { name: 'lo', host: '127.0.0.1', family: 4, internal: true },
   { name: 'enp4s0', host: '192.168.0.20', family: 4, internal: false },
   { name: 'lo', host: '::1', family: 6, internal: true },
-  { name: 'enp4s0', host: 'df08::c8df:bf61:95c1:352b', family: 6, internal: false }
+  {
+    name: 'enp4s0',
+    host: 'df08::c8df:bf61:95c1:352b',
+    family: 6,
+    internal: false
+  }
 ]
 ```
 
@@ -358,6 +371,7 @@ Emitted after the watcher is closed.
 It does a DNS lookup for the IP address. Returns `{ host, family }`.
 
 Available `options`:
+
 ```js
 {
   family: 0 // => 0, 4 or 6
@@ -383,7 +397,6 @@ When testing changes, rebuild the prebuilds:
 - `bare-make generate`
 - `bare-make build`
 - `bare-make install`
-
 
 ## License
 
