@@ -90,7 +90,7 @@ test.skip('simple multicast message ipv4', async function (t) {
   a.bind(0, '0.0.0.0')
   a.addMembership('239.1.1.1')
 
-  await (a.send(b4a.from('hello'), a.address().port, '239.1.1.1'))
+  await a.send(b4a.from('hello'), a.address().port, '239.1.1.1')
 })
 
 test.skip('simple multicast message ipv6', async function (t) {
@@ -109,7 +109,7 @@ test.skip('simple multicast message ipv6', async function (t) {
   a.bind(0, '::')
   a.addMembership('ff12::f')
 
-  await (a.send(b4a.from('hello'), a.address().port, 'ff12::f'))
+  await a.send(b4a.from('hello'), a.address().port, 'ff12::f')
 })
 
 test('empty message', async function (t) {
@@ -251,7 +251,7 @@ test('open + close a bunch of sockets', async function (t) {
   l.plan(5)
   loop()
 
-  async function loop () {
+  async function loop() {
     count++
 
     const a = createSocket(t, u)
