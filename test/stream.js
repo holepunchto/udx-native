@@ -399,9 +399,7 @@ test('out of order packets', async function (t) {
 
   const p = await proxy({ from: a, to: b }, async function (pkt) {
     // Add a random delay to every packet
-    await new Promise((resolve) =>
-      setTimeout(resolve, (Math.random() * 1000) | 0)
-    )
+    await new Promise((resolve) => setTimeout(resolve, (Math.random() * 1000) | 0))
 
     return false
   })
@@ -879,61 +877,21 @@ test('UDX - basic stats', async function (t) {
 
   // Pretty hard to calculate the exact amounts of expected packets/bytes
   // so we just sanity check the ballpark
-  t.is(
-    a.bytesTransmitted > 20,
-    true,
-    `a reasonable bytesTransmitted (${a.bytesTransmitted})`
-  )
-  t.is(
-    a.packetsTransmitted > 0,
-    true,
-    `a reasonable packetsTransmitted (${a.packetsTransmitted})`
-  )
-  t.is(
-    a.bytesReceived > 2,
-    true,
-    `a reasonable bytesReceived (${a.bytesReceived})`
-  )
-  t.is(
-    a.packetsReceived > 0,
-    true,
-    `a reasonable packetsReceived (${a.packetsReceived})`
-  )
-  t.is(
-    b.bytesTransmitted > 20,
-    true,
-    `b reasonable bytesTransmitted (${b.bytesTransmitted})`
-  )
-  t.is(
-    b.packetsTransmitted > 0,
-    true,
-    `b reasonable packetsTransmitted (${b.packetsTransmitted})`
-  )
-  t.is(
-    b.bytesReceived > 20,
-    true,
-    `b reasonable bytesReceived (${b.bytesReceived})`
-  )
-  t.is(
-    b.packetsReceived > 0,
-    true,
-    `b reasonable packetsReceived (${b.packetsReceived})`
-  )
+  t.is(a.bytesTransmitted > 20, true, `a reasonable bytesTransmitted (${a.bytesTransmitted})`)
+  t.is(a.packetsTransmitted > 0, true, `a reasonable packetsTransmitted (${a.packetsTransmitted})`)
+  t.is(a.bytesReceived > 2, true, `a reasonable bytesReceived (${a.bytesReceived})`)
+  t.is(a.packetsReceived > 0, true, `a reasonable packetsReceived (${a.packetsReceived})`)
+  t.is(b.bytesTransmitted > 20, true, `b reasonable bytesTransmitted (${b.bytesTransmitted})`)
+  t.is(b.packetsTransmitted > 0, true, `b reasonable packetsTransmitted (${b.packetsTransmitted})`)
+  t.is(b.bytesReceived > 20, true, `b reasonable bytesReceived (${b.bytesReceived})`)
+  t.is(b.packetsReceived > 0, true, `b reasonable packetsReceived (${b.packetsReceived})`)
 
   await tWave2
   a.end()
   b.end()
 
-  t.is(
-    a.bytesReceived > 1000,
-    true,
-    `a now higher bytesReceived (${a.bytesReceived})`
-  )
-  t.is(
-    b.bytesTransmitted > 1000,
-    true,
-    `b now higher bytesTransmitted (${b.bytesTransmitted})`
-  )
+  t.is(a.bytesReceived > 1000, true, `a now higher bytesReceived (${a.bytesReceived})`)
+  t.is(b.bytesTransmitted > 1000, true, `b now higher bytesTransmitted (${b.bytesTransmitted})`)
 
   t.is(
     aUdx.bytesTransmitted,

@@ -93,11 +93,7 @@ function prettyPrint(pkt, { peer }, opts) {
 }
 
 function parsePacket(buf, source) {
-  if (
-    buf.byteLength < UDX_HEADER_SIZE ||
-    buf[0] !== UDX_MAGIC_BYTE ||
-    buf[1] !== UDX_VERSION
-  )
+  if (buf.byteLength < UDX_HEADER_SIZE || buf[0] !== UDX_MAGIC_BYTE || buf[1] !== UDX_VERSION)
     return { protocol: 'unknown', buffer: buf }
 
   const type = buf[2]
@@ -117,10 +113,7 @@ function parsePacket(buf, source) {
     recv: buf.readUInt32LE(8),
     seq: buf.readUInt32LE(12),
     ack: buf.readUInt32LE(16),
-    additionalHeader: buf.subarray(
-      UDX_HEADER_SIZE,
-      UDX_HEADER_SIZE + dataOffset
-    ),
+    additionalHeader: buf.subarray(UDX_HEADER_SIZE, UDX_HEADER_SIZE + dataOffset),
     data: buf.subarray(UDX_HEADER_SIZE + dataOffset),
     [inspect](depth, opts) {
       return prettyPrint(this, source, opts)
