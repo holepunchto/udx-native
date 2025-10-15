@@ -11,7 +11,7 @@ const UDX_HEADER_SACK = 0b00100
 const UDX_HEADER_MESSAGE = 0b01000
 const UDX_HEADER_DESTROY = 0b10000
 
-module.exports = function proxy ({ from, to, bind } = {}, drop) {
+module.exports = function proxy({ from, to, bind } = {}, drop) {
   from = toPort(from)
   to = toPort(to)
 
@@ -21,7 +21,11 @@ module.exports = function proxy ({ from, to, bind } = {}, drop) {
   socket.bind(bind || 0)
 
   socket.on('message', function (buf, rinfo) {
-    const source = { host: rinfo.address, port: rinfo.port, peer: rinfo.port === from ? 'from' : (rinfo.port === to ? 'to' : 'unknown') }
+    const source = {
+      host: rinfo.address,
+      port: rinfo.port,
+      peer: rinfo.port === from ? 'from' : rinfo.port === to ? 'to' : 'unknown'
+    }
     const pkt = parsePacket(buf, source)
     const dropping = drop(pkt, source)
     const port = rinfo.port === to ? from : to
@@ -29,7 +33,7 @@ module.exports = function proxy ({ from, to, bind } = {}, drop) {
     if (dropping && dropping.then) dropping.then(fwd).catch(noop)
     else fwd(dropping)
 
-    function fwd (dropping) {
+    function fwd(dropping) {
       if (dropping === true) return
       socket.send(buf, port, '127.0.0.1')
     }
@@ -38,17 +42,17 @@ module.exports = function proxy ({ from, to, bind } = {}, drop) {
   return socket
 }
 
-function toPort (n) {
+function toPort(n) {
   if (typeof n === 'number') return n
   if (n && n.address) return n.address().port
   throw new Error('Pass a port or socket')
 }
 
-function echo (s) {
+function echo(s) {
   return s
 }
 
-function prettyPrint (pkt, { peer }, opts) {
+function prettyPrint(pkt, { peer }, opts) {
   const style = (opts && opts.stylize) || echo
 
   let s = ''
@@ -79,7 +83,8 @@ function prettyPrint (pkt, { peer }, opts) {
   s += 'seq=' + opts.stylize(pkt.seq, opts) + ' '
   s += 'ack=' + opts.stylize(pkt.ack, opts) + ' '
 
-  if (pkt.additionalHeader.byteLength) s += 'additional = ' + opts.stylize(pkt.additionalHeader, opts) + ' '
+  if (pkt.additionalHeader.byteLength)
+    s += 'additional = ' + opts.stylize(pkt.additionalHeader, opts) + ' '
   if (pkt.data.byteLength) s += 'data=' + opts.stylize(pkt.data, opts)
 
   s = s.trim()
@@ -87,8 +92,9 @@ function prettyPrint (pkt, { peer }, opts) {
   return s
 }
 
-function parsePacket (buf, source) {
-  if (buf.byteLength < UDX_HEADER_SIZE || buf[0] !== UDX_MAGIC_BYTE || buf[1] !== UDX_VERSION) return { protocol: 'unknown', buffer: buf }
+function parsePacket(buf, source) {
+  if (buf.byteLength < UDX_HEADER_SIZE || buf[0] !== UDX_MAGIC_BYTE || buf[1] !== UDX_VERSION)
+    return { protocol: 'unknown', buffer: buf }
 
   const type = buf[2]
   const dataOffset = buf[3]
@@ -109,10 +115,10 @@ function parsePacket (buf, source) {
     ack: buf.readUInt32LE(16),
     additionalHeader: buf.subarray(UDX_HEADER_SIZE, UDX_HEADER_SIZE + dataOffset),
     data: buf.subarray(UDX_HEADER_SIZE + dataOffset),
-    [inspect] (depth, opts) {
+    [inspect](depth, opts) {
       return prettyPrint(this, source, opts)
     }
   }
 }
 
-function noop () {}
+function noop() {}

@@ -56,7 +56,7 @@ test('stream flush', async function (t) {
   a.write('world')
 
   const all = []
-  b.on('data', data => {
+  b.on('data', (data) => {
     all.push(data)
   })
 
@@ -160,13 +160,11 @@ test('emit connect', async function (t) {
 
   const a = udx.createStream(1)
 
-  a
-    .on('connect', function () {
-      t.pass()
-      a.destroy()
-      socket.close()
-    })
-    .connect(socket, 2, socket.address().port)
+  a.on('connect', function () {
+    t.pass()
+    a.destroy()
+    socket.close()
+  }).connect(socket, 2, socket.address().port)
 })
 
 test('unordered messages', async function (t) {
@@ -187,11 +185,7 @@ test('unordered messages', async function (t) {
     expected.push(buf.toString())
 
     if (expected.length === 3) {
-      t.alike(expected.sort(), [
-        'echo: a',
-        'echo: bc',
-        'echo: d'
-      ])
+      t.alike(expected.sort(), ['echo: a', 'echo: bc', 'echo: d'])
 
       // TODO: .end() here triggers a bug, investigate
       b.destroy()
@@ -221,11 +215,7 @@ test('try send unordered messages', async function (t) {
     expected.push(buf.toString())
 
     if (expected.length === 3) {
-      t.alike(expected.sort(), [
-        'echo: a',
-        'echo: bc',
-        'echo: d'
-      ])
+      t.alike(expected.sort(), ['echo: a', 'echo: bc', 'echo: d'])
 
       // TODO: .end() here triggers a bug, investigate
       b.destroy()
@@ -306,7 +296,7 @@ test('preconnect flow', async function (t) {
   let once = true
 
   const a = u.createStream(1, {
-    firewall (sock, port, host, family) {
+    firewall(sock, port, host, family) {
       t.ok(once)
       t.is(sock, socket)
       t.is(port, socket.address().port)
@@ -380,17 +370,13 @@ test('write empty buffer', async function (t) {
 
   const [a, b] = makeTwoStreams(t)
 
-  a
-    .on('close', function () {
-      t.pass('a closed')
-    })
-    .end()
+  a.on('close', function () {
+    t.pass('a closed')
+  }).end()
 
-  b
-    .on('close', function () {
-      t.pass('b closed')
-    })
-    .end(b4a.alloc(0))
+  b.on('close', function () {
+    t.pass('b closed')
+  }).end(b4a.alloc(0))
 })
 
 test('out of order packets', async function (t) {
@@ -405,14 +391,15 @@ test('out of order packets', async function (t) {
   b.bind(0, '127.0.0.1')
 
   const count = 1000
-  const expected = Array(count).fill(0).map((_, i) => i.toString()).join('')
+  const expected = Array(count)
+    .fill(0)
+    .map((_, i) => i.toString())
+    .join('')
   let received = ''
 
   const p = await proxy({ from: a, to: b }, async function (pkt) {
     // Add a random delay to every packet
-    await new Promise((resolve) =>
-      setTimeout(resolve, Math.random() * 1000 | 0)
-    )
+    await new Promise((resolve) => setTimeout(resolve, (Math.random() * 1000) | 0))
 
     return false
   })
@@ -513,20 +500,17 @@ test('close socket on stream close', async function (t) {
   a.connect(aSocket, 2, bSocket.address().port)
   b.connect(bSocket, 1, aSocket.address().port)
 
-  a
-    .on('close', async function () {
-      await aSocket.close()
-      t.pass('a closed')
-    })
+  a.on('close', async function () {
+    await aSocket.close()
+    t.pass('a closed')
+  })
 
-  b
-    .on('end', function () {
-      b.end()
-    })
-    .on('close', async function () {
-      await bSocket.close()
-      t.pass('b closed')
-    })
+  b.on('end', function () {
+    b.end()
+  }).on('close', async function () {
+    await bSocket.close()
+    t.pass('b closed')
+  })
 
   a.resume()
   b.resume()
@@ -539,20 +523,17 @@ test('write string', async function (t) {
 
   const [a, b] = makeTwoStreams(t)
 
-  a
-    .on('data', function (data) {
-      t.alike(data, b4a.from('hello world'))
-    })
+  a.on('data', function (data) {
+    t.alike(data, b4a.from('hello world'))
+  })
     .on('close', function () {
       t.pass('a closed')
     })
     .end()
 
-  b
-    .on('close', function () {
-      t.pass('b closed')
-    })
-    .end('hello world')
+  b.on('close', function () {
+    t.pass('b closed')
+  }).end('hello world')
 })
 
 test('destroy before fully connected', async function (t) {
@@ -565,7 +546,7 @@ test('destroy before fully connected', async function (t) {
 
   const a = u.createStream(1)
   const b = u.createStream(2, {
-    firewall () {
+    firewall() {
       return false // accept packets from a
     }
   })
@@ -573,14 +554,12 @@ test('destroy before fully connected', async function (t) {
   a.connect(socket, 2, socket.address().port)
   a.destroy()
 
-  b
-    .on('error', function (err) {
-      t.is(err.code, 'ECONNRESET')
-    })
-    .on('close', async function () {
-      t.pass('b closed')
-      await socket.close()
-    })
+  b.on('error', function (err) {
+    t.is(err.code, 'ECONNRESET')
+  }).on('close', async function () {
+    t.pass('b closed')
+    await socket.close()
+  })
 
   setTimeout(function () {
     b.connect(socket, 1, socket.address().port)
@@ -795,8 +774,7 @@ test('write to unconnected stream', async function (t) {
   uncaught(function (error) {
     t.is(error.code, 'ERR_ASSERTION')
     stream.destroy()
-    socket.close()
-      .then(() => t.pass('socket closed'))
+    socket.close().then(() => t.pass('socket closed'))
   })
 })
 
@@ -820,7 +798,7 @@ test('backpressures stream', async function (t) {
   b.connect(socket, 1, socket.address().port)
 
   const rs = new Readable({
-    read (cb) {
+    read(cb) {
       sent += 65536
       this.push(Buffer.alloc(65536))
       if (sent === send) this.push(null)
@@ -915,14 +893,48 @@ test('UDX - basic stats', async function (t) {
   t.is(a.bytesReceived > 1000, true, `a now higher bytesReceived (${a.bytesReceived})`)
   t.is(b.bytesTransmitted > 1000, true, `b now higher bytesTransmitted (${b.bytesTransmitted})`)
 
-  t.is(aUdx.bytesTransmitted, a.bytesTransmitted, `udx same bytes out as the single stream (${aUdx.bytesTransmitted})`)
-  t.is(aUdx.packetsTransmitted, a.packetsTransmitted, `udx same packets out as the single stream (${aUdx.packetsTransmitted})`)
-  t.is(aUdx.bytesReceived, a.bytesReceived, `udx same bytes in as the single stream (${aUdx.bytesReceived})`)
-  t.is(aUdx.packetsReceived, a.packetsReceived, true, `udx same packets in as the single stream (${aUdx.packetsReceived})`)
+  t.is(
+    aUdx.bytesTransmitted,
+    a.bytesTransmitted,
+    `udx same bytes out as the single stream (${aUdx.bytesTransmitted})`
+  )
+  t.is(
+    aUdx.packetsTransmitted,
+    a.packetsTransmitted,
+    `udx same packets out as the single stream (${aUdx.packetsTransmitted})`
+  )
+  t.is(
+    aUdx.bytesReceived,
+    a.bytesReceived,
+    `udx same bytes in as the single stream (${aUdx.bytesReceived})`
+  )
+  t.is(
+    aUdx.packetsReceived,
+    a.packetsReceived,
+    true,
+    `udx same packets in as the single stream (${aUdx.packetsReceived})`
+  )
 
   const aSocket = a.socket
-  t.is(aSocket.bytesTransmitted, a.bytesTransmitted, `udx socket same bytes out as the single stream (${aSocket.bytesTransmitted})`)
-  t.is(aSocket.packetsTransmitted, a.packetsTransmitted, `udx socket same packets out as the single stream (${aSocket.packetsTransmitted})`)
-  t.is(aSocket.bytesReceived, a.bytesReceived, `udx socket same bytes in as the single stream (${aSocket.bytesReceived})`)
-  t.is(aSocket.packetsReceived, a.packetsReceived, true, `udx socket same packets in as the single stream (${aSocket.packetsReceived})`)
+  t.is(
+    aSocket.bytesTransmitted,
+    a.bytesTransmitted,
+    `udx socket same bytes out as the single stream (${aSocket.bytesTransmitted})`
+  )
+  t.is(
+    aSocket.packetsTransmitted,
+    a.packetsTransmitted,
+    `udx socket same packets out as the single stream (${aSocket.packetsTransmitted})`
+  )
+  t.is(
+    aSocket.bytesReceived,
+    a.bytesReceived,
+    `udx socket same bytes in as the single stream (${aSocket.bytesReceived})`
+  )
+  t.is(
+    aSocket.packetsReceived,
+    a.packetsReceived,
+    true,
+    `udx socket same packets in as the single stream (${aSocket.packetsReceived})`
+  )
 })

@@ -1,9 +1,15 @@
 const b4a = require('b4a')
 const UDX = require('../../')
 
-module.exports = { makeTwoStreams, makePairs, pipeStreamPairs, uncaught, createSocket }
+module.exports = {
+  makeTwoStreams,
+  makePairs,
+  pipeStreamPairs,
+  uncaught,
+  createSocket
+}
 
-function uncaught (fn) {
+function uncaught(fn) {
   if (global.Bare) {
     global.Bare.once('uncaughtException', fn)
   } else {
@@ -11,14 +17,14 @@ function uncaught (fn) {
   }
 }
 
-function createSocket (t, udx, opts) {
+function createSocket(t, udx, opts) {
   const socket = udx.createSocket(opts)
-  const closed = new Promise(resolve => socket.once('close', resolve))
+  const closed = new Promise((resolve) => socket.once('close', resolve))
   t.teardown(() => closed, { order: Infinity })
   return socket
 }
 
-function makeTwoStreams (t, opts) {
+function makeTwoStreams(t, opts) {
   const a = new UDX()
   const b = new UDX()
 
@@ -42,7 +48,7 @@ function makeTwoStreams (t, opts) {
   return [aStream, bStream]
 }
 
-function makePairs (n, multiplexMode = 'single') {
+function makePairs(n, multiplexMode = 'single') {
   const ua = new UDX()
   const ub = new UDX()
 
@@ -77,7 +83,7 @@ function makePairs (n, multiplexMode = 'single') {
     streams.push([aStream, bStream])
   }
 
-  function close () {
+  function close() {
     for (const pair of streams) {
       pair[0].destroy()
       pair[1].destroy()
@@ -90,7 +96,7 @@ function makePairs (n, multiplexMode = 'single') {
   return { sockets, streams, close }
 }
 
-function pipeStreamPairs (streams, messageSize, limit) {
+function pipeStreamPairs(streams, messageSize, limit) {
   const msg = b4a.alloc(messageSize, 'a')
   const proms = []
 
@@ -101,7 +107,7 @@ function pipeStreamPairs (streams, messageSize, limit) {
 
   return Promise.all(proms)
 
-  function write (s, limit, msg) {
+  function write(s, limit, msg) {
     return new Promise((resolve, reject) => {
       let written = 0
 
@@ -112,7 +118,7 @@ function pipeStreamPairs (streams, messageSize, limit) {
 
       write()
 
-      function write () {
+      function write() {
         let drained = true
 
         while (drained && written < limit) {
@@ -126,7 +132,7 @@ function pipeStreamPairs (streams, messageSize, limit) {
     })
   }
 
-  function read (s, limit) {
+  function read(s, limit) {
     return new Promise((resolve, reject) => {
       let read = 0
 
