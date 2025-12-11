@@ -83,8 +83,9 @@ function prettyPrint(pkt, { peer }, opts) {
   s += 'seq=' + opts.stylize(pkt.seq, opts) + ' '
   s += 'ack=' + opts.stylize(pkt.ack, opts) + ' '
 
-  if (pkt.additionalHeader.byteLength)
+  if (pkt.additionalHeader.byteLength) {
     s += 'additional = ' + opts.stylize(pkt.additionalHeader, opts) + ' '
+  }
   if (pkt.data.byteLength) s += 'data=' + opts.stylize(pkt.data, opts)
 
   s = s.trim()
@@ -93,8 +94,9 @@ function prettyPrint(pkt, { peer }, opts) {
 }
 
 function parsePacket(buf, source) {
-  if (buf.byteLength < UDX_HEADER_SIZE || buf[0] !== UDX_MAGIC_BYTE || buf[1] !== UDX_VERSION)
+  if (buf.byteLength < UDX_HEADER_SIZE || buf[0] !== UDX_MAGIC_BYTE || buf[1] !== UDX_VERSION) {
     return { protocol: 'unknown', buffer: buf }
+  }
 
   const type = buf[2]
   const dataOffset = buf[3]

@@ -72,8 +72,9 @@ function writeALot(send) {
   )
 
   function fmt(bytes) {
-    if (bytes >= 1024 * 1024 * 1024)
+    if (bytes >= 1024 * 1024 * 1024) {
       return (bytes / 1024 / 1024 / 1024).toFixed(1).replace(/\.0$/, '') + ' GB'
+    }
     if (bytes >= 1024 * 1024) return (bytes / 1024 / 1024).toFixed(1).replace(/\.0$/, '') + ' MB'
     if (bytes >= 1024) return (bytes / 1024).toFixed(1).replace(/\.0$/, '') + ' KB'
     return bytes + ' B'
