@@ -20,7 +20,7 @@ using cb_socket_realloc_message_t = js_function_t<js_typedarray_span_t<>, js_rec
 using cb_stream_end_t = js_function_t<void, js_receiver_t, uint32_t>;
 using cb_stream_data_t = js_function_t<js_typedarray_span_t<>, js_receiver_t, uint32_t>;
 using cb_stream_drain_t = js_function_t<void, js_receiver_t>;
-using cb_stream_ack_t = js_function_t<void, js_receiver_t, uint32_t>;
+using cb_stream_ack_t = js_function_t<void, js_receiver_t, uint32_t, int32_t>;
 using cb_stream_send_t = js_function_t<void, js_receiver_t, int32_t, int32_t>;
 using cb_stream_message_t = js_function_t<js_typedarray_span_t<>, js_receiver_t, uint32_t>;
 using cb_stream_realloc_data_t = js_function_t<js_typedarray_span_t<>, js_receiver_t>;
@@ -480,7 +480,7 @@ on_udx_stream_ack (udx_stream_write_t *req, int status, int unordered) {
 
   auto offset = reinterpret_cast<uintptr_t>(req->data);
 
-  err = js_call_function_with_checkpoint(env, callback, ctx, uint32_t(offset));
+  err = js_call_function_with_checkpoint(env, callback, ctx, uint32_t(offset), status);
   assert(err == 0);
 
   err = js_close_handle_scope(env, scope);

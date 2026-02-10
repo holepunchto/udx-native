@@ -938,3 +938,46 @@ test('UDX - basic stats', async function (t) {
     `udx socket same packets in as the single stream (${aSocket.packetsReceived})`
   )
 })
+
+test('destroy after finish delivers all packets to peer (hyperdht#232)', async function (t) {
+  t.plan(4)
+
+  const [a, b] = makeTwoStreams(t)
+
+  a.on('error', (err) => t.fail('a errored: ' + err.message))
+  b.on('error', (err) => t.fail('b errored: ' + err.message))
+
+  t.teardown(() => {
+    a.destroy()
+    b.destroy()
+  })
+
+  const packets = [
+    b4a.alloc(65536, 1),
+    b4a.alloc(65536, 2),
+    b4a.alloc(65536, 3)
+  ]
+
+  for (const pkt of packets) a.write(pkt)
+
+  a.end()
+
+  a.once('finish', function () {
+    a.destroy()
+  })
+
+  const received = []
+
+  b.on('data', function (data) {
+    received.push(b4a.from(data))
+  })
+
+  b.on('end', function () {
+    const all = b4a.concat(received)
+    t.is(all.length, 3 * 65536, 'peer received all bytes from 3 packets')
+    t.is(all[0], 1, 'first packet intact at start')
+    t.is(all[65536], 2, 'second packet intact at offset 65536')
+    t.is(all[2 * 65536], 3, 'last packet intact at offset 131072')
+    b.end()
+  })
+})
