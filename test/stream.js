@@ -960,11 +960,11 @@ test('destroy after finish delivers all packets to peer (hyperdht#232)', async f
 
   for (const pkt of packets) a.write(pkt)
 
-  a.end()
-
   a.once('finish', function () {
     a.destroy()
   })
+
+  a.end()
 
   const received = []
 
