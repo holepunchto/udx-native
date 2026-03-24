@@ -187,7 +187,6 @@ test('unordered messages', async function (t) {
     if (expected.length === 3) {
       t.alike(expected.sort(), ['echo: a', 'echo: bc', 'echo: d'])
 
-      // TODO: .end() here triggers a bug, investigate
       b.destroy()
     }
   })
@@ -217,7 +216,6 @@ test('try send unordered messages', async function (t) {
     if (expected.length === 3) {
       t.alike(expected.sort(), ['echo: a', 'echo: bc', 'echo: d'])
 
-      // TODO: .end() here triggers a bug, investigate
       b.destroy()
     }
   })
