@@ -2,7 +2,9 @@ name: Canary
 on:
   push:
     tags:
-      - '*'
+      - v*
+permissions:
+  contents: read
 jobs:
   canary:
     runs-on: ubuntu-latest
