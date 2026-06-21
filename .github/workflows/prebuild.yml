@@ -16,6 +16,10 @@ jobs:
             platform: linux
             arch: arm64
             container: ubuntu:22.04
+          - os: ubuntu-22.04-arm
+            platform: linux
+            arch: arm
+            container: ubuntu:22.04
           - os: ubuntu-24.04
             platform: android
             arch: x64
