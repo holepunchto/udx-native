@@ -304,9 +304,11 @@ Wait for pending stream writes to have been explicitly acknowledged by the other
 
 Emitted after the stream is connected to a socket.
 
-#### `stream.on('message', onmessage)`
+#### `stream.on('message', (message, source) => {})`
 
-Emitted if the stream receives a message.
+Emitted if the stream receives a message. `source` is `stream.constructor.RECV_SOURCE_CURRENT`
+when the message arrived on the stream's current socket and `stream.constructor.RECV_SOURCE_OTHER`
+when it arrived on another accepted socket.
 
 #### `stream.on('remote-changed', onremotechanged)`
 

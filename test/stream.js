@@ -1,5 +1,6 @@
 const test = require('brittle')
 const b4a = require('b4a')
+const { once } = require('events')
 const { Readable } = require('streamx')
 const proxy = require('./helpers/proxy')
 const UDX = require('../')
@@ -223,6 +224,70 @@ test('try send unordered messages', async function (t) {
   a.trySend(b4a.from('a'))
   a.trySend(b4a.from('bc'))
   a.trySend(b4a.from('d'))
+})
+
+test('stream message receive source', async function (t) {
+  t.plan(6)
+
+  const u = new UDX()
+
+  const aSocket = createSocket(t, u)
+  const bSocket = createSocket(t, u)
+  const cSocket = createSocket(t, u)
+
+  aSocket.bind(0, '127.0.0.1')
+  bSocket.bind(0, '127.0.0.1')
+  cSocket.bind(0, '127.0.0.1')
+
+  let firewallCalled = false
+
+  const a = u.createStream(1, {
+    firewall(socket) {
+      t.is(socket, aSocket)
+      firewallCalled = true
+      return false
+    }
+  })
+  const b = u.createStream(2)
+
+  const done = new Promise((resolve, reject) => {
+    a.on('error', reject)
+    b.on('error', reject)
+
+    let messages = 0
+
+    a.on('message', async function (message, source) {
+      if (messages++ === 0) {
+        t.alike(message, b4a.from('first'))
+        t.is(source, a.constructor.RECV_SOURCE_CURRENT)
+
+        await a.changeRemote(cSocket, b.id, bSocket.address().port)
+        b.trySend(b4a.from('second'))
+        return
+      }
+
+      t.alike(message, b4a.from('second'))
+      t.is(source, a.constructor.RECV_SOURCE_OTHER)
+      t.ok(firewallCalled)
+      resolve()
+    })
+  })
+
+  a.connect(aSocket, b.id, bSocket.address().port)
+  b.connect(bSocket, a.id, aSocket.address().port)
+
+  b.trySend(b4a.from('first'))
+
+  await done
+
+  const closed = Promise.all([once(a, 'close'), once(b, 'close')])
+  a.destroy()
+  b.destroy()
+  await closed
+
+  aSocket.close()
+  bSocket.close()
+  cSocket.close()
 })
 
 test('ipv6 streams', async function (t) {

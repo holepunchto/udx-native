@@ -22,7 +22,7 @@ using cb_stream_data_t = js_function_t<js_typedarray_span_t<>, js_receiver_t, ui
 using cb_stream_drain_t = js_function_t<void, js_receiver_t>;
 using cb_stream_ack_t = js_function_t<void, js_receiver_t, uint32_t>;
 using cb_stream_send_t = js_function_t<void, js_receiver_t, int32_t, int32_t>;
-using cb_stream_message_t = js_function_t<js_typedarray_span_t<>, js_receiver_t, uint32_t>;
+using cb_stream_message_t = js_function_t<js_typedarray_span_t<>, js_receiver_t, uint32_t, uint32_t>;
 using cb_stream_realloc_data_t = js_function_t<js_typedarray_span_t<>, js_receiver_t>;
 using cb_stream_realloc_message_t = js_function_t<js_typedarray_span_t<>, js_receiver_t>;
 using cb_stream_close_t = js_function_t<void, js_receiver_t, std::optional<js_object_t>>;
@@ -519,7 +519,7 @@ on_udx_stream_send (udx_stream_send_t *req, int status) {
 }
 
 static void
-on_udx_stream_recv (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf) {
+on_udx_stream_recv (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf, const udx_stream_recv_info_t *info) {
   int err;
 
   auto n = reinterpret_cast<udx_napi_stream_t *>(stream);
@@ -545,7 +545,14 @@ on_udx_stream_recv (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
   assert(err == 0);
 
   js_typedarray_span_t<> res;
-  err = js_call_function_with_checkpoint<js_type_options_t{}, js_typedarray_span_t<>, js_receiver_t, uint32_t>(env, callback, ctx, uint32_t(read_len), res);
+  err = js_call_function_with_checkpoint<js_type_options_t{}, js_typedarray_span_t<>, js_receiver_t, uint32_t, uint32_t>(
+    env,
+    callback,
+    ctx,
+    uint32_t(read_len),
+    uint32_t(info->source),
+    res
+  );
 
   if (err == 0) {
     n->udx->read_buf = res.data();
@@ -1295,7 +1302,7 @@ udx_napi_stream_recv_start (
 
   err = udx_stream_read_start(&stream->stream, on_udx_stream_read);
   assert(err == 0);
-  err = udx_stream_recv_start(&stream->stream, on_udx_stream_recv);
+  err = udx_stream_recv_start_with_info(&stream->stream, on_udx_stream_recv);
   assert(err == 0);
 }
 
