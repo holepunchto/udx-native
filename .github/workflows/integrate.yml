@@ -20,8 +20,12 @@ jobs:
           - os: ubuntu-latest
             platform: linux
             arch: x64
+          - os: ubuntu-latest
+            platform: linux
+            arch: x64
             source: true
             flags: --sanitize address
+            test: npm run test:bare
           - os: macos-latest
             platform: darwin
             arch: arm64
@@ -29,7 +33,7 @@ jobs:
             platform: win32
             arch: x64
     runs-on: ${{ matrix.os }}
-    name: Test / ${{ matrix.platform }}-${{ matrix.arch }}
+    name: Test / ${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.source && ' (asan)' || '' }}
     steps:
       - uses: holepunchto/actions/bare-base@v1
         with:
@@ -40,6 +44,6 @@ jobs:
           platform: ${{ matrix.platform }}
           arch: ${{ matrix.arch }}
           flags: --debug ${{ matrix.flags }}
-      - run: npm test
+      - run: ${{ matrix.test || 'npm test' }}
         env:
           LSAN_OPTIONS: suppressions=test/leaks.txt
