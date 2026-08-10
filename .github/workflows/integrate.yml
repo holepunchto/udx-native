@@ -20,6 +20,8 @@ jobs:
           - os: ubuntu-latest
             platform: linux
             arch: x64
+            source: true
+            flags: --sanitize address
           - os: macos-latest
             platform: darwin
             arch: arm64
@@ -30,9 +32,14 @@ jobs:
     name: Test / ${{ matrix.platform }}-${{ matrix.arch }}
     steps:
       - uses: holepunchto/actions/bare-base@v1
+        with:
+          source: ${{ matrix.source }}
+          flags: --debug ${{ matrix.flags }}
       - uses: holepunchto/actions/compile-prebuilds@v1
         with:
           platform: ${{ matrix.platform }}
           arch: ${{ matrix.arch }}
-          flags: --debug
+          flags: --debug ${{ matrix.flags }}
       - run: npm test
+        env:
+          LSAN_OPTIONS: suppressions=test/leaks.txt
