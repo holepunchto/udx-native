@@ -1546,7 +1546,7 @@ udx_napi_lookup (
   self->udx = udx;
 
   std::string host;
-  err = js_get_value_string(env, host_str, host);
+  err = js_get_value(env, host_str, host);
   assert(err == 0);
 
   udx_lookup_t *lookup = &self->handle;
