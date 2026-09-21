@@ -378,7 +378,7 @@ test('write empty buffer', async function (t) {
 })
 
 test('out of order packets', async function (t) {
-  t.plan(3)
+  t.plan(5)
 
   const u = new UDX()
 
@@ -395,12 +395,19 @@ test('out of order packets', async function (t) {
     .join('')
   let received = ''
 
-  const p = await proxy({ from: a, to: b }, async function (pkt) {
+  const p = await proxy({ from: a, to: b }, async function (pkt, source) {
+    if (pkt.isDestroy && source.peer !== 'unknown') {
+      t.pass('proxy consumed a destroy packet')
+      return true
+    }
+
     // Add a random delay to every packet
     await new Promise((resolve) => setTimeout(resolve, (Math.random() * 1000) | 0))
 
     return false
   })
+
+  t.teardown(() => Promise.all([a.close(), b.close(), p.close()]))
 
   const aStream = u.createStream(1)
   const bStream = u.createStream(2)
@@ -418,7 +425,6 @@ test('out of order packets', async function (t) {
     if (received.length === expected.length) {
       t.alike(received, expected, 'received in order')
 
-      p.close()
       aStream.destroy()
       bStream.destroy()
     }
@@ -436,7 +442,7 @@ test('out of order packets', async function (t) {
 })
 
 test('out of order reads but can destroy (memleak test)', async function (t) {
-  t.plan(3)
+  t.plan(5)
 
   const u = new UDX()
 
@@ -448,11 +454,15 @@ test('out of order reads but can destroy (memleak test)', async function (t) {
 
   let processed = 0
 
-  const p = await proxy({ from: a, to: b }, function (pkt) {
+  const p = await proxy({ from: a, to: b }, function (pkt, source) {
+    if (pkt.isDestroy && source.peer !== 'unknown') {
+      t.pass('proxy consumed a destroy packet')
+      return true
+    }
+
     if (pkt.data.toString().startsWith('a') && processed > 0) {
       // destroy with out or order packets delivered
       t.pass('close while streams have out of order state')
-      p.close()
       aStream.destroy()
       bStream.destroy()
       return true
@@ -460,6 +470,8 @@ test('out of order reads but can destroy (memleak test)', async function (t) {
 
     return processed++ === 0 // drop first packet
   })
+
+  t.teardown(() => Promise.all([a.close(), b.close(), p.close()]))
 
   const aStream = u.createStream(1)
   const bStream = u.createStream(2)
