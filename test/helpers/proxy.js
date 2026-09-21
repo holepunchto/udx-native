@@ -18,7 +18,7 @@ module.exports = function proxy({ from, to, bind } = {}, drop) {
   const u = new UDX()
   const socket = u.createSocket()
 
-  socket.bind(bind || 0)
+  socket.bind(bind || 0, '127.0.0.1')
 
   socket.on('message', function (buf, rinfo) {
     const source = {
