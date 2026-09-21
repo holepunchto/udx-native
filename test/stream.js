@@ -396,8 +396,9 @@ test('out of order packets', async function (t) {
   let received = ''
 
   const p = await proxy({ from: a, to: b }, async function (pkt, source) {
+    // Consume both destroy packets before releasing the proxy port for reuse.
     if (pkt.isDestroy && source.peer !== 'unknown') {
-      t.pass('proxy consumed a destroy packet')
+      t.pass(`proxy consumed destroy packet (peer: ${source.peer})`)
       return true
     }
 
@@ -432,12 +433,10 @@ test('out of order packets', async function (t) {
 
   aStream.on('close', function () {
     t.pass('a stream closed')
-    b.close()
   })
 
   bStream.on('close', function () {
     t.pass('b stream closed')
-    a.close()
   })
 })
 
@@ -455,8 +454,9 @@ test('out of order reads but can destroy (memleak test)', async function (t) {
   let processed = 0
 
   const p = await proxy({ from: a, to: b }, function (pkt, source) {
+    // Consume both destroy packets before releasing the proxy port for reuse.
     if (pkt.isDestroy && source.peer !== 'unknown') {
-      t.pass('proxy consumed a destroy packet')
+      t.pass(`proxy consumed destroy packet (peer: ${source.peer})`)
       return true
     }
 
@@ -484,12 +484,10 @@ test('out of order reads but can destroy (memleak test)', async function (t) {
 
   aStream.on('close', function () {
     t.pass('a stream closed')
-    b.close()
   })
 
   bStream.on('close', function () {
     t.pass('b stream closed')
-    a.close()
   })
 })
 
