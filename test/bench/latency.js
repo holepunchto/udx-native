@@ -8,10 +8,10 @@ test('throughput, 600 ms latency ± 100 ms jitter', async (t) => {
   const udx = new UDX()
 
   const aSocket = udx.createSocket()
-  aSocket.bind()
+  aSocket.bind(0, '127.0.0.1')
 
   const bSocket = udx.createSocket()
-  bSocket.bind()
+  bSocket.bind(0, '127.0.0.1')
 
   const a = udx.createStream(1)
   const b = udx.createStream(2)
