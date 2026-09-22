@@ -1254,6 +1254,20 @@ udx_napi_stream_set_ack (
   }
 }
 
+static inline void
+udx_napi_stream_set_keepalive (
+  js_env_t *env,
+  js_typedarray_span_of_t<udx_napi_stream_t, 1> stream,
+  uint32_t timeout_ms
+) {
+  int err = udx_stream_set_keepalive(&stream->stream, timeout_ms);
+
+  if (err < 0) {
+    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
+  }
+}
+
 static double
 udx_napi_stream_get_bw(
   js_env_t *env,
@@ -1780,6 +1794,7 @@ udx_native_exports (js_env_t *env, js_value_t *exports) {
   V("udx_napi_stream_init", udx_napi_stream_init);
   V("udx_napi_stream_set_seq", udx_napi_stream_set_seq);
   V("udx_napi_stream_set_ack", udx_napi_stream_set_ack);
+  V("udx_napi_stream_set_keepalive", udx_napi_stream_set_keepalive);
   V("udx_napi_stream_get_bw", udx_napi_stream_get_bw);
   V("udx_napi_stream_set_mode", udx_napi_stream_set_mode);
   V("udx_napi_stream_connect", udx_napi_stream_connect);
