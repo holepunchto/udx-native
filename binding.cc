@@ -1751,6 +1751,7 @@ udx_native_exports (js_env_t *env, js_value_t *exports) {
   V("offsetof_udx_stream_t_bytes_tx", offsetof(udx_stream_t, bytes_tx));
   V("offsetof_udx_stream_t_packets_tx", offsetof(udx_stream_t, packets_tx));
   V("offsetof_udx_stream_t_rto_count", offsetof(udx_stream_t, rto_count));
+  V("offsetof_udx_stream_t_lifetime_rto_count", offsetof(udx_stream_t, lifetime_rto_count));
   V("offsetof_udx_stream_t_retransmit_count", offsetof(udx_stream_t, retransmit_count));
   V("offsetof_udx_stream_t_fast_recovery_count", offsetof(udx_stream_t, fast_recovery_count));
   V("offsetof_udx_stream_t_bbr_state", offsetof(udx_stream_t, bbr.state));
