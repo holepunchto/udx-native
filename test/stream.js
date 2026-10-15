@@ -848,6 +848,7 @@ test('UDX - basic stats', async function (t) {
 
   t.is(a.retransmits, 0, 'initialized to zero')
   t.is(a.rtoCount, 0, 'initialized to zero')
+  t.is(a.lifetimeRtoCount, 0, 'initialized to zero')
   t.is(a.fastRecoveries, 0, 'initialized to zero')
 
   let aNrDataEvents = 0
@@ -937,39 +938,4 @@ test('UDX - basic stats', async function (t) {
     true,
     `udx socket same packets in as the single stream (${aSocket.packetsReceived})`
   )
-})
-
-test('lifetime rto count keeps counting after an ack', async function (t) {
-  const udx = new UDX()
-
-  const aSocket = createSocket(t, udx)
-  const bSocket = createSocket(t, udx)
-
-  aSocket.bind(0, '127.0.0.1')
-  bSocket.bind(0, '127.0.0.1')
-
-  const a = udx.createStream(1)
-  a.connect(aSocket, 2, bSocket.address().port, '127.0.0.1')
-
-  // stream 2 only appears after the first rto, so the write is acked after a retransmit
-  const b = await new Promise((resolve) => {
-    setTimeout(function () {
-      const b = udx.createStream(2)
-      b.connect(bSocket, 1, aSocket.address().port, '127.0.0.1')
-      b.resume()
-      resolve(b)
-    }, 1500)
-    a.write(b4a.from('hello'))
-  })
-
-  await a.flush()
-  await new Promise((resolve) => setTimeout(resolve, 10)) // rto_count resets after the ack callbacks
-
-  t.ok(a.lifetimeRtoCount > 0)
-  t.is(a.rtoCount, 0)
-
-  a.destroy()
-  b.destroy()
-  aSocket.close()
-  bSocket.close()
 })
