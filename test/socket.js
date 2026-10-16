@@ -13,6 +13,20 @@ test('can bind and close', async function (t) {
   t.pass()
 })
 
+test('socket closing after close', async function (t) {
+  const u = new UDX()
+  const s = createSocket(t, u)
+
+  t.is(s.closing, false)
+
+  const closing = s.close()
+
+  t.is(s.closing, true)
+
+  await closing
+  t.is(s.closing, true)
+})
+
 test('can bind to ipv6 and close', async function (t) {
   const u = new UDX()
   const s = createSocket(t, u)
