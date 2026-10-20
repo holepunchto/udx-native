@@ -848,6 +848,7 @@ test('UDX - basic stats', async function (t) {
 
   t.is(a.retransmits, 0, 'initialized to zero')
   t.is(a.rtoCount, 0, 'initialized to zero')
+  t.is(a.lifetimeRtoCount, 0, 'initialized to zero')
   t.is(a.fastRecoveries, 0, 'initialized to zero')
 
   let aNrDataEvents = 0
