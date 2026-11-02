@@ -909,7 +909,7 @@ udx_napi_socket_init (
   ensure_teardown(env, udx);
 }
 
-static inline int32_t
+static inline void
 udx_napi_socket_bind (
   js_env_t *env,
   js_typedarray_span_of_t<udx_napi_socket_t, 1> self,
@@ -926,13 +926,10 @@ udx_napi_socket_bind (
   load_address(env, ip, ip_str);
 
   struct sockaddr_storage addr;
-  int addr_len;
 
   if (family == 4) {
-    addr_len = sizeof(struct sockaddr_in);
     err = uv_ip4_addr(ip, port, (struct sockaddr_in *) &addr);
   } else {
-    addr_len = sizeof(struct sockaddr_in6);
     err = uv_ip6_addr(ip, port, (struct sockaddr_in6 *) &addr);
   }
 
@@ -940,40 +937,46 @@ udx_napi_socket_bind (
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
 
-    return -1;
+    return;
   }
 
   err = udx_socket_bind(socket, (struct sockaddr *) &addr, flags);
   if (err < 0) {
     err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
     assert(err == 0);
-    return -1;
   }
+}
 
-  // TODO: move the bottom stuff into another function, start, so error handling is easier
+static inline int32_t
+udx_napi_socket_start (
+  js_env_t *env,
+  js_typedarray_span_of_t<udx_napi_socket_t, 1> self
+) {
+  auto socket = &self->socket;
 
   struct sockaddr_storage name;
+  int name_len = sizeof(name);
 
   // wont error in practice
-  err = udx_socket_getsockname(socket, (struct sockaddr *) &name, &addr_len);
-  if (err < 0) {
-    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+  int res = udx_socket_getsockname(socket, (struct sockaddr *) &name, &name_len);
+  if (res < 0) {
+    int err = js_throw_error(env, uv_err_name(res), uv_strerror(res));
     assert(err == 0);
     return -1;
   }
 
   int local_port;
 
-  if (family == 4) {
+  if (name.ss_family == AF_INET) {
     local_port = ntohs(((struct sockaddr_in *) &name)->sin_port);
   } else {
     local_port = ntohs(((struct sockaddr_in6 *) &name)->sin6_port);
   }
 
   // wont error in practice
-  err = udx_socket_recv_start(socket, on_udx_message);
-  if (err < 0) {
-    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+  res = udx_socket_recv_start(socket, on_udx_message);
+  if (res < 0) {
+    int err = js_throw_error(env, uv_err_name(res), uv_strerror(res));
     assert(err == 0);
     return -1;
   }
@@ -1784,6 +1787,7 @@ udx_native_exports (js_env_t *env, js_value_t *exports) {
   V("udx_napi_init", udx_napi_init);
   V("udx_napi_socket_init", udx_napi_socket_init);
   V("udx_napi_socket_bind", udx_napi_socket_bind);
+  V("udx_napi_socket_start", udx_napi_socket_start);
   V("udx_napi_socket_set_ttl", udx_napi_socket_set_ttl);
   V("udx_napi_socket_get_recv_buffer_size", udx_napi_socket_get_recv_buffer_size);
   V("udx_napi_socket_set_recv_buffer_size", udx_napi_socket_set_recv_buffer_size);
