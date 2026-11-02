@@ -3,7 +3,6 @@
 #include <jstl.h>
 #include <stdlib.h>
 #include <string.h>
-#include <algorithm>
 #include <udx.h>
 
 #define UDX_NAPI_INTERACTIVE     0
@@ -374,7 +373,8 @@ on_udx_stream_read (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
         n->frame_header_len = 0;
       }
 
-      size_t take = std::min(size_t(n->frame_len), buf->len - pos);
+      size_t take = buf->len - pos;
+      if (take > size_t(n->frame_len)) take = n->frame_len;
       pos += take;
       n->frame_len -= take;
 
