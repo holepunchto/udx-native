@@ -130,3 +130,33 @@ test('framed mode, invalid frame', function (t) {
 
   a.write(buf)
 })
+
+test('framed mode, frames back to back without end', function (t) {
+  t.plan(1)
+
+  const [a, b] = makeTwoStreams(t, { framed: true })
+  const frames = []
+  for (const len of [140000, 0, 2000]) {
+    const frame = b4a.alloc(3 + len, 0xff)
+    frame.writeUIntLE(len, 0, 3)
+    frames.push(frame)
+  }
+  const sent = b4a.concat(frames)
+
+  const recv = []
+  let received = 0
+
+  b.on('data', (buffer) => {
+    recv.push(buffer)
+    received += buffer.byteLength
+
+    if (received === sent.byteLength) {
+      t.alike(b4a.concat(recv), sent)
+
+      a.destroy()
+      b.destroy()
+    }
+  })
+
+  a.write(sent)
+})
