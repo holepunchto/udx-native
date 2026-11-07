@@ -1560,11 +1560,11 @@ udx_napi_stream_destroy (
 static inline void
 udx_napi_lookup (
   js_env_t *env,
+  js_receiver_t ctx,
   js_typedarray_span_of_t<udx_napi_t, 1> udx,
   js_typedarray_span_of_t<udx_napi_lookup_t, 1> self,
   js_string_t host_str,
   uint32_t family,
-  js_receiver_t ctx, // TODO: use auto receiver
   cb_udx_lookup_t on_lookup
 ) {
   int err;
