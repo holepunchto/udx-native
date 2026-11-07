@@ -71,7 +71,10 @@ struct udx_napi_stream_t {
   uint8_t *read_buf_head;
   size_t read_buf_free;
 
-  ssize_t frame_len;
+  ssize_t frame_len; // body bytes still owed by the current frame, -1 when the next bytes are a header
+
+  uint8_t frame_header[3]; // header bytes collected so far when a header is split across packets
+  int frame_header_len;
 
   js_env_t *env;
   js_persistent_t<js_receiver_t> ctx;
@@ -347,15 +350,6 @@ on_udx_stream_read (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
   // ignore the message if it doesn't fit in the read buffer
   if (buf->len > n->read_buf_free) return;
 
-  if (n->mode == UDX_NAPI_FRAMED && n->frame_len == -1) {
-    if (buf->len < 3) {
-      n->mode = UDX_NAPI_INTERACTIVE;
-    } else {
-      auto b = reinterpret_cast<uint8_t *>(buf->base);
-      n->frame_len = 3 + (b[0] | (b[1] << 8) | (b[2] << 16));
-    }
-  }
-
   memcpy(n->read_buf_head, buf->base, buf->len);
 
   n->read_buf_head += buf->len;
@@ -365,19 +359,35 @@ on_udx_stream_read (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
     return;
   }
 
-  ssize_t read = n->read_buf_head - n->read_buf;
-
   if (n->mode == UDX_NAPI_FRAMED) {
-    if (n->frame_len < read) {
-      n->mode = UDX_NAPI_INTERACTIVE;
-    } else if (n->frame_len == read) {
-      n->frame_len = -1;
-    } else if (n->read_buf_free < 2 * stream->mtu) {
-      n->frame_len -= read;
-    } else {
-      return; // wait for more data
+    // walk the frames in this packet, only calling into js when a frame completes or the buffer is nearly full
+    auto p = reinterpret_cast<const uint8_t *>(buf->base);
+    bool boundary = false;
+
+    for (size_t pos = 0; pos < buf->len;) {
+      if (n->frame_len == -1) {
+        n->frame_header[n->frame_header_len++] = p[pos++];
+        if (n->frame_header_len < 3) continue;
+        auto h = n->frame_header;
+        n->frame_len = h[0] | (h[1] << 8) | (h[2] << 16);
+        n->frame_header_len = 0;
+      }
+
+      size_t take = buf->len - pos;
+      if (take > size_t(n->frame_len)) take = n->frame_len;
+      pos += take;
+      n->frame_len -= take;
+
+      if (n->frame_len == 0) {
+        n->frame_len = -1;
+        boundary = true;
+      }
     }
+
+    if (!boundary && n->read_buf_free >= 2 * stream->mtu) return;
   }
+
+  ssize_t read = n->read_buf_head - n->read_buf;
 
   js_env_t *env = n->env;
 
@@ -1296,6 +1306,10 @@ udx_napi_stream_set_mode (
   uint32_t mode
 ) {
   stream->mode = mode;
+
+  // a frame half read under the old mode can't be resumed, start at a header boundary
+  stream->frame_len = -1;
+  stream->frame_header_len = 0;
 }
 
 static inline void
