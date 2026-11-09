@@ -939,3 +939,40 @@ test('UDX - basic stats', async function (t) {
     `udx socket same packets in as the single stream (${aSocket.packetsReceived})`
   )
 })
+
+test('receive window limits unread data and reopens when read', async function (t) {
+  const readBufferSize = 256 * 1024
+  const total = 4 * readBufferSize
+
+  const [a, b] = makeTwoStreams(t, { readBufferSize })
+
+  a.write(b4a.alloc(total, 'a'))
+  a.end()
+
+  // nobody reads b, so the sender should stop once the window is full
+  await new Promise((resolve) => setTimeout(resolve, 500))
+
+  const unread = b._readableState.buffered
+  t.ok(unread > 0, `received some data while paused (${unread} bytes)`)
+  t.ok(
+    unread <= readBufferSize + 16 * 1024,
+    `unread data stays near readBufferSize (${unread} bytes)`
+  )
+
+  const start = Date.now()
+  let received = 0
+
+  b.on('data', (data) => {
+    received += data.byteLength
+  })
+
+  await new Promise((resolve) => b.once('end', resolve))
+
+  t.is(received, total, 'received everything once reading')
+  t.is(a.rtoCount, 0, 'no rto while the window was closed')
+  // the zero window probe would fire ~1s after the window closed, ~500ms from now
+  const elapsed = Date.now() - start
+  t.ok(elapsed < 250, `window reopened without waiting for a probe (${elapsed}ms)`)
+
+  b.end()
+})
