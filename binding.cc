@@ -76,6 +76,14 @@ struct udx_napi_stream_t {
   uint8_t frame_header[3]; // header bytes collected so far when a header is split across packets
   int frame_header_len;
 
+  // bytes pushed to the js stream but not yet read by the user, written by js
+  uint32_t js_unread;
+
+  // set while the data callback (and its checkpoint) runs. If set,
+  // do not call udx_stream_window_update(), as the ack sent after
+  // stream->on_read will already send the window update.
+  uint32_t in_read;
+
   js_env_t *env;
   js_persistent_t<js_receiver_t> ctx;
   js_persistent_t<cb_stream_data_t> on_data;
@@ -403,6 +411,8 @@ on_udx_stream_read (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
   err = js_get_reference_value(env, n->on_data, callback);
   assert(err == 0);
 
+  n->in_read = 1;
+
   js_typedarray_span_t<> res;
   err = js_call_function_with_checkpoint<js_type_options_t{}, js_typedarray_span_t<>, js_receiver_t, uint32_t>(env, callback, ctx, uint32_t(read), res);
 
@@ -437,8 +447,18 @@ on_udx_stream_read (udx_stream_t *stream, ssize_t read_len, const uv_buf_t *buf)
     }
   }
 
+  n->in_read = 0;
+
   err = js_close_handle_scope(env, scope);
   assert(err == 0);
+}
+
+// unread bytes, libudx advertises rwnd_max minus this as the receive window
+static uint32_t
+on_udx_stream_get_read_buffer_size (udx_stream_t *stream) {
+  auto n = reinterpret_cast<udx_napi_stream_t *>(stream);
+
+  return n->js_unread + uint32_t(n->read_buf_head - n->read_buf);
 }
 
 static void
@@ -1233,6 +1253,8 @@ udx_napi_stream_init (
   udx_stream_firewall(stream, on_udx_stream_firewall);
   udx_stream_write_resume(stream, on_udx_stream_drain);
 
+  stream->get_read_buffer_size = on_udx_stream_get_read_buffer_size;
+
   ensure_teardown(env, udx);
 }
 
@@ -1294,6 +1316,28 @@ udx_napi_stream_get_bw(
   }
 
   return (double) bytes_per_second;
+}
+
+static inline void
+udx_napi_stream_set_rwnd_max (
+  js_env_t *env,
+  js_typedarray_span_of_t<udx_napi_stream_t, 1> stream,
+  uint32_t rwnd_max
+) {
+  int err = udx_stream_set_rwnd_max(&stream->stream, rwnd_max);
+
+  if (err < 0) {
+    err = js_throw_error(env, uv_err_name(err), uv_strerror(err));
+    assert(err == 0);
+  }
+}
+
+static inline bool
+udx_napi_stream_window_update (
+  js_env_t *env,
+  js_typedarray_span_of_t<udx_napi_stream_t, 1> stream
+) {
+  return udx_stream_window_update(&stream->stream) == 1;
 }
 
 static inline void
@@ -1769,6 +1813,8 @@ udx_native_exports (js_env_t *env, js_value_t *exports) {
   V("offsetof_udx_stream_t_retransmit_count", offsetof(udx_stream_t, retransmit_count));
   V("offsetof_udx_stream_t_fast_recovery_count", offsetof(udx_stream_t, fast_recovery_count));
   V("offsetof_udx_stream_t_bbr_state", offsetof(udx_stream_t, bbr.state));
+  V("offsetof_udx_napi_stream_t_js_unread", offsetof(udx_napi_stream_t, js_unread));
+  V("offsetof_udx_napi_stream_t_in_read", offsetof(udx_napi_stream_t, in_read));
   V("offsetof_udx_socket_t_bytes_rx", offsetof(udx_socket_t, bytes_rx));
   V("offsetof_udx_socket_t_packets_rx", offsetof(udx_socket_t, packets_rx));
   V("offsetof_udx_socket_t_bytes_tx", offsetof(udx_socket_t, bytes_tx));
@@ -1811,6 +1857,8 @@ udx_native_exports (js_env_t *env, js_value_t *exports) {
   V("udx_napi_stream_set_ack", udx_napi_stream_set_ack);
   V("udx_napi_stream_set_keepalive", udx_napi_stream_set_keepalive);
   V("udx_napi_stream_get_bw", udx_napi_stream_get_bw);
+  V("udx_napi_stream_set_rwnd_max", udx_napi_stream_set_rwnd_max);
+  V("udx_napi_stream_window_update", udx_napi_stream_window_update);
   V("udx_napi_stream_set_mode", udx_napi_stream_set_mode);
   V("udx_napi_stream_connect", udx_napi_stream_connect);
   V("udx_napi_stream_change_remote", udx_napi_stream_change_remote);
