@@ -1,9 +1,8 @@
-cmake_minimum_required(VERSION 3.25)
+cmake_minimum_required(VERSION 4.0)
 
 find_package(cmake-bare REQUIRED PATHS node_modules/cmake-bare)
 find_package(cmake-fetch REQUIRED PATHS node_modules/cmake-fetch)
 find_package(cmake-napi REQUIRED PATHS node_modules/cmake-napi)
-find_package(cmake-npm REQUIRED PATHS node_modules/cmake-npm)
 
 project(udx_native C CXX)
 
@@ -13,6 +12,7 @@ if(target MATCHES "win32")
   add_compile_options(/MT$<$<CONFIG:Debug>:d>)
 endif()
 
+fetch_package("github:holepunchto/libnapish#8cbfe78")
 fetch_package("github:holepunchto/libudx#040a316")
 fetch_package("github:holepunchto/libjstl#7e31e67")
 
@@ -49,17 +49,12 @@ target_sources(
     binding.cc
 )
 
-target_compile_definitions(
-  ${udx_native_napi}
-  PRIVATE
-    NAPI_VERSION=9
-)
-
 target_link_libraries(
   ${udx_native_napi}
   PRIVATE
     $<TARGET_OBJECTS:udx>
     jstl
+    napish::static
   PUBLIC
     udx
 )
@@ -71,11 +66,3 @@ if(target MATCHES "win32")
       ws2_32
   )
 endif()
-
-resolve_node_module(bare-compat-napi compat)
-
-target_include_directories(
-  ${udx_native_napi}
-  PRIVATE
-    "${compat}/include"
-)
